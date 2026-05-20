@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.topup_credits(uuid, integer, integer, text, uuid) FROM PUBLIC, anon, authenticated; REVOKE ALL ON FUNCTION public.spend_credits_for_pack(uuid, text) FROM PUBLIC, anon; GRANT EXECUTE ON FUNCTION public.spend_credits_for_pack(uuid, text) TO authenticated; REVOKE ALL ON FUNCTION public.create_wallet_for_org() FROM PUBLIC, anon, authenticated;

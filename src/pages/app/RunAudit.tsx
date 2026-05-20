@@ -1,0 +1,606 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { AlertTriangle, FileUp, Link2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { AppShell } from "@/components/app/AppShell";
+import { useOrg } from "@/hooks/useOrg";
+import { getQuestionsFor, type StandardKey } from "@/data/standards";
+import { useToast } from "@/hooks/use-toast";
+import { parseAuditNote, serializeAuditNote, safeEvidenceName, type EvidenceItem } from "@/lib/auditEvidence";
+
+type Audit = { id: string; title: string; standard: string; scope: string | null; status: string; org_id: string };
+type Proc = { id: string; key: string; name: string };
+type AuditProc = { process_id: string; auditor_id: string | null };
+type Answer = { id?: string; clause: string; kind: string; q_ref: string; question_text: string | null; note: string | null; status: string };
+type Custom = { id: string; clause: string; text: string };
+type FindingRow = {
+  id: string;
+  clause: string | null;
+  description: string;
+  capa: string | null;
+  owner: string | null;
+  due_date: string | null;
+  status: string;
+  type: string;
+  root_cause: string | null;
+};
+
+const STATUSES = ["pending", "conform", "minor", "major", "observation", "na"];
+const NONCONFORMING = new Set(["major", "minor", "observation"]);
+const AUTO_FINDING_PREFIX = "AUTO_META:";
+
+export default function RunAudit() {
+  const { id } = useParams();
+  const { currentOrg } = useOrg();
+  const { toast } = useToast();
+  const [audit, setAudit] = useState<Audit | null>(null);
+  const [procs, setProcs] = useState<Proc[]>([]);
+  const [activeProc, setActiveProc] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<string, Answer>>({});
+  const [custom, setCustom] = useState<Custom[]>([]);
+  const [findingsMap, setFindingsMap] = useState<Record<string, FindingRow>>({});
+  const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+
+  const stdForBank: StandardKey =
+    audit?.standard === "27001" ? "9001" : ((audit?.standard as StandardKey) ?? "9001");
+
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      const { data: auditRow } = await supabase.from("audits").select("*").eq("id", id).single();
+      setAudit(auditRow as Audit);
+
+      const { data: auditProcesses } = await supabase.from("audit_processes").select("process_id,auditor_id").eq("audit_id", id);
+      const ids = (auditProcesses ?? []).map((row: AuditProc) => row.process_id);
+      if (ids.length) {
+        const { data: processRows } = await supabase.from("org_processes").select("id,key,name").in("id", ids);
+        setProcs((processRows ?? []) as Proc[]);
+        setActiveProc((processRows?.[0] as Proc)?.id ?? null);
+      }
+
+      const { data: answerRows } = await supabase.from("audit_answers").select("id,clause,kind,q_ref,question_text,note,status,process_id").eq("audit_id", id);
+      const answerMap: Record<string, Answer> = {};
+      (answerRows ?? []).forEach((row: any) => {
+        answerMap[buildAnswerKey(row.process_id, row.clause, row.kind, row.q_ref)] = row;
+      });
+      setAnswers(answerMap);
+
+      const { data: findings } = await supabase
+        .from("findings")
+        .select("id,clause,description,capa,owner,due_date,status,type,root_cause")
+        .eq("audit_id", id);
+      const findingMap: Record<string, FindingRow> = {};
+      (findings ?? []).forEach((finding) => {
+        const meta = parseFindingMeta(finding.root_cause);
+        if (!meta) return;
+        findingMap[buildAnswerKey(meta.processId, finding.clause ?? "", meta.kind, meta.qRef)] = finding as FindingRow;
+      });
+      setFindingsMap(findingMap);
+    })();
+  }, [id]);
+
+  useEffect(() => {
+    if (!currentOrg || !audit || !activeProc) return;
+    const proc = procs.find((process) => process.id === activeProc);
+    if (!proc) return;
+    supabase
+      .from("custom_questions")
+      .select("id,clause,text")
+      .eq("org_id", currentOrg.id)
+      .eq("standard", audit.standard)
+      .eq("process_key", proc.key)
+      .eq("active", true)
+      .then(({ data }) => setCustom((data ?? []) as Custom[]));
+  }, [currentOrg, audit, activeProc, procs]);
+
+  const activeProcMeta = procs.find((process) => process.id === activeProc);
+  const clauseSets = useMemo(() => {
+    if (!activeProcMeta) return [];
+    try {
+      return getQuestionsFor(stdForBank, activeProcMeta.key as any) ?? [];
+    } catch {
+      return [];
+    }
+  }, [activeProcMeta, stdForBank]);
+
+  const saveAnswer = async (answer: Answer & { process_id: string; evidence?: EvidenceItem[] }) => {
+    if (!id) return;
+    const key = buildAnswerKey(answer.process_id, answer.clause, answer.kind, answer.q_ref);
+    const existing = answers[key];
+    const notePayload = serializeAuditNote(answer.note ?? "", answer.evidence ?? parseAuditNote(existing?.note).evidence);
+
+    if (existing?.id) {
+      await supabase.from("audit_answers").update({ status: answer.status, note: notePayload, question_text: answer.question_text }).eq("id", existing.id);
+      setAnswers((prev) => ({ ...prev, [key]: { ...prev[key], status: answer.status, note: notePayload, question_text: answer.question_text } }));
+    } else {
+      const { data } = await supabase.from("audit_answers").insert({
+        audit_id: id,
+        process_id: answer.process_id,
+        clause: answer.clause,
+        kind: answer.kind,
+        q_ref: answer.q_ref,
+        question_text: answer.question_text,
+        note: notePayload,
+        status: answer.status,
+      }).select().single();
+      if (data) setAnswers((prev) => ({ ...prev, [key]: data as any }));
+    }
+  };
+
+  const syncFinding = async ({
+    processId,
+    clause,
+    kind,
+    qRef,
+    questionText,
+    answerStatus,
+    description,
+    capa,
+    owner,
+    dueDate,
+  }: {
+    processId: string;
+    clause: string;
+    kind: string;
+    qRef: string;
+    questionText: string;
+    answerStatus: string;
+    description: string;
+    capa: string;
+    owner: string;
+    dueDate: string;
+  }) => {
+    if (!id || !currentOrg) return;
+    const key = buildAnswerKey(processId, clause, kind, qRef);
+    const existing = findingsMap[key];
+
+    if (!NONCONFORMING.has(answerStatus)) {
+      if (existing?.id) {
+        await supabase.from("findings").delete().eq("id", existing.id);
+        setFindingsMap((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      }
+      return;
+    }
+
+    const payload = {
+      audit_id: id,
+      org_id: currentOrg.id,
+      clause,
+      type: answerStatus,
+      description: description.trim() || questionText,
+      capa: capa.trim() || null,
+      owner: owner.trim() || null,
+      due_date: dueDate || null,
+      status: existing?.status || "open",
+      root_cause: `${AUTO_FINDING_PREFIX}${JSON.stringify({ processId, kind, qRef })}`,
+    };
+
+    if (existing?.id) {
+      const { data } = await supabase.from("findings").update(payload).eq("id", existing.id).select().single();
+      if (data) setFindingsMap((prev) => ({ ...prev, [key]: data as FindingRow }));
+      return;
+    }
+
+    const { data } = await supabase.from("findings").insert(payload).select().single();
+    if (data) setFindingsMap((prev) => ({ ...prev, [key]: data as FindingRow }));
+  };
+
+  const uploadEvidence = async (params: {
+    processId: string;
+    clause: string;
+    kind: string;
+    qRef: string;
+    files: FileList | null;
+    currentNote: string;
+  }) => {
+    if (!id || !currentOrg || !params.files?.length) return;
+    const answerKey = buildAnswerKey(params.processId, params.clause, params.kind, params.qRef);
+    setUploadingFor(answerKey);
+
+    try {
+      const existing = parseAuditNote(answers[answerKey]?.note ?? "");
+      const nextEvidence = [...existing.evidence];
+
+      for (const file of Array.from(params.files)) {
+        const path = `${currentOrg.id}/${id}/${params.processId}/${Date.now()}-${safeEvidenceName(file.name)}`;
+        const { error } = await supabase.storage.from("audit-evidence").upload(path, file, { upsert: false });
+        if (error) throw error;
+        const { data } = supabase.storage.from("audit-evidence").getPublicUrl(path);
+        nextEvidence.push({ name: file.name, url: data.publicUrl, kind: file.type || "file" });
+      }
+
+      await saveAnswer({
+        process_id: params.processId,
+        clause: params.clause,
+        kind: params.kind,
+        q_ref: params.qRef,
+        question_text: answers[answerKey]?.question_text ?? null,
+        note: params.currentNote,
+        status: answers[answerKey]?.status ?? "pending",
+        evidence: nextEvidence,
+      });
+      toast({ title: "Evidence uploaded", description: `${params.files.length} file(s) attached to this audit response.` });
+      return nextEvidence;
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error?.message ?? "Could not upload evidence.", variant: "destructive" });
+    } finally {
+      setUploadingFor(null);
+    }
+  };
+
+  const closeAudit = async () => {
+    if (!id) return;
+    await supabase.from("audits").update({ status: "closed", closed_at: new Date().toISOString() }).eq("id", id);
+    toast({ title: "Audit closed" });
+    setAudit(audit ? { ...audit, status: "closed" } : null);
+  };
+
+  if (!audit) return <AppShell><div>Loading...</div></AppShell>;
+
+  const total = Object.values(answers).length;
+  const conformity = total > 0 ? Math.round((Object.values(answers).filter((answer) => answer.status === "conform").length / total) * 100) : 0;
+
+  return (
+    <AppShell>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{audit.standard.toUpperCase()}</span>
+          <h1 className="mt-1 font-display text-3xl font-bold">{audit.title}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{audit.scope}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">Conformity: <strong className="text-foreground">{conformity}%</strong></span>
+          <Link to={`/app/audits/${audit.id}/report`} className="pill-secondary">Report</Link>
+          {audit.status !== "closed" && <button onClick={closeAudit} className="pill-cta">Close audit</button>}
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start">
+        <aside className="rounded-2xl border border-border bg-card p-3 lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto">
+          <h3 className="px-2 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Processes</h3>
+          <ul className="space-y-1">
+            {procs.map((proc) => (
+              <li key={proc.id}>
+                <button
+                  onClick={() => setActiveProc(proc.id)}
+                  className={`w-full rounded-lg px-3 py-2 text-left text-sm ${activeProc === proc.id ? "bg-primary text-primary-foreground" : "hover:bg-secondary"}`}
+                >
+                  {proc.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </aside>
+
+        <div className="min-h-0 space-y-4">
+          {!activeProc && <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">Pick a process on the left to begin.</div>}
+
+          {activeProc && clauseSets.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">No questions found for this process under this standard.</div>
+          )}
+
+          {activeProc && clauseSets.map((clauseSet: any) => (
+            <div key={clauseSet.clause} className="rounded-2xl border border-border bg-card p-5">
+              <div className="flex items-baseline gap-3">
+                <span className="font-mono text-sm font-semibold">{clauseSet.clause}</span>
+                <h3 className="font-display text-base font-semibold">{clauseSet.title}</h3>
+              </div>
+
+              {(clauseSet.evidence?.length ?? 0) > 0 && (
+                <div className="mt-3 rounded-xl border border-dashed border-border bg-background/70 p-3">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    <FileUp className="h-3.5 w-3.5" />
+                    Evidence you should upload
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {clauseSet.evidence.map((item: string, index: number) => (
+                      <span key={`${clauseSet.clause}-e-${index}`} className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 space-y-3">
+                {(clauseSet.generic ?? []).map((question: string, index: number) => (
+                  <Row
+                    key={`g${index}`}
+                    processId={activeProc}
+                    clause={clauseSet.clause}
+                    kind="generic"
+                    qRef={`g${index}`}
+                    q={question}
+                    answers={answers}
+                    finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "generic", `g${index}`)]}
+                    evidenceHints={clauseSet.evidence ?? []}
+                    uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "generic", `g${index}`)}
+                    onSave={saveAnswer}
+                    onSyncFinding={syncFinding}
+                    onUploadEvidence={uploadEvidence}
+                  />
+                ))}
+                {(clauseSet.specific ?? []).map((question: string, index: number) => (
+                  <Row
+                    key={`s${index}`}
+                    processId={activeProc}
+                    clause={clauseSet.clause}
+                    kind="specific"
+                    qRef={`s${index}`}
+                    q={question}
+                    answers={answers}
+                    finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "specific", `s${index}`)]}
+                    evidenceHints={clauseSet.evidence ?? []}
+                    uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "specific", `s${index}`)}
+                    onSave={saveAnswer}
+                    onSyncFinding={syncFinding}
+                    onUploadEvidence={uploadEvidence}
+                  />
+                ))}
+                {custom.filter((item) => item.clause === clauseSet.clause).map((item) => (
+                  <Row
+                    key={item.id}
+                    processId={activeProc}
+                    clause={clauseSet.clause}
+                    kind="custom"
+                    qRef={item.id}
+                    q={item.text}
+                    answers={answers}
+                    finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)]}
+                    evidenceHints={clauseSet.evidence ?? []}
+                    uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)}
+                    onSave={saveAnswer}
+                    onSyncFinding={syncFinding}
+                    onUploadEvidence={uploadEvidence}
+                    badge="Custom"
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </AppShell>
+  );
+}
+
+function Row({
+  processId,
+  clause,
+  kind,
+  qRef,
+  q,
+  answers,
+  finding,
+  evidenceHints,
+  uploading,
+  onSave,
+  onSyncFinding,
+  onUploadEvidence,
+  badge,
+}: any) {
+  const { toast } = useToast();
+  const key = buildAnswerKey(processId, clause, kind, qRef);
+  const answer = answers[key] ?? { clause, kind, q_ref: qRef, question_text: q, note: "", status: "pending" };
+  const parsed = parseAuditNote(answer.note ?? "");
+  const [status, setStatus] = useState(answer.status);
+  const [note, setNote] = useState(parsed.text);
+  const [evidence, setEvidence] = useState<EvidenceItem[]>(parsed.evidence);
+  const [description, setDescription] = useState(finding?.description ?? q);
+  const [capa, setCapa] = useState(finding?.capa ?? "");
+  const [owner, setOwner] = useState(finding?.owner ?? "");
+  const [dueDate, setDueDate] = useState(finding?.due_date ?? "");
+
+  useEffect(() => {
+    const latest = parseAuditNote(answer.note ?? "");
+    setStatus(answer.status);
+    setNote(latest.text);
+    setEvidence(latest.evidence);
+    setDescription(finding?.description ?? q);
+    setCapa(finding?.capa ?? "");
+    setOwner(finding?.owner ?? "");
+    setDueDate(finding?.due_date ?? "");
+  }, [answer.id, answer.note, answer.status, finding?.id, q]);
+
+  const persistAnswer = async (nextStatus: string, nextNote: string, nextEvidence = evidence) => {
+    await onSave({
+      process_id: processId,
+      clause,
+      kind,
+      q_ref: qRef,
+      question_text: q,
+      status: nextStatus,
+      note: nextNote,
+      evidence: nextEvidence,
+    });
+  };
+
+  const persistFinding = async (nextStatus = status) => {
+    await onSyncFinding({
+      processId,
+      clause,
+      kind,
+      qRef,
+      questionText: q,
+      answerStatus: nextStatus,
+      description,
+      capa,
+      owner,
+      dueDate,
+    });
+  };
+
+  const handleAutoDeclare = async () => {
+    const nextStatus = "minor";
+    const nextDescText = `Clause ${clause} requirement is not fully met: ${q}`;
+    const nextCapa = "Perform root cause analysis, revise operational procedure to address discrepancy, and conduct training session for relevant personnel.";
+    const nextOwner = "Process Owner";
+    const nextDueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+    setStatus(nextStatus);
+    setDescription(nextDescText);
+    setCapa(nextCapa);
+    setOwner(nextOwner);
+    setDueDate(nextDueDate);
+
+    // Save answer as 'minor' status
+    await onSave({
+      process_id: processId,
+      clause,
+      kind,
+      q_ref: qRef,
+      question_text: q,
+      status: nextStatus,
+      note: note || "Finding automatically declared during audit.",
+      evidence,
+    });
+
+    // Auto-sync finding details to the registry
+    await onSyncFinding({
+      processId,
+      clause,
+      kind,
+      qRef,
+      questionText: q,
+      answerStatus: nextStatus,
+      description: nextDescText,
+      capa: nextCapa,
+      owner: nextOwner,
+      dueDate: nextDueDate,
+    });
+
+    toast({
+      title: "Finding declared automatically",
+      description: "Successfully registered as a minor non-conformity with a default CAPA plan, assigned owner, and 30-day due date.",
+    });
+  };
+
+  return (
+    <div className="rounded-xl border border-border p-4 bg-card/40 backdrop-blur-sm transition-all duration-300 hover:shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex-1 min-w-[280px]">
+          <p className="text-sm font-medium leading-relaxed text-foreground">
+            {q}
+            {badge && <span className="ml-2 rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-gold">{badge}</span>}
+          </p>
+          {evidenceHints.length > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">Suggested evidence: {evidenceHints.slice(0, 2).join(" · ")}</p>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {!NONCONFORMING.has(status) && (
+            <button
+              onClick={handleAutoDeclare}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-warning/35 bg-warning/5 px-3.5 py-2 text-xs font-semibold text-warning transition hover:bg-warning/10"
+              title="Automatically declare this question as an audit finding"
+            >
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Auto-declare finding
+            </button>
+          )}
+          <select
+            value={status}
+            onChange={async (e) => {
+              const nextStatus = e.target.value;
+              setStatus(nextStatus);
+              await persistAnswer(nextStatus, note);
+              await persistFinding(nextStatus);
+            }}
+            className="input w-32 text-xs animate-none"
+          >
+            {STATUSES.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        onBlur={() => persistAnswer(status, note)}
+        placeholder="Auditor notes and observations..."
+        className="input mt-3 min-h-[72px] text-sm"
+      />
+
+      <div className="mt-3 rounded-xl border border-dashed border-border bg-background/70 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              <Link2 className="h-3.5 w-3.5" />
+              Evidence uploads
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">Upload records, photos, screenshots, reports, approvals, logs, or signed documents that support this answer.</p>
+          </div>
+          <label className="pill-secondary cursor-pointer">
+            <input
+              type="file"
+              multiple
+              className="hidden"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.wav,.mp3"
+              onChange={async (e) => {
+                const uploaded = await onUploadEvidence({ processId, clause, kind, qRef, files: e.target.files, currentNote: note });
+                if (uploaded) setEvidence(uploaded);
+                e.currentTarget.value = "";
+              }}
+            />
+            {uploading ? "Uploading..." : "Upload evidence"}
+          </label>
+        </div>
+
+        {evidence.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {evidence.map((item) => (
+              <a key={item.url} href={item.url} target="_blank" rel="noreferrer" className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground hover:text-foreground">
+                {item.name}
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {NONCONFORMING.has(status) && (
+        <div className="mt-3 rounded-xl border border-warning/30 bg-warning/5 p-4 animate-fade-in-up">
+          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            Finding record auto-created
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">Just specify the issue details below. This will feed the findings register and the final report automatically.</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Finding statement</label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} onBlur={() => persistFinding()} className="input min-h-[76px] text-sm" />
+            </div>
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">CAPA</label>
+              <textarea value={capa} onChange={(e) => setCapa(e.target.value)} onBlur={() => persistFinding()} placeholder="Corrective and preventive action" className="input min-h-[76px] text-sm" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Owner</label>
+              <input value={owner} onChange={(e) => setOwner(e.target.value)} onBlur={() => persistFinding()} className="input" placeholder="Responsible person" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Due date</label>
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onBlur={() => persistFinding()} className="input" />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function buildAnswerKey(processId: string, clause: string, kind: string, qRef: string) {
+  return `${processId}|${clause}|${kind}|${qRef}`;
+}
+
+function parseFindingMeta(rootCause: string | null) {
+  if (!rootCause?.startsWith(AUTO_FINDING_PREFIX)) return null;
+  try {
+    return JSON.parse(rootCause.slice(AUTO_FINDING_PREFIX.length)) as { processId: string; kind: string; qRef: string };
+  } catch {
+    return null;
+  }
+}
