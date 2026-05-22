@@ -163,9 +163,17 @@ export default function Settings() {
               </Field>
             </div>
           </div>
-          
-          <div className="pt-2 border-t border-border mt-6">
+          <div className="pt-2 border-t border-border mt-6 flex flex-wrap gap-4 items-center justify-between">
             <button onClick={save} className="pill-cta">Save changes</button>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.href = "/";
+              }}
+              className="rounded-2xl border border-destructive/30 hover:border-destructive/60 bg-background/50 hover:bg-destructive/10 px-5 py-2.5 text-xs font-semibold text-destructive transition duration-200"
+            >
+              Sign out of account
+            </button>
           </div>
         </div>
 

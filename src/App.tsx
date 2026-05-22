@@ -30,6 +30,7 @@ import AuditReport from "./pages/app/AuditReport";
 import Findings from "./pages/app/Findings";
 import QuestionBank from "./pages/app/QuestionBank";
 import Settings from "./pages/app/Settings";
+import MrmWorkspace from "./pages/app/MrmWorkspace";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,7 @@ const App = () => (
               <Route path="/app/audits/new" element={<ProtectedRoute><NewAudit /></ProtectedRoute>} />
               <Route path="/app/audits/:id" element={<ProtectedRoute><RunAudit /></ProtectedRoute>} />
               <Route path="/app/audits/:id/report" element={<ProtectedRoute><AuditReport /></ProtectedRoute>} />
+              <Route path="/app/mrm" element={<ProtectedRoute><MrmWorkspace /></ProtectedRoute>} />
               <Route path="/app/findings" element={<ProtectedRoute><Findings /></ProtectedRoute>} />
               <Route path="/app/question-bank" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />
               <Route path="/app/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

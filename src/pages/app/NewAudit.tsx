@@ -14,6 +14,7 @@ const STANDARDS = [
   { code: "45001", label: "ISO 45001 — OH&S" },
   { code: "27001", label: "ISO 27001 — InfoSec" },
   { code: "ims", label: "IMS — Integrated (9001+14001+45001+27001)" },
+  { code: "hse", label: "HSE — Site Inspection" },
 ];
 
 export default function NewAudit() {
@@ -40,9 +41,63 @@ export default function NewAudit() {
     });
   }, [currentOrg]);
 
-  const hasLicense = (std: string) =>
-    licenses.some((l) => packGrantsStandard(l.pack as any, std === "ims" ? "9001" : std)) &&
-    (std !== "ims" || licenses.some((l) => l.pack === "ims"));
+  // Dynamic automatic seeding of HSE processes when HSE is selected
+  useEffect(() => {
+    if (!currentOrg || form.standard !== "hse") return;
+
+    const seedHseProcesses = async () => {
+      const { data: existing } = await supabase
+        .from("org_processes")
+        .select("id,name,key")
+        .eq("org_id", currentOrg.id);
+
+      const existingKeys = new Set((existing ?? []).map((p) => p.key));
+      const { HSE_PROCESSES } = await import("@/data/standardsHse");
+      
+      const toInsert = HSE_PROCESSES.filter((p) => !existingKeys.has(p.key)).map((p) => ({
+        org_id: currentOrg.id,
+        key: p.key,
+        name: p.name,
+      }));
+
+      if (toInsert.length > 0) {
+        const { error } = await supabase.from("org_processes").insert(toInsert);
+        if (error) {
+          console.error("Failed to seed HSE processes:", error);
+          return;
+        }
+      }
+
+      // Re-fetch all processes
+      const { data: updatedProcs } = await supabase
+        .from("org_processes")
+        .select("id,name,key")
+        .eq("org_id", currentOrg.id)
+        .order("name");
+
+      if (updatedProcs) {
+        setProcs(updatedProcs as any);
+        // Pre-select all HSE processes
+        const hseProcs = updatedProcs.filter((p) => p.key && p.key.startsWith("hse_"));
+        const newPicked: Record<string, string> = {};
+        for (const p of hseProcs) {
+          newPicked[p.id] = "";
+        }
+        setPicked(newPicked);
+      }
+    };
+
+    seedHseProcesses();
+  }, [currentOrg, form.standard]);
+
+  const hasLicense = (std: string) => {
+    if (std === "hse") {
+      // HSE standard is granted if the organization has either "hse", "ims", "14001", or "45001" licenses active.
+      return licenses.some((l) => l.pack === "hse" || l.pack === "ims" || l.pack === "14001" || l.pack === "45001");
+    }
+    return licenses.some((l) => packGrantsStandard(l.pack as any, std === "ims" ? "9001" : std)) &&
+      (std !== "ims" || licenses.some((l) => l.pack === "ims"));
+  };
 
   const create = async () => {
     if (!currentOrg || !user) return;
@@ -64,6 +119,11 @@ export default function NewAudit() {
     navigate(`/app/audits/${audit.id}`);
   };
 
+  const visibleProcs = procs.filter((p) => {
+    const isHseProc = p.key && p.key.startsWith("hse_");
+    return form.standard === "hse" ? isHseProc : !isHseProc;
+  });
+
   return (
     <AppShell>
       <Header title="New audit" subtitle="Configure scope, processes, and assignments." />
@@ -74,7 +134,7 @@ export default function NewAudit() {
               {STANDARDS.map((s) => <option key={s.code} value={s.code}>{s.label} {hasLicense(s.code) ? "✓" : "(locked)"}</option>)}
             </select>
           </Field>
-          <Field label="Audit title"><input className="input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Q3 Internal QMS Audit" /></Field>
+          <Field label="Audit title"><input className="input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Q3 HSE Site Inspection" /></Field>
           <Field label="Scope"><textarea className="input min-h-[80px]" value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })} placeholder="Departments / sites covered" /></Field>
           <Field label="Lead auditor">
             <select className="input" value={form.lead} onChange={(e) => setForm({ ...form, lead: e.target.value })}>
@@ -89,7 +149,7 @@ export default function NewAudit() {
           <h3 className="font-display text-base font-semibold">Processes in scope</h3>
           <p className="mt-1 text-xs text-muted-foreground">Tick processes and optionally assign each to an auditor.</p>
           <div className="mt-4 space-y-2">
-            {procs.map((p) => {
+            {visibleProcs.map((p) => {
               const checked = p.id in picked;
               return (
                 <div key={p.id} className={`flex items-center justify-between rounded-xl border p-3 text-sm ${checked ? "border-primary bg-primary/5" : "border-border"}`}>
@@ -110,7 +170,7 @@ export default function NewAudit() {
                 </div>
               );
             })}
-            {procs.length === 0 && <div className="text-sm text-muted-foreground">No processes yet — add some on the Processes page first.</div>}
+            {visibleProcs.length === 0 && <div className="text-sm text-muted-foreground">No processes yet — add some on the Processes page first.</div>}
           </div>
         </div>
       </div>

@@ -138,6 +138,9 @@ export default function RunAudit() {
     capa,
     owner,
     dueDate,
+    correction,
+    rootCauseText,
+    severity,
   }: {
     processId: string;
     clause: string;
@@ -149,6 +152,9 @@ export default function RunAudit() {
     capa: string;
     owner: string;
     dueDate: string;
+    correction?: string;
+    rootCauseText?: string;
+    severity?: string;
   }) => {
     if (!id || !currentOrg) return;
     const key = buildAnswerKey(processId, clause, kind, qRef);
@@ -166,6 +172,21 @@ export default function RunAudit() {
       return;
     }
 
+    const deriveSeverity = (type: string) => {
+      if (type === "major") return "High";
+      if (type === "minor") return "Medium";
+      return "Low";
+    };
+
+    const rootCausePayload = `${AUTO_FINDING_PREFIX}${JSON.stringify({
+      processId,
+      kind,
+      qRef,
+      correction: (correction ?? "").trim(),
+      rootCauseText: (rootCauseText ?? "").trim(),
+      severity: severity || deriveSeverity(answerStatus),
+    })}`;
+
     const payload = {
       audit_id: id,
       org_id: currentOrg.id,
@@ -176,7 +197,7 @@ export default function RunAudit() {
       owner: owner.trim() || null,
       due_date: dueDate || null,
       status: existing?.status || "open",
-      root_cause: `${AUTO_FINDING_PREFIX}${JSON.stringify({ processId, kind, qRef })}`,
+      root_cause: rootCausePayload,
     };
 
     if (existing?.id) {
@@ -387,6 +408,13 @@ function Row({
   const key = buildAnswerKey(processId, clause, kind, qRef);
   const answer = answers[key] ?? { clause, kind, q_ref: qRef, question_text: q, note: "", status: "pending" };
   const parsed = parseAuditNote(answer.note ?? "");
+  
+  const deriveSeverity = (type: string) => {
+    if (type === "major") return "High";
+    if (type === "minor") return "Medium";
+    return "Low";
+  };
+
   const [status, setStatus] = useState(answer.status);
   const [note, setNote] = useState(parsed.text);
   const [evidence, setEvidence] = useState<EvidenceItem[]>(parsed.evidence);
@@ -395,8 +423,14 @@ function Row({
   const [owner, setOwner] = useState(finding?.owner ?? "");
   const [dueDate, setDueDate] = useState(finding?.due_date ?? "");
 
+  const meta = parseFindingMeta(finding?.root_cause ?? null);
+  const [correction, setCorrection] = useState(meta?.correction ?? "");
+  const [rootCauseText, setRootCauseText] = useState(meta?.rootCauseText ?? "");
+  const [severity, setSeverity] = useState(meta?.severity ?? deriveSeverity(finding?.type ?? status));
+
   useEffect(() => {
     const latest = parseAuditNote(answer.note ?? "");
+    const latestMeta = parseFindingMeta(finding?.root_cause ?? null);
     setStatus(answer.status);
     setNote(latest.text);
     setEvidence(latest.evidence);
@@ -404,6 +438,9 @@ function Row({
     setCapa(finding?.capa ?? "");
     setOwner(finding?.owner ?? "");
     setDueDate(finding?.due_date ?? "");
+    setCorrection(latestMeta?.correction ?? "");
+    setRootCauseText(latestMeta?.rootCauseText ?? "");
+    setSeverity(latestMeta?.severity ?? deriveSeverity(finding?.type ?? answer.status));
   }, [answer.id, answer.note, answer.status, finding?.id, q]);
 
   const persistAnswer = async (nextStatus: string, nextNote: string, nextEvidence = evidence) => {
@@ -431,6 +468,9 @@ function Row({
       capa,
       owner,
       dueDate,
+      correction,
+      rootCauseText,
+      severity,
     });
   };
 
@@ -440,12 +480,18 @@ function Row({
     const nextCapa = "Perform root cause analysis, revise operational procedure to address discrepancy, and conduct training session for relevant personnel.";
     const nextOwner = "Process Owner";
     const nextDueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const nextCorrection = "Immediately contain the issue, quarantine affected areas/items, and inform the team.";
+    const nextRootCause = "Lack of formal training and standard operational compliance monitoring.";
+    const nextSeverity = "Medium";
 
     setStatus(nextStatus);
     setDescription(nextDescText);
     setCapa(nextCapa);
     setOwner(nextOwner);
     setDueDate(nextDueDate);
+    setCorrection(nextCorrection);
+    setRootCauseText(nextRootCause);
+    setSeverity(nextSeverity);
 
     // Save answer as 'minor' status
     await onSave({
@@ -471,6 +517,9 @@ function Row({
       capa: nextCapa,
       owner: nextOwner,
       dueDate: nextDueDate,
+      correction: nextCorrection,
+      rootCauseText: nextRootCause,
+      severity: nextSeverity,
     });
 
     toast({
@@ -573,17 +622,57 @@ function Row({
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Finding statement</label>
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} onBlur={() => persistFinding()} className="input min-h-[76px] text-sm" />
             </div>
+            
             <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">CAPA</label>
-              <textarea value={capa} onChange={(e) => setCapa(e.target.value)} onBlur={() => persistFinding()} placeholder="Corrective and preventive action" className="input min-h-[76px] text-sm" />
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Correction / Containment Action (Immediate containment)</label>
+              <textarea value={correction} onChange={(e) => setCorrection(e.target.value)} onBlur={() => persistFinding()} placeholder="Contain the problem, isolate/quarantine affected items, clean up immediately..." className="input min-h-[76px] text-sm" />
             </div>
+
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Root Cause Analysis (RCA) Details</label>
+              <textarea value={rootCauseText} onChange={(e) => setRootCauseText(e.target.value)} onBlur={() => persistFinding()} placeholder="Why did this occur? Trace back to procedural, tool, training, or systemic root causes..." className="input min-h-[76px] text-sm" />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Corrective & Preventive Action (CAPA)</label>
+              <textarea value={capa} onChange={(e) => setCapa(e.target.value)} onBlur={() => persistFinding()} placeholder="Long-term actions to prevent recurrence..." className="input min-h-[76px] text-sm" />
+            </div>
+            
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Severity Rating</label>
+              <select value={severity} onChange={(e) => {
+                const nextSeverity = e.target.value;
+                setSeverity(nextSeverity);
+                onSyncFinding({
+                  processId,
+                  clause,
+                  kind,
+                  qRef,
+                  questionText: q,
+                  answerStatus: status,
+                  description,
+                  capa,
+                  owner,
+                  dueDate,
+                  correction,
+                  rootCauseText,
+                  severity: nextSeverity,
+                });
+              }} className="input text-xs">
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </div>
+            
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Owner</label>
               <input value={owner} onChange={(e) => setOwner(e.target.value)} onBlur={() => persistFinding()} className="input" placeholder="Responsible person" />
             </div>
-            <div>
+            
+            <div className="md:col-span-2">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Due date</label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onBlur={() => persistFinding()} className="input" />
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onBlur={() => persistFinding()} className="input w-full md:w-1/2" />
             </div>
           </div>
         </div>
@@ -599,7 +688,14 @@ function buildAnswerKey(processId: string, clause: string, kind: string, qRef: s
 function parseFindingMeta(rootCause: string | null) {
   if (!rootCause?.startsWith(AUTO_FINDING_PREFIX)) return null;
   try {
-    return JSON.parse(rootCause.slice(AUTO_FINDING_PREFIX.length)) as { processId: string; kind: string; qRef: string };
+    return JSON.parse(rootCause.slice(AUTO_FINDING_PREFIX.length)) as {
+      processId: string;
+      kind: string;
+      qRef: string;
+      correction?: string;
+      rootCauseText?: string;
+      severity?: string;
+    };
   } catch {
     return null;
   }

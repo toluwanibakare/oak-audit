@@ -10,16 +10,19 @@ import {
   FileText,
   Globe,
   LayoutGrid,
+  Menu,
   Moon,
   Play,
   ShieldCheck,
   Sun,
   Users,
+  X,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import heroAudit from "@/assets/hero-audit.jpg";
 import heroSide from "@/assets/hero-side.jpg";
 import heroBg from "@/assets/hero-bg.jpg";
+import logo from "@/assets/logo.png";
 
 /* ─── data ─────────────────────────────────────────────────── */
 
@@ -156,6 +159,7 @@ export default function Landing() {
   const isLoggedIn = !loading && !!user;
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -176,18 +180,16 @@ export default function Landing() {
     <div className="min-h-screen bg-background text-foreground">
       {/* ── Header ──────────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 lg:px-10">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-10">
           {/* Logo + brand name + tagline in one line */}
-          <Link to="/" className="flex items-center gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-primary text-white shadow-card">
-              <span className="font-display text-sm font-bold">O</span>
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="font-display text-[15px] font-bold text-foreground leading-tight">
+          <Link to="/" className="flex items-center gap-2.5 min-w-0">
+            <img src={logo} alt="OAK Logo" className="h-9 w-auto shrink-0 object-contain" />
+            <div className="flex flex-col min-w-0">
+              <span className="font-display text-[13.5px] sm:text-[14.5px] font-extrabold text-foreground leading-none truncate">
                 OAK Global International
               </span>
-              <span className="hidden text-xs text-muted-foreground sm:block">
-                · Audit Workspace
+              <span className="font-display text-[9px] sm:text-[10.5px] text-primary font-bold leading-none mt-1 tracking-wide block">
+                IMS Audit Platform
               </span>
             </div>
           </Link>
@@ -199,39 +201,139 @@ export default function Landing() {
             <a href="#pricing" className="transition hover:text-foreground">Pricing</a>
           </nav>
 
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-2 shrink-0">
             {/* Premium Theme Toggle button */}
             <button
               onClick={() => setTheme((mounted ? theme : "light") === "dark" ? "light" : "dark")}
-              className="group relative grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-background/50 text-foreground transition-all duration-300 hover:bg-secondary hover:text-primary focus:outline-none"
+              className="group relative grid h-8.5 w-8.5 shrink-0 place-items-center rounded-lg border border-border bg-background/50 text-foreground transition-all duration-300 hover:bg-secondary hover:text-primary focus:outline-none"
               title="Toggle theme"
               aria-label="Toggle theme"
             >
-              <Sun className={`h-4 w-4 transition-all duration-300 text-amber-500 ${
+              <Sun className={`h-3.5 w-3.5 transition-all duration-300 text-amber-500 ${
                 (mounted ? theme : "light") === "dark" ? "rotate-90 scale-0 opacity-0" : "rotate-0 scale-100 opacity-100"
               }`} />
-              <Moon className={`absolute h-4 w-4 transition-all duration-300 text-primary ${
+              <Moon className={`absolute h-3.5 w-3.5 transition-all duration-300 text-primary ${
                 (mounted ? theme : "light") === "dark" ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-0 opacity-0"
               }`} />
             </button>
 
+            {/* Desktop Actions */}
+            <div className="hidden md:flex items-center gap-2">
+              {isLoggedIn ? (
+                <Link to="/app" className="pill-cta text-xs px-4 py-2">
+                  <span>Dashboard</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              ) : (
+                <>
+                  <Link to="/auth" className="pill-secondary text-xs px-3.5 py-2">Sign in</Link>
+                  <Link to="/auth" className="pill-cta text-xs px-4 py-2">
+                    <span>Get started</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </>
+              )}
+            </div>
+
+            {/* Hamburger Button for Mobile */}
+            <button
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="inline-flex h-8.5 w-8.5 items-center justify-center rounded-lg border border-border bg-background/50 text-muted-foreground transition hover:bg-secondary hover:text-foreground md:hidden"
+              aria-label="Open navigation menu"
+            >
+              <Menu className="h-4.5 w-4.5" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* ── Mobile Navigation Drawer Backdrop ─────────────────────── */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm transition-opacity duration-300 md:hidden animate-fade-in"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* ── Mobile Navigation Drawer Menu ─────────────────────────── */}
+      <div
+        className={`fixed inset-y-0 right-0 z-50 w-72 border-l border-border/80 bg-card/95 backdrop-blur-md p-6 transition-transform duration-300 ease-in-out md:hidden shadow-elevated ${
+          isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <div className="flex flex-col h-full justify-between">
+          <div>
+            <div className="flex items-center justify-between border-b border-border/50 pb-4 mb-6">
+              <div className="flex items-center gap-2">
+                <img src={logo} alt="OAK Logo" className="h-7 w-auto object-contain" />
+                <span className="font-display font-bold text-xs text-foreground uppercase tracking-wider">Navigation</span>
+              </div>
+              <button
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground transition"
+                aria-label="Close menu"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <nav className="flex flex-col gap-2 font-display text-sm font-semibold">
+              <a
+                href="#features"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="rounded-xl px-4 py-3 hover:bg-secondary text-muted-foreground hover:text-foreground transition"
+              >
+                Features
+              </a>
+              <a
+                href="#how-it-works"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="rounded-xl px-4 py-3 hover:bg-secondary text-muted-foreground hover:text-foreground transition"
+              >
+                How it works
+              </a>
+              <a
+                href="#pricing"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="rounded-xl px-4 py-3 hover:bg-secondary text-muted-foreground hover:text-foreground transition"
+              >
+                Pricing
+              </a>
+            </nav>
+          </div>
+
+          <div className="border-t border-border/50 pt-6 space-y-3">
             {isLoggedIn ? (
-              <Link to="/app" className="pill-cta text-sm px-5 py-2">
-                Go to Dashboard
-                <ArrowRight className="h-4 w-4" />
+              <Link
+                to="/app"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="pill-cta w-full justify-center text-center text-xs py-3.5"
+              >
+                <span>Go to Dashboard</span>
+                <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             ) : (
               <>
-                <Link to="/auth" className="pill-secondary text-sm px-4 py-2">Sign in</Link>
-                <Link to="/auth" className="pill-cta text-sm px-4 py-2">
-                  Get started
-                  <ArrowRight className="h-4 w-4" />
+                <Link
+                  to="/auth"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="pill-secondary w-full justify-center text-center text-xs py-3.5"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  to="/auth"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="pill-cta w-full justify-center text-center text-xs py-3.5"
+                >
+                  <span>Get started</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </>
             )}
           </div>
         </div>
-      </header>
+      </div>
 
       <main>
         {/* ── Hero ─────────────────────────────────────────────── */}
@@ -245,33 +347,33 @@ export default function Landing() {
           <div className="hero-overlay" />
 
           {/* Content — centered */}
-          <div className="relative z-10 mx-auto max-w-4xl px-6 py-20 text-center text-white">
+          <div className="relative z-10 mx-auto max-w-4xl px-6 py-16 sm:py-24 text-center text-white">
             <div className="animate-fade-in-up">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-white/90 backdrop-blur-sm">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3.5 py-1.5 text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-white/90 backdrop-blur-sm">
                 <BadgeCheck className="h-3.5 w-3.5" />
                 ISO-Ready Audit Platform
               </span>
             </div>
 
-            <h1 className="animate-fade-in-up-delay-1 mt-6 text-balance font-display text-5xl font-extrabold leading-[1.05] tracking-tight text-white md:text-6xl lg:text-[4.5rem]">
+            <h1 className="animate-fade-in-up-delay-1 mt-5 text-balance font-display text-3xl sm:text-5xl md:text-6xl lg:text-[4.5rem] font-extrabold leading-[1.1] tracking-tight text-white">
               Audit operations that feel{" "}
               <span className="text-white/85">modern, clear</span>
               <br className="hidden sm:block" /> and easy to run.
             </h1>
 
-            <p className="animate-fade-in-up-delay-2 mx-auto mt-6 max-w-2xl text-base leading-7 text-white/80 md:text-lg">
+            <p className="animate-fade-in-up-delay-2 mx-auto mt-5 max-w-2xl text-sm sm:text-base leading-6 sm:leading-7 text-white/80 md:text-lg">
               OAK Global International gives auditors one clean place to manage processes, run audits,
               collect evidence, track findings, and export polished reports — without the usual friction.
             </p>
 
-            <div className="animate-fade-in-up-delay-3 mt-8 flex flex-wrap items-center justify-center gap-4">
+            <div className="animate-fade-in-up-delay-3 mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3.5 max-w-xs mx-auto sm:max-w-none">
               {isLoggedIn ? (
-                <Link to="/app" className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:opacity-90 hover:-translate-y-0.5">
+                <Link to="/app" className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:opacity-90 hover:-translate-y-0.5">
                   Go to Dashboard
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               ) : (
-                <Link to="/auth" className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-semibold text-primary shadow-elevated transition hover:opacity-90 hover:-translate-y-0.5">
+                <Link to="/auth" className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:opacity-90 hover:-translate-y-0.5">
                   Start auditing free
                   <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -279,14 +381,11 @@ export default function Landing() {
               {/* Watch Demo — placeholder, YouTube link to be added later */}
               <button
                 onClick={() => {
-                  // TODO: Replace with YouTube embed or link once provided
                   alert("Demo video coming soon!");
                 }}
-                className="inline-flex items-center gap-2.5 rounded-full border border-white/30 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 hover:-translate-y-0.5"
+                className="inline-flex items-center justify-center gap-2.5 rounded-full border border-white/30 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 hover:-translate-y-0.5"
               >
-                <span className="grid h-7 w-7 place-items-center rounded-full bg-white/20">
-                  <Play className="h-3.5 w-3.5 fill-white text-white" />
-                </span>
+                <Play className="h-3.5 w-3.5 fill-white text-white shrink-0" />
                 Watch demo
               </button>
             </div>
@@ -400,10 +499,10 @@ export default function Landing() {
                   <img
                     src={heroAudit}
                     alt="Black professional auditor reviewing compliance reports"
-                    className="h-[280px] w-full object-cover"
+                    className="h-[200px] sm:h-[280px] w-full object-cover"
                   />
                 </div>
-                <div className="overflow-hidden rounded-[28px] shadow-elevated">
+                <div className="overflow-hidden rounded-[28px] shadow-elevated hidden sm:block">
                   <img
                     src={heroSide}
                     alt="Black audit team reviewing compliance evidence together"
@@ -513,7 +612,7 @@ export default function Landing() {
                 </div>
               </div>
               
-              <div className="order-1 lg:order-2 flex flex-col justify-center items-center bg-card/70 backdrop-blur rounded-[32px] border border-border/80 p-8 shadow-elevated text-center relative overflow-hidden">
+              <div className="order-1 lg:order-2 flex flex-col justify-center items-center bg-card/70 backdrop-blur rounded-[32px] border border-border/80 p-6 sm:p-8 shadow-elevated text-center relative overflow-hidden">
                 {/* Decorative gradients */}
                 <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl -z-10" />
                 <div className="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-accent/10 blur-3xl -z-10" />
@@ -637,19 +736,19 @@ export default function Landing() {
               Join audit teams across Africa using OAK Global's platform to run ISO-ready audits faster
               and with greater confidence.
             </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+            <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3.5 max-w-xs mx-auto sm:max-w-none">
               <Link
                 to="/auth"
-                className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:opacity-90"
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:opacity-90 hover:-translate-y-0.5"
               >
                 Get started free
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <button
                 onClick={() => alert("Demo video coming soon!")}
-                className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+                className="inline-flex items-center justify-center gap-2.5 rounded-full border border-white/30 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 hover:-translate-y-0.5"
               >
-                <Play className="h-4 w-4 fill-white" />
+                <Play className="h-3.5 w-3.5 fill-white text-white shrink-0" />
                 Watch demo
               </button>
             </div>
@@ -663,9 +762,7 @@ export default function Landing() {
           {/* Top section */}
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between pb-8 border-b border-border/60">
             <div className="flex items-center gap-3">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-white shadow-sm">
-                <span className="font-display text-sm font-bold">O</span>
-              </span>
+              <img src={logo} alt="OAK Logo" className="h-9 w-auto shrink-0 object-contain" />
               <div>
                 <span className="font-display text-base font-bold text-foreground block">OAK Global International</span>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest block">Audit & Compliance Solutions</span>

@@ -13,8 +13,13 @@ import {
   PROCESSES_14001,
   getQuestionsForProcess14001,
 } from "./processAudit14001";
+import {
+  HSE_PROCESSES,
+  getQuestionsForHseProcess,
+  type HseProcessKey,
+} from "./standardsHse";
 
-export type StandardKey = "9001" | "45001" | "14001" | "ims";
+export type StandardKey = "9001" | "45001" | "14001" | "ims" | "hse";
 
 export type StandardMeta = {
   key: StandardKey;
@@ -29,11 +34,10 @@ export const STANDARDS: StandardMeta[] = [
   { key: "45001", code: "ISO 45001:2018", name: "OH&S",         tagline: "Occupational Health & Safety",   storageKey: "conformia-process-audit-45001-v1" },
   { key: "14001", code: "ISO 14001:2015", name: "Environment",  tagline: "Environmental Management System",storageKey: "conformia-process-audit-14001-v1" },
   { key: "ims",   code: "IMS (9001 + 14001 + 45001)", name: "IMS", tagline: "Integrated Management System", storageKey: "conformia-process-audit-ims-v1" },
+  { key: "hse",   code: "HSE Site Inspection", name: "HSE Site Inspection", tagline: "Health, Safety & Environment Site Inspection", storageKey: "conformia-process-audit-hse-v1" },
 ];
 
-// All three standards share the same 18 process keys (same labels too — minor
-// scope-text differences are acceptable; we use 9001 PROCESSES as the master list).
-export type AnyProcessKey = ProcessKey;
+export type AnyProcessKey = ProcessKey | HseProcessKey;
 
 export function getStandard(key: StandardKey): StandardMeta {
   return STANDARDS.find((s) => s.key === key) ?? STANDARDS[0];
@@ -42,14 +46,16 @@ export function getStandard(key: StandardKey): StandardMeta {
 export function getProcessesFor(std: StandardKey) {
   if (std === "45001") return PROCESSES_45001;
   if (std === "14001") return PROCESSES_14001;
+  if (std === "hse") return HSE_PROCESSES;
   return PROCESSES;
 }
 
 export function getQuestionsFor(std: StandardKey, proc: AnyProcessKey): ClauseQuestionSet[] {
   if (std === "45001") return getQuestionsForProcess45001(proc as never) as unknown as ClauseQuestionSet[];
   if (std === "14001") return getQuestionsForProcess14001(proc as never) as unknown as ClauseQuestionSet[];
-  if (std === "ims") return getQuestionsForIms(proc);
-  return getQuestionsForProcess(proc);
+  if (std === "hse") return getQuestionsForHseProcess(proc as HseProcessKey);
+  if (std === "ims") return getQuestionsForIms(proc as ProcessKey);
+  return getQuestionsForProcess(proc as ProcessKey);
 }
 
 // IMS = union of 9001 + 14001 + 45001 question sets per process,
