@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "next-themes";
 import Landing from "./pages/Landing.tsx";
 import Auth from "./pages/Auth.tsx";
 import AppDashboard from "./pages/AppDashboard.tsx";
@@ -34,12 +35,13 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AuthProvider>
-          <OrgProvider>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <OrgProvider>
             <Routes>
               <Route path="/" element={<Landing />} />
               <Route path="/auth" element={<Auth />} />
@@ -71,6 +73,7 @@ const App = () => (
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

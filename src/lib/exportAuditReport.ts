@@ -31,11 +31,11 @@ type ExportAuditFinding = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  conform: "Conform",
-  major: "Major NC",
-  minor: "Minor NC",
-  observation: "Observation",
-  pending: "Pending",
+  conform: "Conformant",
+  major: "Major Nonconformity",
+  minor: "Minor Nonconformity",
+  observation: "Observation / OFI",
+  pending: "Pending / Not Assessed",
   na: "Not Applicable",
 };
 
@@ -50,19 +50,25 @@ export function exportAuditReport({
 }) {
   const generatedAt = meta.generatedAt || new Date().toISOString().slice(0, 10);
   const total = answers.length;
-  const conform = answers.filter((answer) => answer.status === "conform").length;
+  const conform = answers.filter((answer) => answer.status === "conform" || answer.status === "conformant").length;
   const major = answers.filter((answer) => answer.status === "major").length;
   const minor = answers.filter((answer) => answer.status === "minor").length;
-  const observation = answers.filter((answer) => answer.status === "observation").length;
-  const conformity = total ? Math.round((conform / total) * 100) : 0;
+  const observation = answers.filter((answer) => answer.status === "observation" || answer.status === "ofi").length;
+  const na = answers.filter((answer) => answer.status === "na").length;
+  const pending = answers.filter((answer) => answer.status === "pending" || !answer.status).length;
+  
+  const conformity = total ? Math.round((conform / (total - na - pending || 1)) * 100) : 0;
+  
   const responseMix = [
-    { label: "Conform", value: conform, className: "s-conform" },
+    { label: "Conformant", value: conform, className: "s-conform" },
     { label: "Major NC", value: major, className: "s-major" },
     { label: "Minor NC", value: minor, className: "s-minor" },
-    { label: "Observation", value: observation, className: "s-observation" },
+    { label: "Observation / OFI", value: observation, className: "s-observation" },
   ].filter((item) => item.value > 0);
+  
   const findingsByType = groupBy(findings, (finding) => titleCase(finding.type));
   const findingsByStatus = groupBy(findings, (finding) => titleCase(finding.status));
+  
   const processHotspots = topCounts(
     answers.filter((answer) => answer.status === "major" || answer.status === "minor" || answer.status === "observation"),
     (answer) => answer.process || "Unmapped process",
@@ -71,6 +77,7 @@ export function exportAuditReport({
     answers.filter((answer) => answer.status === "major" || answer.status === "minor" || answer.status === "observation"),
     (answer) => answer.clause || "Unspecified",
   );
+  
   const maxResponse = Math.max(...responseMix.map((item) => item.value), 1);
   const maxFindingType = Math.max(...findingsByType.map((item) => item.value), 1);
   const maxFindingStatus = Math.max(...findingsByStatus.map((item) => item.value), 1);
@@ -80,277 +87,486 @@ export function exportAuditReport({
   const html = `<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<title>Audit Report - ${escape(meta.organization)}</title>
-<style>
-  @page { size: A4; margin: 16mm; }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0 auto;
-    max-width: 920px;
-    padding: 28px;
-    color: #162033;
-    background: #f5f1e8;
-    font-family: Arial, Helvetica, sans-serif;
-    line-height: 1.5;
-  }
-  h1, h2, h3 {
-    margin: 0;
-    color: #0f1b2d;
-    font-family: Georgia, "Times New Roman", serif;
-  }
-  h1 { font-size: 34px; font-weight: 700; }
-  h2 {
-    margin-top: 30px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #ced5df;
-    font-size: 20px;
-  }
-  .eyebrow {
-    font-size: 11px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: #5f6b7a;
-  }
-  .cover {
-    padding: 26px 28px;
-    border: 1px solid #d7dce4;
-    background: linear-gradient(135deg, #ffffff 0%, #f4efe6 100%);
-  }
-  .cover-grid {
-    display: grid;
-    grid-template-columns: 1.3fr 0.9fr;
-    gap: 18px;
-    align-items: start;
-  }
-  .hero-box {
-    padding: 16px;
-    border: 1px solid #dde3ea;
-    background: rgba(255,255,255,0.72);
-  }
-  .meta-table, .report-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 14px;
-    font-size: 13px;
-  }
-  .meta-table td, .report-table th, .report-table td {
-    border: 1px solid #d4dae2;
-    padding: 9px 10px;
-    vertical-align: top;
-    text-align: left;
-  }
-  .meta-table td:first-child {
-    width: 32%;
-    font-weight: 700;
-    background: #ece8df;
-  }
-  .report-table th {
-    background: #132238;
-    color: #ffffff;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  .summary-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 10px;
-    margin-top: 16px;
-  }
-  .summary-card {
-    padding: 14px;
-    border: 1px solid #d4dae2;
-    background: #fffdfa;
-  }
-  .summary-value {
-    margin-top: 8px;
-    font-size: 28px;
-    font-weight: 700;
-    font-family: Georgia, "Times New Roman", serif;
-  }
-  .summary-highlight {
-    margin-top: 16px;
-    padding: 18px;
-    border-left: 4px solid #c67b33;
-    background: #fff8ef;
-  }
-  .analytics-grid {
-    display: grid;
-    grid-template-columns: 1.05fr 0.95fr;
-    gap: 14px;
-    margin-top: 16px;
-  }
-  .analytics-card {
-    border: 1px solid #d4dae2;
-    background: #fffdfa;
-    padding: 16px;
-  }
-  .analytics-title {
-    margin-bottom: 10px;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #556173;
-  }
-  .bar-stack {
-    display: grid;
-    gap: 10px;
-  }
-  .bar-row {
-    display: grid;
-    grid-template-columns: 128px 1fr 44px;
-    gap: 10px;
-    align-items: center;
-    font-size: 12px;
-  }
-  .bar-track {
-    height: 11px;
-    overflow: hidden;
-    border-radius: 999px;
-    background: #e8ecf1;
-  }
-  .bar-fill {
-    height: 100%;
-    border-radius: 999px;
-  }
-  .fill-conform { background: linear-gradient(90deg, #2f8f57, #49b26e); }
-  .fill-major { background: linear-gradient(90deg, #a63e3e, #d75b5b); }
-  .fill-minor { background: linear-gradient(90deg, #af7d11, #e0ad32); }
-  .fill-observation { background: linear-gradient(90deg, #3c69b0, #5f8ce0); }
-  .fill-slate { background: linear-gradient(90deg, #617086, #8b98ab); }
-  .hotspot-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 8px;
-    font-size: 12px;
-  }
-  .hotspot-table td {
-    padding: 8px 0;
-    border-bottom: 1px solid #e3e7ed;
-    vertical-align: middle;
-  }
-  .hotspot-table td:last-child {
-    width: 48px;
-    text-align: right;
-    font-weight: 700;
-  }
-  .badge {
-    display: inline-block;
-    padding: 4px 9px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-  .s-conform { background: #dceee1; color: #1f5a34; }
-  .s-major { background: #f7dbdc; color: #842828; }
-  .s-minor { background: #f8e7bf; color: #7b5600; }
-  .s-observation { background: #dfe8fa; color: #244a8f; }
-  .s-pending { background: #eceff3; color: #5b6675; }
-  .s-na { background: #ece6dd; color: #665f55; }
-  .finding-card {
-    margin-top: 14px;
-    border: 1px solid #d4dae2;
-    background: #fffdfa;
-  }
-  .finding-head {
-    padding: 10px 14px;
-    background: #132238;
-    color: #ffffff;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 700;
-  }
-  .finding-body {
-    padding: 14px;
-  }
-  .finding-body p {
-    margin: 0 0 10px;
-  }
-  .small-label {
-    display: block;
-    margin-bottom: 4px;
-    color: #66717f;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 700;
-  }
-  .footer {
-    margin-top: 34px;
-    padding-top: 16px;
-    border-top: 1px solid #d4dae2;
-    color: #66717f;
-    font-size: 11px;
-  }
-  @media print {
-    body { background: white; padding: 0; }
-  }
-</style>
+  <meta charset="utf-8" />
+  <title>Audit Report - ${escape(meta.organization)}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
+    
+    @page { 
+      size: A4; 
+      margin: 20mm; 
+    }
+    
+    * { box-sizing: border-box; }
+    body { 
+      font-family: 'Manrope', 'Helvetica Neue', Arial, sans-serif; 
+      color: #0f172a; 
+      max-width: 900px; 
+      margin: 0 auto; 
+      padding: 40px; 
+      line-height: 1.6; 
+      background: #f8fafc; 
+    }
+    
+    .header-accent-bar {
+      height: 6px;
+      background: linear-gradient(90deg, #0f42f5 0%, #13c653 100%);
+      border-radius: 3px;
+      margin-bottom: 24px;
+    }
+    
+    h1, h2, h3, h4 { 
+      font-family: 'Outfit', sans-serif; 
+      color: #0f172a; 
+      font-weight: 700; 
+      margin: 0 0 12px; 
+    }
+    h1 { 
+      font-size: 28px; 
+      line-height: 1.2; 
+      color: #0f42f5; 
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #475569;
+      margin-bottom: 24px;
+      font-weight: 500;
+    }
+    
+    h2 { 
+      font-size: 18px; 
+      margin-top: 36px; 
+      padding-bottom: 6px; 
+      border-bottom: 2px solid #0f42f5; 
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      page-break-after: avoid;
+    }
+    
+    h3 { 
+      font-size: 14px; 
+      margin-top: 20px; 
+      color: #0f42f5; 
+      border-left: 3px solid #13c653;
+      padding-left: 8px;
+      margin-bottom: 8px;
+    }
+    
+    .eyebrow { 
+      font-family: 'Manrope', monospace; 
+      font-size: 10px; 
+      font-weight: 700;
+      letter-spacing: 0.15em; 
+      text-transform: uppercase; 
+      color: #13c653; 
+      margin-bottom: 8px;
+    }
+    
+    .cover-box {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #ffffff;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    
+    table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      margin: 16px 0; 
+      font-size: 13px; 
+      background: #ffffff;
+      border-radius: 4px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    th, td { 
+      border: 1px solid #e2e8f0; 
+      padding: 10px 12px; 
+      text-align: left; 
+      vertical-align: top; 
+    }
+    
+    th { 
+      background: #0f42f5; 
+      color: #ffffff; 
+      font-weight: 600; 
+      font-family: 'Outfit', sans-serif;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+    }
+    
+    .meta-table td:first-child { 
+      width: 25%; 
+      background: #f1f5f9; 
+      font-weight: 700; 
+      color: #334155;
+    }
+    
+    .badge { 
+      display: inline-block; 
+      padding: 3px 8px; 
+      font-family: 'Manrope', sans-serif; 
+      font-size: 10px; 
+      font-weight: 700;
+      text-transform: uppercase; 
+      border-radius: 4px; 
+      letter-spacing: 0.03em;
+    }
+    .b-conform { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+    .b-ofi, .b-observation { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .b-minor { background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; }
+    .b-major { background: #ffe4e6; color: #be123c; border: 1px solid #fecdd3; }
+    .b-na { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+    .b-pending { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+    
+    .finding-card { 
+      border: 1px solid #cbd5e1; 
+      border-radius: 6px;
+      margin: 20px 0; 
+      background: #ffffff;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+      page-break-inside: avoid;
+    }
+    
+    .finding-header { 
+      background: #0f42f5; 
+      color: #ffffff; 
+      padding: 12px 16px; 
+      font-family: 'Outfit', sans-serif; 
+      font-size: 13px; 
+      font-weight: 600; 
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .finding-table { 
+      margin: 0; 
+      border: 0; 
+      box-shadow: none;
+      border-radius: 0;
+    }
+    
+    .finding-table td { 
+      border: 0; 
+      border-bottom: 1px solid #f1f5f9; 
+    }
+    
+    .finding-table td.lbl { 
+      width: 25%; 
+      background: #f8fafc; 
+      font-weight: 700; 
+      color: #475569;
+      border-right: 1px solid #f1f5f9;
+    }
+    
+    .grc-section {
+      border-top: 2px solid #13c653;
+      background: #fafdfb;
+      padding: 0;
+    }
+    .grc-title {
+      background: #ecfdf5;
+      color: #065f46;
+      padding: 8px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid #d1fae5;
+    }
+    .grc-table {
+      margin: 0;
+      border: 0;
+      box-shadow: none;
+      background: transparent;
+    }
+    .grc-table td {
+      border: 0;
+      border-bottom: 1px solid #e6f4ea;
+    }
+    .grc-table td.lbl {
+      background: #f0fdf4;
+      font-weight: 700;
+      color: #14532d;
+      border-right: 1px solid #e6f4ea;
+    }
+    
+    .stats-table {
+      width: 100%;
+      margin: 16px 0;
+    }
+    
+    .stats-table th {
+      background: #0f42f5;
+      color: #ffffff;
+      font-family: 'Outfit', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid #e2e8f0;
+    }
+    
+    .stats-table td {
+      border: 1px solid #e2e8f0;
+      font-weight: 500;
+    }
+    
+    .conformity-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(135deg, #0f42f5 0%, #13c653 100%);
+      color: #ffffff;
+      padding: 20px 24px;
+      border-radius: 6px;
+      margin-top: 16px;
+      box-shadow: 0 4px 12px rgba(15, 66, 245, 0.15);
+    }
+    .conformity-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .conformity-value {
+      font-family: 'Outfit', sans-serif;
+      font-size: 36px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    
+    .narrative-block {
+      background: #ffffff;
+      padding: 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      margin: 12px 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .narrative-block p {
+      margin: 0;
+      white-space: pre-wrap;
+      font-size: 13.5px;
+      color: #334155;
+    }
+    
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .analytics-card {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #ffffff;
+      padding: 16px;
+      page-break-inside: avoid;
+    }
+    .analytics-title {
+      margin-bottom: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #0f42f5;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 6px;
+    }
+    
+    .bar-stack {
+      display: grid;
+      gap: 8px;
+    }
+    .bar-row {
+      display: grid;
+      grid-template-columns: 120px 1fr 30px;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+    }
+    .bar-track {
+      height: 10px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e2e8f0;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 999px;
+    }
+    .fill-conform { background: #13c653; }
+    .fill-major { background: #e11d48; }
+    .fill-minor { background: #ea580c; }
+    .fill-observation { background: #2563eb; }
+    .fill-slate { background: #64748b; }
+    
+    .hotspot-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 12px;
+    }
+    .hotspot-table td {
+      padding: 6px 0;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+      border: 0;
+    }
+    
+    footer { 
+      margin-top: 50px; 
+      padding-top: 16px; 
+      border-top: 2px solid #e2e8f0; 
+      font-size: 10px; 
+      color: #64748b; 
+      text-align: center;
+      font-family: 'Manrope', sans-serif;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+    }
+    
+    .confidential-stamp {
+      color: #be123c;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+    }
+    
+    .no-findings {
+      padding: 24px;
+      background: #ffffff;
+      border: 1px dashed #cbd5e1;
+      border-radius: 6px;
+      text-align: center;
+      color: #64748b;
+      font-style: italic;
+    }
+    
+    @media print { 
+      body { background: white; padding: 0; color: #000000; } 
+      .finding-card { page-break-inside: avoid; }
+      .analytics-card { page-break-inside: avoid; }
+      h2 { page-break-after: avoid; }
+      table { page-break-inside: auto; }
+      tr { page-break-inside: avoid; page-break-after: auto; }
+      footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        margin-top: 0;
+        padding-top: 10px;
+        border-top: 1px solid #e2e8f0;
+      }
+      body {
+        padding-bottom: 60px;
+      }
+    }
+  </style>
 </head>
 <body>
-  <section class="cover">
-    <div class="cover-grid">
-      <div>
-        <div class="eyebrow">Internal Audit Report</div>
-        <h1 style="margin-top:10px;">${escape(meta.auditTitle)}</h1>
-        <p style="margin:12px 0 0; font-size:15px; color:#445061;">
-          ${escape(meta.organization)}<br/>
-          ${escape(meta.standard)} audit report
-        </p>
-      </div>
-      <div class="hero-box">
-        <div class="eyebrow">Document Status</div>
-        <div style="margin-top:10px; font-size:24px; font-weight:700; font-family:Georgia, 'Times New Roman', serif;">
-          ${escape(titleCase(meta.status))}
-        </div>
-        <p style="margin:12px 0 0; font-size:13px; color:#586273;">
-          Generated on ${escape(generatedAt)} for formal review, filing, and PDF download.
-        </p>
-      </div>
-    </div>
-
-    <table class="meta-table">
-      <tr><td>Company</td><td>${escape(meta.organization)}</td></tr>
-      <tr><td>Audit title</td><td>${escape(meta.auditTitle)}</td></tr>
-      <tr><td>Standard</td><td>${escape(meta.standard)}</td></tr>
-      <tr><td>Scope</td><td>${escape(meta.scope || "-")}</td></tr>
-      <tr><td>Audit started</td><td>${escape(meta.startedAt ? toDate(meta.startedAt) : "-")}</td></tr>
-      <tr><td>Audit closed</td><td>${escape(meta.closedAt ? toDate(meta.closedAt) : "-")}</td></tr>
-      <tr><td>Report issued</td><td>${escape(generatedAt)}</td></tr>
+  <div class="header-accent-bar"></div>
+  <div class="eyebrow">Audit & Assurance Services</div>
+  
+  <div class="cover-box">
+    <h1>${escape(meta.auditTitle)}</h1>
+    <div class="subtitle">${escape(meta.organization)} · Certified Standard ${escape(meta.standard)} Audit Report</div>
+    
+    <table class="meta-table" style="margin-top: 20px; box-shadow: none;">
+      <tr><td>Client Organization</td><td>${escape(meta.organization)}</td></tr>
+      <tr><td>Audit Title</td><td>${escape(meta.auditTitle)}</td></tr>
+      <tr><td>Standard Reference</td><td>${escape(meta.standard)}</td></tr>
+      <tr><td>Audit Scope</td><td>${escape(meta.scope || "Entire Management System scope mapped across operational units.")}</td></tr>
+      <tr><td>Audit Commenced</td><td>${escape(meta.startedAt ? toDate(meta.startedAt) : "-")}</td></tr>
+      <tr><td>Audit Concluded</td><td>${escape(meta.closedAt ? toDate(meta.closedAt) : "-")}</td></tr>
+      <tr><td>Document Reference</td><td>REP-${escape(meta.standard.replace(/\s+/g, "-"))}-${new Date(meta.startedAt || Date.now()).getFullYear()}</td></tr>
+      <tr><td>Report Generated</td><td>${escape(generatedAt)}</td></tr>
+      <tr><td>Audit Status</td><td><span class="badge ${meta.status === 'closed' ? 'b-conform' : 'b-pending'}">${escape(meta.status.replace("_", " "))}</span></td></tr>
     </table>
-  </section>
+  </div>
 
   <h2>1. Executive Summary</h2>
-  <p>
-    This report presents the outcome of the ${escape(meta.standard)} audit conducted for
-    <strong> ${escape(meta.organization)}</strong>. The audit covered ${total} recorded response item(s)
-    and assessed conformity, nonconformities, and observations across the selected processes and clauses.
+  <p style="font-size:13.5px; color:#334155;">
+    This comprehensive audit report details findings and evaluations recorded during the formal review of <strong>${escape(meta.organization)}</strong>. 
+    A total of <strong>${total}</strong> response items were assessed by the audit team to determine systemic alignment with requirements. 
+    Critical gaps, procedural exceptions, and opportunities for improvement are recorded under findings and action plans below.
   </p>
 
-  <div class="summary-grid">
-    <div class="summary-card"><div class="eyebrow">Conformity</div><div class="summary-value">${conformity}%</div></div>
-    <div class="summary-card"><div class="eyebrow">Questions</div><div class="summary-value">${total}</div></div>
-    <div class="summary-card"><div class="eyebrow">Major NCs</div><div class="summary-value">${major}</div></div>
-    <div class="summary-card"><div class="eyebrow">Minor NCs</div><div class="summary-value">${minor}</div></div>
-    <div class="summary-card"><div class="eyebrow">Observations</div><div class="summary-value">${observation}</div></div>
+  <table class="stats-table">
+    <thead>
+      <tr>
+        <th style="width: 25%;">Compliance Classification</th>
+        <th>Definition & Operational Meaning</th>
+        <th style="width: 15%; text-align: center;">Assessed Count</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Major Nonconformity</strong></td>
+        <td>Systemic break, absence of mandatory control implementation, or widespread failure across compliance elements.</td>
+        <td style="text-align: center; font-weight: 700; color: #be123c;">${major}</td>
+      </tr>
+      <tr>
+        <td><strong>Minor Nonconformity</strong></td>
+        <td>Isolated or transactional non-compliance event that does not compromise overall process integrity.</td>
+        <td style="text-align: center; font-weight: 700; color: #c2410c;">${minor}</td>
+      </tr>
+      <tr>
+        <td><strong>Observation / OFI</strong></td>
+        <td>Process conforming to standard but displaying notable room for operational refinement or proactive enhancement.</td>
+        <td style="text-align: center; font-weight: 700; color: #1d4ed8;">${observation}</td>
+      </tr>
+      <tr>
+        <td><strong>Conformant</strong></td>
+        <td>Satisfactory evidence gathered showing consistent execution aligned with control parameters.</td>
+        <td style="text-align: center; font-weight: 700; color: #15803d;">${conform}</td>
+      </tr>
+      <tr>
+        <td><strong>Not Applicable (N/A)</strong></td>
+        <td>Clause parameters verified as outside the operational bounds or context of the audited entity.</td>
+        <td style="text-align: center; font-weight: 700; color: #475569;">${na}</td>
+      </tr>
+      <tr>
+        <td><strong>Pending</strong></td>
+        <td>Identified controls that are scheduled for assessment or pending subsequent verification.</td>
+        <td style="text-align: center; font-weight: 700; color: #64748b;">${pending}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="conformity-box">
+    <div class="conformity-title">Assessed Conformity Rating</div>
+    <div class="conformity-value">${conformity}%</div>
   </div>
 
-  <div class="summary-highlight">
-    <span class="small-label">Audit conclusion</span>
-    ${
-      major > 0
-        ? `<strong>${major} major nonconformity(ies)</strong> require prompt corrective action and management attention before closure.`
-        : `No major nonconformities were recorded.`
-    }
-    ${minor > 0 ? ` ${minor} minor nonconformity(ies)` : ""}${observation > 0 ? ` and ${observation} observation(s)` : ""} were identified during the audit.
+  <h2>2. Objectives, Scope and Methodology</h2>
+  
+  <h3>Audit Objectives</h3>
+  <div class="narrative-block">
+    <p>Verify that management practices and control activities conform fully to the specified guidelines of the standard; evaluate organizational readiness, trace audit logs, and establish the operational maturity of reviewed internal processes.</p>
+  </div>
+  
+  <h3>Scope of Audit</h3>
+  <div class="narrative-block">
+    <p>${escape(meta.scope || "Operational processes, documentation controls, evidence reviews, and system configurations within the declared operational boundaries.")}</p>
+  </div>
+  
+  <h3>Methodology and Execution</h3>
+  <div class="narrative-block">
+    <p>Audit execution involved document analysis, structured interviews with operational leads, walk-through audits of live systems, and random statistical sampling. Findings are categorized based on criteria: Major NC — systemic control gap; Minor NC — isolated procedural lapse; Observation — room for enhancement.</p>
   </div>
 
-  <h2>2. Analytics Summary</h2>
+  <h2>3. Analytics Summary</h2>
+  
   <div class="analytics-grid">
     <div class="analytics-card">
       <div class="analytics-title">Response Breakdown</div>
@@ -360,64 +576,67 @@ export function exportAuditReport({
             ? `<p style="margin:0; font-size:12px; color:#66717f;">No response analytics available yet.</p>`
             : responseMix.map((item) => `
               <div class="bar-row">
-                <div>${escape(item.label)}</div>
-                <div class="bar-track"><div class="bar-fill ${item.className.replace("s-", "fill-")}" style="width:${Math.max((item.value / maxResponse) * 100, item.value ? 8 : 0)}%"></div></div>
-                <div>${item.value}</div>
+                <div style="font-weight:600; color:#475569;">${escape(item.label)}</div>
+                <div class="bar-track"><div class="bar-fill ${item.className === 's-conform' ? 'fill-conform' : item.className === 's-major' ? 'fill-major' : item.className === 's-minor' ? 'fill-minor' : 'fill-observation'}" style="width:${Math.max((item.value / maxResponse) * 100, item.value ? 8 : 0)}%"></div></div>
+                <div style="font-weight:700; text-align:right;">${item.value}</div>
               </div>
             `).join("")
         }
       </div>
     </div>
+    
     <div class="analytics-card">
-      <div class="analytics-title">Findings by Type</div>
+      <div class="analytics-title">Findings by Category</div>
       <div class="bar-stack">
         ${
           findingsByType.length === 0
-            ? `<p style="margin:0; font-size:12px; color:#66717f;">No finding analytics available yet.</p>`
+            ? `<p style="margin:0; font-size:12px; color:#66717f;">No findings recorded.</p>`
             : findingsByType.map((item) => `
               <div class="bar-row">
-                <div>${escape(item.label)}</div>
+                <div style="font-weight:600; color:#475569;">${escape(item.label)}</div>
                 <div class="bar-track"><div class="bar-fill fill-slate" style="width:${Math.max((item.value / maxFindingType) * 100, item.value ? 8 : 0)}%"></div></div>
-                <div>${item.value}</div>
+                <div style="font-weight:700; text-align:right;">${item.value}</div>
               </div>
             `).join("")
         }
       </div>
     </div>
+
     <div class="analytics-card">
-      <div class="analytics-title">Process Hotspots</div>
+      <div class="analytics-title">Process Gaps & Hotspots</div>
       ${
         processHotspots.length === 0
-          ? `<p style="margin:0; font-size:12px; color:#66717f;">No process hotspots yet.</p>`
+          ? `<p style="margin:0; font-size:12px; color:#66717f;">No process hotspots identified.</p>`
           : `
             <table class="hotspot-table">
               ${processHotspots.map((item) => `
                 <tr>
-                  <td style="padding-right:10px;">${escape(item.label)}</td>
-                  <td>
+                  <td style="padding-right:10px; font-weight:600; color:#475569; width: 35%;">${escape(item.label)}</td>
+                  <td style="border: 0; padding: 0;">
                     <div class="bar-track"><div class="bar-fill fill-observation" style="width:${Math.max((item.value / maxProcess) * 100, item.value ? 8 : 0)}%"></div></div>
                   </td>
-                  <td>${item.value}</td>
+                  <td style="font-weight:700; width: 12%; text-align: right;">${item.value} gap(s)</td>
                 </tr>
               `).join("")}
             </table>
           `
       }
     </div>
+
     <div class="analytics-card">
       <div class="analytics-title">Clause Hotspots</div>
       ${
         clauseHotspots.length === 0
-          ? `<p style="margin:0; font-size:12px; color:#66717f;">No clause hotspots yet.</p>`
+          ? `<p style="margin:0; font-size:12px; color:#66717f;">No clause hotspots identified.</p>`
           : `
             <table class="hotspot-table">
               ${clauseHotspots.map((item) => `
                 <tr>
-                  <td style="padding-right:10px;">Clause ${escape(item.label)}</td>
-                  <td>
+                  <td style="padding-right:10px; font-weight:600; color:#475569; width: 35%;">Clause ${escape(item.label)}</td>
+                  <td style="border: 0; padding: 0;">
                     <div class="bar-track"><div class="bar-fill fill-major" style="width:${Math.max((item.value / maxClause) * 100, item.value ? 8 : 0)}%"></div></div>
                   </td>
-                  <td>${item.value}</td>
+                  <td style="font-weight:700; width: 12%; text-align: right;">${item.value} issue(s)</td>
                 </tr>
               `).join("")}
             </table>
@@ -426,79 +645,139 @@ export function exportAuditReport({
     </div>
   </div>
 
-  <div class="analytics-grid" style="grid-template-columns:1fr;">
-    <div class="analytics-card">
-      <div class="analytics-title">Findings by Status</div>
-      <div class="bar-stack">
-        ${
-          findingsByStatus.length === 0
-            ? `<p style="margin:0; font-size:12px; color:#66717f;">No finding status analytics available yet.</p>`
-            : findingsByStatus.map((item) => `
-              <div class="bar-row">
-                <div>${escape(item.label)}</div>
-                <div class="bar-track"><div class="bar-fill fill-slate" style="width:${Math.max((item.value / maxFindingStatus) * 100, item.value ? 8 : 0)}%"></div></div>
-                <div>${item.value}</div>
-              </div>
-            `).join("")
-        }
-      </div>
-    </div>
-  </div>
-
-  <h2>3. Findings Register</h2>
+  <h2>4. Detailed Findings Register</h2>
   ${
     findings.length === 0
-      ? `<p>No findings were recorded for this audit.</p>`
-      : findings.map((finding, index) => `
-        <div class="finding-card">
-          <div class="finding-head">Finding F-${String(index + 1).padStart(3, "0")} · ${escape(titleCase(finding.type))}</div>
-          <div class="finding-body">
-            <p><span class="small-label">Clause</span>${escape(finding.clause || "-")}</p>
-            <p><span class="small-label">Description</span>${escape(finding.description)}</p>
-            <p><span class="small-label">Corrective action</span>${escape(finding.capa || "-")}</p>
-            <p><span class="small-label">Owner</span>${escape(finding.owner || "-")}</p>
-            <p><span class="small-label">Status</span><span class="badge s-${escapeClass(finding.status)}">${escape(titleCase(finding.status))}</span></p>
-            <p><span class="small-label">Due date</span>${escape(finding.dueDate ? toDate(finding.dueDate) : "-")}</p>
-          </div>
-        </div>
-      `).join("")
+      ? `<div class="no-findings">No nonconformities or opportunities for improvement were raised during this audit.</div>`
+      : findings.map((finding, index) => {
+          const typeLower = finding.type.toLowerCase();
+          const sClass = typeLower.includes("major") ? "major" : typeLower.includes("minor") ? "minor" : "observation";
+          return `
+          <div class="finding-card">
+            <div class="finding-header">
+              <span>Finding F-${String(index + 1).padStart(3, "0")} · Clause ${escape(finding.clause || "-")}</span>
+              <span class="badge b-${sClass}">${escape(titleCase(finding.type))}</span>
+            </div>
+            <table class="finding-table">
+              <tr>
+                <td class="lbl">Requirement / Scope</td>
+                <td><strong>Clause ${escape(finding.clause || "-")}</strong></td>
+              </tr>
+              <tr>
+                <td class="lbl">Operational Exception</td>
+                <td>${escape(finding.description)}</td>
+              </tr>
+            </table>
+            
+            <div class="grc-section">
+              <div class="grc-title">GRC Corrective & Preventive Action Plan (CAPA)</div>
+              <table class="grc-table">
+                <tr>
+                  <td class="lbl" style="width: 25%;">Assigned Action Owner</td>
+                  <td><strong>${escape(finding.owner || "Management Representative (to assign)")}</strong></td>
+                </tr>
+                <tr>
+                  <td class="lbl">Proposed Action Plan</td>
+                  <td>${escape(finding.capa || "—")}</td>
+                </tr>
+                <tr>
+                  <td class="lbl">Remediation Status</td>
+                  <td><span class="badge ${finding.status === 'open' ? 'b-minor' : 'b-conform'}">${escape(titleCase(finding.status))}</span></td>
+                </tr>
+                <tr>
+                  <td class="lbl">Target Completion Date</td>
+                  <td><strong>${escape(finding.dueDate ? toDate(finding.dueDate) : "Immediate action required")}</strong></td>
+                </tr>
+                <tr>
+                  <td class="lbl">Effectiveness Verification</td>
+                  <td>Verification will be completed by the lead auditor prior to the subsequent surveillance cycle.</td>
+                </tr>
+              </table>
+            </div>
+          </div>`;
+        }).join("")
   }
 
-  <h2>4. Detailed Responses</h2>
+  <h2>5. Detailed Audit Checklist Responses</h2>
   <table class="report-table">
     <thead>
       <tr>
-        <th style="width:20%;">Process</th>
-        <th style="width:12%;">Clause</th>
-        <th>Question</th>
-        <th style="width:14%;">Status</th>
-        <th style="width:20%;">Notes</th>
-        <th style="width:18%;">Evidence</th>
+        <th style="width:18%;">Process Mapped</th>
+        <th style="width:10%;">Clause</th>
+        <th>Audited Question / Verification Item</th>
+        <th style="width:15%; text-align: center;">Status</th>
+        <th style="width:25%;">Evidence Reviewed & Auditor Notes</th>
       </tr>
     </thead>
     <tbody>
       ${
         answers.length === 0
-          ? `<tr><td colspan="6">No responses recorded yet.</td></tr>`
-          : answers.map((answer) => `
-            <tr>
-              <td>${escape(answer.process || "-")}</td>
-              <td>${escape(answer.clause || "-")}</td>
-              <td>${escape(answer.question || "-")}</td>
-              <td><span class="badge s-${escapeClass(answer.status)}">${escape(STATUS_LABELS[answer.status] || titleCase(answer.status))}</span></td>
-              <td>${escape(answer.note || "-")}</td>
-              <td>${answer.evidence?.length ? answer.evidence.map((item) => `<div>${escape(item.name)}<br/><span style="color:#66717f;font-size:11px;">${escape(item.url)}</span></div>`).join("<hr style='border:none;border-top:1px solid #e3e7ed;margin:6px 0;'/>") : "-"}</td>
-            </tr>
-          `).join("")
+          ? `<tr><td colspan="5">No checklist items recorded yet.</td></tr>`
+          : answers.map((answer) => {
+              const s = answer.status;
+              const badgeClass = s === "conform" || s === "conformant" ? "b-conform" : s === "major" ? "b-major" : s === "minor" ? "b-minor" : s === "na" ? "b-na" : "b-pending";
+              return `
+              <tr>
+                <td><strong>${escape(answer.process || "-")}</strong></td>
+                <td>${escape(answer.clause || "-")}</td>
+                <td>${escape(answer.question || "-")}</td>
+                <td style="text-align: center;"><span class="badge ${badgeClass}">${escape(STATUS_LABELS[answer.status] || titleCase(answer.status))}</span></td>
+                <td>
+                  ${escape(answer.note || "-")}
+                  ${answer.evidence?.length ? `
+                    <div style="margin-top: 8px; font-size: 11px; border-top: 1px dashed #cbd5e1; padding-top: 4px;">
+                      <strong>Evidence Mapped:</strong><br/>
+                      ${answer.evidence.map((item) => `• ${escape(item.name)}`).join("<br/>")}
+                    </div>
+                  ` : ""}
+                </td>
+              </tr>
+              `;
+            }).join("")
       }
     </tbody>
   </table>
 
-  <div class="footer">
-    Confidential internal audit report · Prepared from the OAK Global International audit workspace · Use the browser print dialog to save or download as PDF.
-  </div>
+  <h2>6. Certification & Sign-off</h2>
+  <table class="meta-table" style="margin-top: 20px; box-shadow: none;">
+    <tr>
+      <td style="width: 33%; background: #ffffff;"><strong>Prepared by (Lead Auditor)</strong></td>
+      <td style="width: 33%; background: #ffffff;"><strong>Reviewed by (Management Representative)</strong></td>
+      <td style="width: 33%; background: #ffffff;"><strong>Approved by (Auditee Representative)</strong></td>
+    </tr>
+    <tr style="height: 70px;">
+      <td>
+        <br/><br/>
+        ___________________________<br/>
+        Lead Auditor Representative<br/>
+        Date: ${escape(generatedAt)}
+      </td>
+      <td>
+        <br/><br/>
+        ___________________________<br/>
+        Quality Assurance Director<br/>
+        Date: 
+      </td>
+      <td>
+        <br/><br/>
+        ___________________________<br/>
+        Executive Sponsor / Auditee<br/>
+        Date: 
+      </td>
+    </tr>
+  </table>
 
-  <script>window.onload = () => setTimeout(() => window.print(), 350);</script>
+  <footer>
+    <span class="confidential-stamp">CONFIDENTIAL</span> · Generated by OAK Global International · Audit & Compliance Division
+  </footer>
+
+  <script>
+    window.onload = () => {
+      setTimeout(() => {
+        window.print();
+      }, 400);
+    };
+  </script>
 </body>
 </html>`;
 
@@ -536,12 +815,8 @@ function topCounts<T>(items: T[], getKey: (item: T) => string, limit = 5) {
   return groupBy(items, getKey).slice(0, limit);
 }
 
-function escapeClass(value: string) {
-  return value.replace(/[^a-z0-9_-]/gi, "").toLowerCase();
-}
-
 function escape(value: string) {
-  return value
+  return (value || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")

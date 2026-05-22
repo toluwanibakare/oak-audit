@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   ArrowRight,
@@ -9,10 +10,13 @@ import {
   FileText,
   Globe,
   LayoutGrid,
+  Moon,
   Play,
   ShieldCheck,
+  Sun,
   Users,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import heroAudit from "@/assets/hero-audit.jpg";
 import heroSide from "@/assets/hero-side.jpg";
 import heroBg from "@/assets/hero-bg.jpg";
@@ -150,11 +154,28 @@ const workflow = [
 export default function Landing() {
   const { user, loading } = useAuth();
   const isLoggedIn = !loading && !!user;
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Manual theme synchronization to documentElement to bypass next-themes issues
+  useEffect(() => {
+    if (mounted && theme) {
+      if (theme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    }
+  }, [theme, mounted]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* ── Header ──────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 border-b border-border/70 bg-white/90 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-border/70 bg-background/85 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 lg:px-10">
           {/* Logo + brand name + tagline in one line */}
           <Link to="/" className="flex items-center gap-3">
@@ -178,7 +199,22 @@ export default function Landing() {
             <a href="#pricing" className="transition hover:text-foreground">Pricing</a>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3.5">
+            {/* Premium Theme Toggle button */}
+            <button
+              onClick={() => setTheme((mounted ? theme : "light") === "dark" ? "light" : "dark")}
+              className="group relative grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-background/50 text-foreground transition-all duration-300 hover:bg-secondary hover:text-primary focus:outline-none"
+              title="Toggle theme"
+              aria-label="Toggle theme"
+            >
+              <Sun className={`h-4 w-4 transition-all duration-300 text-amber-500 ${
+                (mounted ? theme : "light") === "dark" ? "rotate-90 scale-0 opacity-0" : "rotate-0 scale-100 opacity-100"
+              }`} />
+              <Moon className={`absolute h-4 w-4 transition-all duration-300 text-primary ${
+                (mounted ? theme : "light") === "dark" ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-0 opacity-0"
+              }`} />
+            </button>
+
             {isLoggedIn ? (
               <Link to="/app" className="pill-cta text-sm px-5 py-2">
                 Go to Dashboard
@@ -274,7 +310,7 @@ export default function Landing() {
         </section>
 
         {/* ── Social proof strip ───────────────────────────────── */}
-        <section className="border-b border-border bg-white py-10">
+        <section className="border-b border-border bg-card py-10">
           <div className="mx-auto max-w-7xl px-6 lg:px-10">
             <div className="grid gap-8 sm:grid-cols-3">
               {[
@@ -450,7 +486,7 @@ export default function Landing() {
                         desc: "Keep records secure and verifiable for institutional onboarding.",
                       },
                     ].map((feat) => (
-                      <div key={feat.title} className="bg-white/85 backdrop-blur-sm rounded-2xl border border-border/80 p-4 shadow-sm">
+                      <div key={feat.title} className="bg-card/85 backdrop-blur-sm rounded-2xl border border-border/80 p-4 shadow-sm">
                         <h4 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
                           <CheckCircle2 className="h-4 w-4 text-accent shrink-0" />
                           {feat.title}
@@ -477,7 +513,7 @@ export default function Landing() {
                 </div>
               </div>
               
-              <div className="order-1 lg:order-2 flex flex-col justify-center items-center bg-white/70 backdrop-blur rounded-[32px] border border-border/80 p-8 shadow-elevated text-center relative overflow-hidden">
+              <div className="order-1 lg:order-2 flex flex-col justify-center items-center bg-card/70 backdrop-blur rounded-[32px] border border-border/80 p-8 shadow-elevated text-center relative overflow-hidden">
                 {/* Decorative gradients */}
                 <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl -z-10" />
                 <div className="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-accent/10 blur-3xl -z-10" />
@@ -532,7 +568,7 @@ export default function Landing() {
               {pricingPlans.map((plan) => (
                 <div
                   key={plan.name}
-                  className={`relative flex flex-col rounded-[28px] border-2 bg-white p-8 shadow-card transition hover:-translate-y-1 hover:shadow-elevated ${plan.color}`}
+                  className={`relative flex flex-col rounded-[28px] border-2 bg-card p-8 shadow-card transition hover:-translate-y-1 hover:shadow-elevated ${plan.color}`}
                 >
                   {plan.badge && (
                     <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
@@ -622,7 +658,7 @@ export default function Landing() {
       </main>
 
       {/* ── Footer ───────────────────────────────────────────────── */}
-      <footer className="border-t border-border bg-white py-12">
+      <footer className="border-t border-border bg-card py-12">
         <div className="mx-auto max-w-7xl px-6 lg:px-10">
           {/* Top section */}
           <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between pb-8 border-b border-border/60">

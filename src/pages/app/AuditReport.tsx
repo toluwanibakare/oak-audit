@@ -150,7 +150,7 @@ const AuditReport = () => {
         </Link>
         <button onClick={handleExportPdf} className="pill-cta">
           <Printer className="h-4 w-4" />
-          Download PDF
+          Download PDF / Print Report
         </button>
       </div>
 
@@ -185,6 +185,7 @@ const AuditReport = () => {
 
         <section className="mt-10 grid gap-5 xl:grid-cols-3">
           <AnalyticsBlock
+            id="response-profile-chart"
             title="Response profile"
             subtitle="See how the audit answers split between conforming items and gaps."
             icon={<PieChartIcon className="h-4 w-4" />}
@@ -219,6 +220,7 @@ const AuditReport = () => {
           </AnalyticsBlock>
 
           <AnalyticsBlock
+            id="finding-categories-chart"
             title="Finding categories"
             subtitle="Visual breakdown of the issues raised in this audit."
             icon={<AlertTriangle className="h-4 w-4" />}
@@ -246,6 +248,7 @@ const AuditReport = () => {
           </AnalyticsBlock>
 
           <AnalyticsBlock
+            id="risk-hotspots-chart"
             title="Risk hotspots"
             subtitle="The process areas and clauses drawing the most exceptions."
             icon={<Radar className="h-4 w-4" />}
@@ -312,8 +315,36 @@ const AuditReport = () => {
             )}
           </div>
 
-          <div className="rounded-[28px] border border-border bg-background/80 p-5">
-            <h2 className="font-display text-xl font-bold">Resolution pulse</h2>
+          <div id="resolution-pulse-chart" className="relative rounded-[28px] border border-border bg-background/80 p-5 shadow-card">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-xl font-bold">Resolution pulse</h2>
+              <button
+                onClick={async () => {
+                  try {
+                    const el = document.getElementById("resolution-pulse-chart");
+                    if (!el) return;
+                    const html2canvas = (await import("html2canvas")).default;
+                    const canvas = await html2canvas(el, { useCORS: true, scale: 2.5, backgroundColor: "#ffffff" });
+                    const dataUrl = canvas.toDataURL("image/png");
+                    const a = document.createElement("a");
+                    a.href = dataUrl;
+                    a.download = "resolution_pulse_chart.png";
+                    a.click();
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }}
+                title="Download chart as PNG"
+                className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition duration-200"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              </button>
+            </div>
+            
             {findingStatusMix.length > 0 ? (
               <ChartContainer
                 className="mt-4 h-[260px] w-full"
@@ -374,25 +405,62 @@ const AuditReport = () => {
 };
 
 const AnalyticsBlock = ({
+  id,
   title,
   subtitle,
   icon,
   children,
 }: {
+  id: string;
   title: string;
   subtitle: string;
   icon: ReactNode;
   children: ReactNode;
-}) => (
-  <div className="analytics-panel rounded-[28px] border border-border bg-background/80 p-5 shadow-card">
-    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-      {icon}
-      {title}
+}) => {
+  const handleDownload = async () => {
+    try {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(el, {
+        useCORS: true,
+        scale: 2.5,
+        backgroundColor: "#ffffff",
+      });
+      const dataUrl = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `${title.toLowerCase().replace(/\s+/g, "_")}_chart.png`;
+      a.click();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  return (
+    <div id={id} className="relative analytics-panel rounded-[28px] border border-border bg-background/80 p-5 shadow-card group">
+      <div className="flex items-center justify-between text-sm font-medium text-muted-foreground">
+        <div className="flex items-center gap-2">
+          {icon}
+          {title}
+        </div>
+        <button
+          onClick={handleDownload}
+          title="Download chart as PNG"
+          className="rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition duration-200"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </button>
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground pr-8">{subtitle}</p>
+      <div className="mt-4">{children}</div>
     </div>
-    <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
-    <div className="mt-4">{children}</div>
-  </div>
-);
+  );
+};
 
 const EmptyBlock = ({ message, className = "" }: { message: string; className?: string }) => (
   <div className={`grid h-[220px] place-items-center rounded-[24px] border border-dashed border-border bg-card/60 p-6 text-center text-sm text-muted-foreground ${className}`}>

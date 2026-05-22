@@ -10,13 +10,16 @@ import {
   ClipboardCheck,
   LayoutDashboard,
   LogOut,
+  Moon,
   Receipt,
   Settings,
+  Sun,
   User,
   Users,
   Wallet as WalletIcon,
   Workflow,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 
 const NAV = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
@@ -32,6 +35,24 @@ const NAV = [
 export const AppShell = ({ children }: { children: ReactNode }) => {
   const { user, signOut } = useAuth();
   const { orgs, currentOrg, setCurrentOrg } = useOrg();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Manual theme synchronization to documentElement to bypass next-themes issues
+  useEffect(() => {
+    if (mounted && theme) {
+      if (theme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    }
+  }, [theme, mounted]);
+
   const navigate = useNavigate();
   const location = useLocation();
   const [balance, setBalance] = useState<number | null>(null);
@@ -139,7 +160,43 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
           </div>
 
           {/* Bottom: user card */}
-          <div className="border-t border-border/80 px-4 py-4 bg-card/95">
+          <div className="border-t border-border/80 px-4 py-4 bg-card/95 space-y-3.5">
+            {/* Theme Toggle Pill Segment Selector with Premium Slide Effect */}
+            <div className="relative flex items-center rounded-2xl border border-border/60 bg-background/50 p-1 select-none overflow-hidden h-9">
+              {/* Sliding highlight */}
+              <div 
+                className={`absolute top-[3px] bottom-[3px] left-[3px] w-[calc(50%-3px)] rounded-xl bg-primary shadow-sm transition-transform duration-300 ease-out ${
+                  (mounted ? theme : "light") === "dark" ? "translate-x-full" : "translate-x-0"
+                }`}
+              />
+              
+              <button
+                onClick={() => setTheme("light")}
+                title="Light Mode"
+                className={`relative flex flex-1 items-center justify-center gap-2 rounded-xl py-1 text-xs font-bold transition-colors duration-300 z-10 ${
+                  (mounted ? theme : "light") === "light"
+                    ? "text-white"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Sun className="h-3.5 w-3.5" />
+                <span>Light</span>
+              </button>
+              
+              <button
+                onClick={() => setTheme("dark")}
+                title="Dark Mode"
+                className={`relative flex flex-1 items-center justify-center gap-2 rounded-xl py-1 text-xs font-bold transition-colors duration-300 z-10 ${
+                  (mounted ? theme : "light") === "dark"
+                    ? "text-white"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Moon className="h-3.5 w-3.5" />
+                <span>Dark</span>
+              </button>
+            </div>
+
             {/* User card with dropdown */}
             <div ref={userMenuRef} className="user-dropdown">
               {/* Dropdown menu (appears above) */}

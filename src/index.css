@@ -20,32 +20,32 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 200 40% 11%;
 
-    /* OAK primary — rich teal-blue (matches site primary button color) */
-    --primary: 195 75% 38%;
+    /* OAK primary — sharp electric blue */
+    --primary: 224 88% 48%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 186 38% 93%;
-    --secondary-foreground: 200 40% 11%;
+    --secondary: 220 25% 96%;
+    --secondary-foreground: 224 40% 11%;
 
-    --muted: 190 28% 94%;
-    --muted-foreground: 196 18% 40%;
+    --muted: 220 15% 94%;
+    --muted-foreground: 224 15% 40%;
 
-    /* OAK accent — light green brand tone */
-    --accent: 152 55% 45%;
+    /* OAK accent — sharp emerald green */
+    --accent: 142 82% 43%;
     --accent-foreground: 0 0% 100%;
 
-    /* Brand highlight gold replaced with oak-green for consistency */
-    --gold: 152 55% 45%;
+    /* Brand highlight gold replaced with sharp oak-green for consistency */
+    --gold: 142 82% 43%;
     --gold-foreground: 0 0% 100%;
 
     /* Soft orb gradient stops — blue + green brand */
-    --orb-1: 195 80% 86%;
-    --orb-2: 152 55% 80%;
+    --orb-1: 224 85% 88%;
+    --orb-2: 142 80% 82%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 152 60% 36%;
+    --success: 142 82% 43%;
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
@@ -166,7 +166,7 @@ All colors MUST be HSL.
     background:
       radial-gradient(circle at top right, hsl(var(--primary) / 0.07), transparent 28%),
       radial-gradient(circle at top left, hsl(var(--accent) / 0.06), transparent 24%),
-      linear-gradient(180deg, hsl(196 40% 97%), hsl(var(--background)));
+      hsl(var(--background));
   }
   .app-surface {
     @apply rounded-[28px] border border-border bg-card shadow-card;
