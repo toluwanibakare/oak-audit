@@ -43,10 +43,12 @@ export function exportAuditReport({
   meta,
   answers,
   findings,
+  logoUrl,
 }: {
   meta: ExportAuditMeta;
   answers: ExportAuditAnswer[];
   findings: ExportAuditFinding[];
+  logoUrl?: string;
 }) {
   const generatedAt = meta.generatedAt || new Date().toISOString().slice(0, 10);
   const total = answers.length;
@@ -449,6 +451,28 @@ export function exportAuditReport({
       color: #64748b;
       font-style: italic;
     }
+
+    .watermark-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1000;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .watermark-image {
+      width: 850px;
+      height: auto;
+      max-width: 95%;
+      max-height: 95%;
+      opacity: 0.035;
+      object-fit: contain;
+    }
     
     @media print { 
       body { background: white; padding: 0; color: #000000; } 
@@ -474,6 +498,11 @@ export function exportAuditReport({
   </style>
 </head>
 <body>
+  ${logoUrl ? `
+  <div class="watermark-container">
+    <img class="watermark-image" src="${logoUrl}" alt="OAK Global Watermark" />
+  </div>
+  ` : ""}
   <div class="header-accent-bar"></div>
   <div class="eyebrow">Audit & Assurance Services</div>
   

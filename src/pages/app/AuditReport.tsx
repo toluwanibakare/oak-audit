@@ -20,6 +20,7 @@ import {
   formatStandard,
   FINDING_TYPE_META,
 } from "@/lib/auditAnalytics";
+import logo from "@/assets/logo.png";
 
 type ReportFinding = {
   id: string;
@@ -143,6 +144,7 @@ const AuditReport = () => {
         status: finding.status,
         dueDate: finding.due_date,
       })),
+      logoUrl: logo,
     });
   };
 
@@ -261,8 +263,18 @@ const AuditReport = () => {
         </button>
       </div>
 
-      <div className="mt-6 rounded-3xl border border-border bg-card p-10 shadow-card print:border-none print:shadow-none">
-        <div className="flex flex-wrap items-start justify-between gap-5 border-b border-border pb-6">
+      <div className="mt-6 rounded-3xl border border-border bg-card p-10 shadow-card print:border-none print:shadow-none relative overflow-hidden">
+        {/* Transparent Watermark Background Logo */}
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-0 select-none overflow-hidden opacity-[0.035] print:opacity-[0.035]">
+          <img 
+            src={logo} 
+            alt="OAK Global Watermark" 
+            className="w-[380px] sm:w-[680px] md:w-[850px] lg:w-[1050px] h-auto object-contain max-w-[95%] max-h-[95%] animate-fade-in duration-1000" 
+          />
+        </div>
+
+        <div className="relative z-10">
+          <div className="flex flex-wrap items-start justify-between gap-5 border-b border-border pb-6">
           <div>
             <span className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">OAK Global International - Audit Report</span>
             <h1 className="mt-2 font-display text-4xl font-bold">{audit.title}</h1>
@@ -686,6 +698,7 @@ const AuditReport = () => {
             </table>
           </div>
         )}
+        </div>
       </div>
 
       <style>{`@media print { @page { size: A4; margin: 12mm; } body { background: white; } header, aside, .print\\:hidden { display: none !important; } main { padding: 0 !important; } }`}</style>
