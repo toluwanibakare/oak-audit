@@ -356,169 +356,171 @@ const AppDashboard = () => {
         </div>
       </section>
 
-      <section className="mt-6 grid gap-5">
-        <AnalyticsCard
-          title="Audit analytics"
-          subtitle="Recent audit trend, with conformity paired against major and minor nonconformities."
-          icon={<BarChart3 className="h-4 w-4" />}
-          delay="220ms"
-        >
-          {chartReady ? (
-            <ChartContainer
-              className="h-[340px] w-full"
-              config={{
-                conformity: { label: "Conformity", color: "hsl(var(--success))" },
-                major: { label: "Major NC", color: "hsl(var(--destructive))" },
-                minor: { label: "Minor NC", color: "hsl(var(--warning))" },
-              }}
-            >
-              <ComposedChart data={trendData}>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="date" tickLine={false} axisLine={false} />
-                <YAxis yAxisId="left" tickLine={false} axisLine={false} width={34} />
-                <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} width={34} />
-                <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                <ChartLegend content={<ChartLegendContent />} />
-                <Bar yAxisId="left" dataKey="major" radius={[8, 8, 0, 0]} fill="var(--color-major)" isAnimationActive animationDuration={650} />
-                <Bar yAxisId="left" dataKey="minor" radius={[8, 8, 0, 0]} fill="var(--color-minor)" isAnimationActive animationDuration={720} />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="conformity"
-                  stroke="var(--color-conformity)"
-                  strokeWidth={3}
-                  dot={{ r: 4, fill: "var(--color-conformity)" }}
-                  activeDot={{ r: 6 }}
-                  isAnimationActive
-                  animationDuration={850}
-                />
-              </ComposedChart>
-            </ChartContainer>
-          ) : (
-            <AnalyticsSkeleton />
-          )}
-        </AnalyticsCard>
-
-        <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
+      {!loading && audits.length > 0 && (
+        <section className="mt-6 grid gap-5">
           <AnalyticsCard
-            title="Response mix"
-            subtitle="Overall answer breakdown from all captured audit responses."
-            icon={<TrendingUp className="h-4 w-4" />}
-            delay="260ms"
+            title="Audit analytics"
+            subtitle="Recent audit trend, with conformity paired against major and minor nonconformities."
+            icon={<BarChart3 className="h-4 w-4" />}
+            delay="220ms"
           >
             {chartReady ? (
               <ChartContainer
-                className="h-[280px] w-full"
-                config={Object.fromEntries(responseMix.map((item) => [item.status, { label: item.label, color: item.fill }]))}
+                className="h-[340px] w-full"
+                config={{
+                  conformity: { label: "Conformity", color: "hsl(var(--success))" },
+                  major: { label: "Major NC", color: "hsl(var(--destructive))" },
+                  minor: { label: "Minor NC", color: "hsl(var(--warning))" },
+                }}
               >
-                <PieChart>
-                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                  <Pie
-                    data={responseMix}
-                    dataKey="value"
-                    nameKey="label"
-                    innerRadius={68}
-                    outerRadius={104}
-                    paddingAngle={3}
-                    isAnimationActive
-                    animationDuration={800}
-                  >
-                    {responseMix.map((item) => (
-                      <Cell key={item.status} fill={item.fill} />
-                    ))}
-                  </Pie>
+                <ComposedChart data={trendData}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="date" tickLine={false} axisLine={false} />
+                  <YAxis yAxisId="left" tickLine={false} axisLine={false} width={34} />
+                  <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} width={34} />
+                  <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
                   <ChartLegend content={<ChartLegendContent />} />
-                </PieChart>
+                  <Bar yAxisId="left" dataKey="major" radius={[8, 8, 0, 0]} fill="var(--color-major)" isAnimationActive animationDuration={650} />
+                  <Bar yAxisId="left" dataKey="minor" radius={[8, 8, 0, 0]} fill="var(--color-minor)" isAnimationActive animationDuration={720} />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="conformity"
+                    stroke="var(--color-conformity)"
+                    strokeWidth={3}
+                    dot={{ r: 4, fill: "var(--color-conformity)" }}
+                    activeDot={{ r: 6 }}
+                    isAnimationActive
+                    animationDuration={850}
+                  />
+                </ComposedChart>
               </ChartContainer>
             ) : (
-              <AnalyticsSkeleton compact />
+              <AnalyticsSkeleton />
             )}
           </AnalyticsCard>
 
+          <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
+            <AnalyticsCard
+              title="Response mix"
+              subtitle="Overall answer breakdown from all captured audit responses."
+              icon={<TrendingUp className="h-4 w-4" />}
+              delay="260ms"
+            >
+              {chartReady ? (
+                <ChartContainer
+                  className="h-[280px] w-full"
+                  config={Object.fromEntries(responseMix.map((item) => [item.status, { label: item.label, color: item.fill }]))}
+                >
+                  <PieChart>
+                    <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                    <Pie
+                      data={responseMix}
+                      dataKey="value"
+                      nameKey="label"
+                      innerRadius={68}
+                      outerRadius={104}
+                      paddingAngle={3}
+                      isAnimationActive
+                      animationDuration={800}
+                    >
+                      {responseMix.map((item) => (
+                        <Cell key={item.status} fill={item.fill} />
+                      ))}
+                    </Pie>
+                    <ChartLegend content={<ChartLegendContent />} />
+                  </PieChart>
+                </ChartContainer>
+              ) : (
+                <AnalyticsSkeleton compact />
+              )}
+            </AnalyticsCard>
+
+            <AnalyticsCard
+              title="Process hotspots"
+              subtitle="Processes with the highest concentration of nonconformities and observations."
+              icon={<ClipboardCheck className="h-4 w-4" />}
+              delay="300ms"
+            >
+              {chartReady && processHotspots.length > 0 ? (
+                <ChartContainer
+                  className="h-[280px] w-full"
+                  config={{ value: { label: "Issues", color: "hsl(var(--accent))" } }}
+                >
+                  <BarChart data={processHotspots} layout="vertical" margin={{ left: 8 }}>
+                    <CartesianGrid horizontal={false} />
+                    <XAxis type="number" tickLine={false} axisLine={false} />
+                    <YAxis dataKey="label" type="category" tickLine={false} axisLine={false} width={110} />
+                    <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
+                    <Bar dataKey="value" fill="var(--color-value)" radius={[0, 10, 10, 0]} isAnimationActive animationDuration={780} />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <AnalyticsSkeleton compact />
+              )}
+            </AnalyticsCard>
+
+            <AnalyticsCard
+              title="Standard performance"
+              subtitle="Audit volume, issue count, and conformity by standard."
+              icon={<BarChart3 className="h-4 w-4" />}
+              delay="340ms"
+            >
+              {chartReady && standardPerformance.length > 0 ? (
+                <div className="space-y-3">
+                  {standardPerformance.slice(0, 4).map((item) => (
+                    <div key={item.standard} className="rounded-2xl border border-border bg-background/70 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="font-display text-lg font-semibold">{item.standard}</div>
+                          <p className="text-xs text-muted-foreground">{item.audits} audit(s) - {item.findings} finding(s)</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-display text-2xl font-bold">{item.conformity}%</div>
+                          <div className="text-xs text-muted-foreground">conformity</div>
+                        </div>
+                      </div>
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
+                        <div className="h-full rounded-full bg-gradient-to-r from-info via-accent to-success transition-all duration-700" style={{ width: `${item.conformity}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <AnalyticsSkeleton compact />
+              )}
+            </AnalyticsCard>
+          </div>
+
           <AnalyticsCard
-            title="Process hotspots"
-            subtitle="Processes with the highest concentration of nonconformities and observations."
-            icon={<ClipboardCheck className="h-4 w-4" />}
-            delay="300ms"
+            title="Finding categories"
+            subtitle="See what kind of issues dominate your current audit portfolio."
+            icon={<BarChart3 className="h-4 w-4" />}
+            delay="380ms"
           >
-            {chartReady && processHotspots.length > 0 ? (
+            {chartReady && findingsMix.length > 0 ? (
               <ChartContainer
-                className="h-[280px] w-full"
-                config={{ value: { label: "Issues", color: "hsl(var(--accent))" } }}
+                className="h-[320px] w-full"
+                config={Object.fromEntries(findingsMix.map((item) => [item.key, { label: item.label, color: item.fill }]))}
               >
-                <BarChart data={processHotspots} layout="vertical" margin={{ left: 8 }}>
-                  <CartesianGrid horizontal={false} />
-                  <XAxis type="number" tickLine={false} axisLine={false} />
-                  <YAxis dataKey="label" type="category" tickLine={false} axisLine={false} width={110} />
+                <BarChart data={findingsMix}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} angle={-18} textAnchor="end" height={64} />
+                  <YAxis tickLine={false} axisLine={false} width={28} />
                   <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                  <Bar dataKey="value" fill="var(--color-value)" radius={[0, 10, 10, 0]} isAnimationActive animationDuration={780} />
+                  <Bar dataKey="value" radius={[10, 10, 0, 0]} isAnimationActive animationDuration={760}>
+                    {findingsMix.map((item) => (
+                      <Cell key={item.key} fill={item.fill} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ChartContainer>
             ) : (
               <AnalyticsSkeleton compact />
             )}
           </AnalyticsCard>
-
-          <AnalyticsCard
-            title="Standard performance"
-            subtitle="Audit volume, issue count, and conformity by standard."
-            icon={<BarChart3 className="h-4 w-4" />}
-            delay="340ms"
-          >
-            {chartReady && standardPerformance.length > 0 ? (
-              <div className="space-y-3">
-                {standardPerformance.slice(0, 4).map((item) => (
-                  <div key={item.standard} className="rounded-2xl border border-border bg-background/70 p-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <div className="font-display text-lg font-semibold">{item.standard}</div>
-                        <p className="text-xs text-muted-foreground">{item.audits} audit(s) - {item.findings} finding(s)</p>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-display text-2xl font-bold">{item.conformity}%</div>
-                        <div className="text-xs text-muted-foreground">conformity</div>
-                      </div>
-                    </div>
-                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-secondary">
-                      <div className="h-full rounded-full bg-gradient-to-r from-info via-accent to-success transition-all duration-700" style={{ width: `${item.conformity}%` }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <AnalyticsSkeleton compact />
-            )}
-          </AnalyticsCard>
-        </div>
-
-        <AnalyticsCard
-          title="Finding categories"
-          subtitle="See what kind of issues dominate your current audit portfolio."
-          icon={<BarChart3 className="h-4 w-4" />}
-          delay="380ms"
-        >
-          {chartReady && findingsMix.length > 0 ? (
-            <ChartContainer
-              className="h-[320px] w-full"
-              config={Object.fromEntries(findingsMix.map((item) => [item.key, { label: item.label, color: item.fill }]))}
-            >
-              <BarChart data={findingsMix}>
-                <CartesianGrid vertical={false} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} interval={0} angle={-18} textAnchor="end" height={64} />
-                <YAxis tickLine={false} axisLine={false} width={28} />
-                <ChartTooltip content={<ChartTooltipContent indicator="line" />} />
-                <Bar dataKey="value" radius={[10, 10, 0, 0]} isAnimationActive animationDuration={760}>
-                  {findingsMix.map((item) => (
-                    <Cell key={item.key} fill={item.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ChartContainer>
-          ) : (
-            <AnalyticsSkeleton compact />
-          )}
-        </AnalyticsCard>
-      </section>
+        </section>
+      )}
     </AppShell>
   );
 };

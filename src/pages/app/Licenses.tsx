@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight, CheckCircle2, Lock } from "lucide-react";
+import { ArrowRight, CheckCircle2, Lock, Unlock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,6 +20,10 @@ export default function Licenses() {
   const [balance, setBalance] = useState(0);
   const [list, setList] = useState<License[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+
+  const hasLicense = (packCode: string) => {
+    return list.some((l) => l.pack === packCode && l.active && new Date(l.expires_at) > new Date());
+  };
 
   // Pack setup state
   const [configuringPack, setConfiguringPack] = useState<string | null>(null);
@@ -73,37 +77,136 @@ export default function Licenses() {
   };
 
   useEffect(() => {
+    if (!currentOrg) return;
     load();
+
+    // Real-time wallet balance subscription to ensure licenses page matches
+    const channel = supabase
+      .channel(`licenses_wallet_${currentOrg.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "credit_wallets",
+          filter: `org_id=eq.${currentOrg.id}`,
+        },
+        (payload: any) => {
+          setBalance(payload.new?.balance ?? 0);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [currentOrg]);
 
   useEffect(() => {
     if (!currentOrg) return;
     supabase.from("auditors").select("id,name").eq("org_id", currentOrg.id).order("name")
-      .then(({ data }) => setAuditors((data ?? []) as { id: string; name: string }[]));
-  }, [currentOrg]);
+      .then(async ({ data }) => {
+        const list = (data ?? []) as { id: string; name: string }[];
+        setAuditors(list);
+        
+        // Auto-select auditor if it's an individual and at least one exists
+        if (currentOrg.type === "individual") {
+          if (list.length > 0) {
+            setSelectedAuditorId(list[0].id);
+          } else if (user) {
+            // Silently seed a default self auditor for the individual workspace
+            const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Auditor";
+            const { data: newAuditor, error } = await supabase
+              .from("auditors")
+              .insert({
+                org_id: currentOrg.id,
+                name: fullName,
+                email: user.email || "",
+                role: "Lead Auditor",
+                user_id: user.id
+              })
+              .select("id,name")
+              .single();
+            if (newAuditor && !error) {
+              setAuditors([newAuditor]);
+              setSelectedAuditorId(newAuditor.id);
+            }
+          }
+        }
+      });
+  }, [currentOrg, user]);
 
   const handleUnlockAndLaunch = async () => {
-    if (!currentOrg || !configuringPack || !selectedAuditorId || !user) return;
-    const cost = customPricing?.[configuringPack] !== undefined 
-      ? Number(customPricing[configuringPack]) 
-      : PACK_CREDIT_COST[configuringPack as keyof typeof PACK_CREDIT_COST];
-    if (balance < cost) {
+    if (!currentOrg || !configuringPack || !user) return;
+
+    let auditorId = selectedAuditorId;
+    if (currentOrg.type === "individual" && !auditorId) {
+      // Retrieve or create on the fly to avoid race conditions
+      const { data: existing } = await supabase
+        .from("auditors")
+        .select("id")
+        .eq("org_id", currentOrg.id)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing?.id) {
+        auditorId = existing.id;
+      } else {
+        const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Auditor";
+        const { data: created } = await supabase
+          .from("auditors")
+          .insert({
+            org_id: currentOrg.id,
+            name: fullName,
+            email: user.email || "",
+            role: "Lead Auditor",
+            user_id: user.id
+          })
+          .select("id")
+          .single();
+        if (created?.id) {
+          auditorId = created.id;
+        }
+      }
+    }
+
+    if (!auditorId) {
+      toast({
+        title: "Auditor required",
+        description: "Please register or select an auditor to assign this audit.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const activeLicense = list.find((l) => l.pack === configuringPack && l.active && new Date(l.expires_at) > new Date());
+    const cost = activeLicense 
+      ? 0 
+      : (customPricing?.[configuringPack] !== undefined 
+          ? Number(customPricing[configuringPack]) 
+          : PACK_CREDIT_COST[configuringPack as keyof typeof PACK_CREDIT_COST]);
+
+    if (cost > 0 && balance < cost) {
       toast({ title: "Not enough credits", description: `Top up your wallet - this pack costs ${cost} credit(s).`, variant: "destructive" });
       return;
     }
 
     setBusy(configuringPack);
 
-    // 1. Spend credits for pack & insert into audit_licenses
-    const { data: licenseId, error: spendError } = await supabase.rpc("spend_credits_for_pack", {
-      _org_id: currentOrg.id,
-      _pack: PACK_RPC_KEY[configuringPack as keyof typeof PACK_CREDIT_COST],
-    });
+    // 1. Spend credits for pack & insert into audit_licenses (only if we don't have an active license!)
+    let licenseId = activeLicense?.id || null;
+    if (!activeLicense) {
+      const { data: spentId, error: spendError } = await supabase.rpc("spend_credits_for_pack", {
+        _org_id: currentOrg.id,
+        _pack: PACK_RPC_KEY[configuringPack as keyof typeof PACK_CREDIT_COST],
+      });
 
-    if (spendError) {
-      toast({ title: "Could not unlock", description: spendError.message, variant: "destructive" });
-      setBusy(null);
-      return;
+      if (spendError) {
+        toast({ title: "Could not unlock", description: spendError.message, variant: "destructive" });
+        setBusy(null);
+        return;
+      }
+      licenseId = spentId;
     }
 
     // 2. Fetch processes inside the organization
@@ -112,25 +215,48 @@ export default function Licenses() {
       .select("id,key,name")
       .eq("org_id", currentOrg.id);
 
-    // If configuring hse, ensure we seed HSE processes first
     let finalProcs = orgProcs ?? [];
+    const existingKeys = new Set(finalProcs.map((p) => p.key));
+    let toInsert: { org_id: string; key: string; name: string }[] = [];
+
     if (configuringPack === "hse") {
-      const existingKeys = new Set(finalProcs.map((p) => p.key));
       const { HSE_PROCESSES } = await import("@/data/standardsHse");
-      const toInsert = HSE_PROCESSES.filter((p) => !existingKeys.has(p.key)).map((p) => ({
+      toInsert = HSE_PROCESSES.filter((p) => !existingKeys.has(p.key)).map((p) => ({
         org_id: currentOrg.id,
         key: p.key,
         name: p.name,
       }));
+    } else if (configuringPack === "45001") {
+      const { PROCESSES_45001 } = await import("@/data/processAudit45001");
+      toInsert = PROCESSES_45001.filter((p) => !existingKeys.has(p.key)).map((p) => ({
+        org_id: currentOrg.id,
+        key: p.key,
+        name: p.name,
+      }));
+    } else if (configuringPack === "14001") {
+      const { PROCESSES_14001 } = await import("@/data/processAudit14001");
+      toInsert = PROCESSES_14001.filter((p) => !existingKeys.has(p.key)).map((p) => ({
+        org_id: currentOrg.id,
+        key: p.key,
+        name: p.name,
+      }));
+    } else {
+      // 9001 or ims
+      const { PROCESSES } = await import("@/data/processAudit");
+      toInsert = PROCESSES.filter((p) => !existingKeys.has(p.key)).map((p) => ({
+        org_id: currentOrg.id,
+        key: p.key,
+        name: p.name,
+      }));
+    }
 
-      if (toInsert.length > 0) {
-        await supabase.from("org_processes").insert(toInsert);
-        const { data: updatedProcs } = await supabase
-          .from("org_processes")
-          .select("id,key,name")
-          .eq("org_id", currentOrg.id);
-        if (updatedProcs) finalProcs = updatedProcs;
-      }
+    if (toInsert.length > 0) {
+      await supabase.from("org_processes").insert(toInsert);
+      const { data: updatedProcs } = await supabase
+        .from("org_processes")
+        .select("id,key,name")
+        .eq("org_id", currentOrg.id);
+      if (updatedProcs) finalProcs = updatedProcs;
     }
 
     // 3. Create the audit record directly
@@ -140,7 +266,7 @@ export default function Licenses() {
         org_id: currentOrg.id,
         standard: configuringPack,
         title: auditTitle.trim(),
-        lead_auditor_id: selectedAuditorId,
+        lead_auditor_id: auditorId,
         status: "in_progress",
         started_at: new Date().toISOString(),
         created_by: user.id,
@@ -163,14 +289,18 @@ export default function Licenses() {
     const rows = visibleProcs.map((p) => ({
       audit_id: newAudit.id,
       process_id: p.id,
-      auditor_id: selectedAuditorId,
+      auditor_id: auditorId,
     }));
 
     if (rows.length > 0) {
       await supabase.from("audit_processes").insert(rows);
     }
 
-    toast({ title: "Audit pack unlocked & launched!", description: `${cost} credit(s) spent. Redirecting you...` });
+    if (activeLicense) {
+      toast({ title: "Audit launched under active license!", description: "Started audit with zero credit deduction." });
+    } else {
+      toast({ title: "Audit pack unlocked & launched!", description: `${cost} credit(s) spent. Redirecting you...` });
+    }
     setBusy(null);
     setConfiguringPack(null);
     navigate(`/app/audits/${newAudit.id}`);
@@ -221,7 +351,8 @@ export default function Licenses() {
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {PACKS.map((p) => {
             const cost = customPricing?.[p.code] !== undefined ? Number(customPricing[p.code]) : PACK_CREDIT_COST[p.code];
-            const affordable = balance >= cost;
+            const active = hasLicense(p.code);
+            const affordable = balance >= cost || active;
 
             return (
               <div
@@ -233,19 +364,31 @@ export default function Licenses() {
                     <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{p.label}</span>
                     <h3 className="mt-2 font-display text-lg font-semibold">{p.description}</h3>
                   </div>
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary text-muted-foreground">
-                    <Lock className="h-4.5 w-4.5" />
-                  </div>
+                  {active ? (
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-success/10 text-success">
+                      <Unlock className="h-4.5 w-4.5" />
+                    </div>
+                  ) : (
+                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary text-muted-foreground">
+                      <Lock className="h-4.5 w-4.5" />
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-5 flex items-end justify-between gap-3">
                   <div>
-                    <div className="font-display text-4xl font-bold">{cost}</div>
-                    <p className="mt-1 text-xs text-muted-foreground">credit{cost === 1 ? "" : "s"}</p>
+                    <div className="font-display text-3xl font-extrabold text-foreground">{formatNaira(p.price)}</div>
+                    {active ? (
+                      <p className="mt-1 text-[10px] text-success font-bold uppercase tracking-wider">Active License</p>
+                    ) : (
+                      <p className="mt-1 text-xs text-muted-foreground font-semibold">{cost} credit{cost === 1 ? "" : "s"}</p>
+                    )}
                   </div>
-                  <div className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">
-                    {formatNaira(p.price)} value
-                  </div>
+                  {p.price !== 10000 && (
+                    <div className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">
+                      Bundle pack
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-5 flex flex-wrap gap-2">
@@ -264,13 +407,13 @@ export default function Licenses() {
                       setSelectedAuditorId("");
                     }
                   }}
-                  disabled={busy !== null || balance < cost || !isProfileComplete}
+                  disabled={busy !== null || (!active && balance < cost) || !isProfileComplete}
                   className="pill-cta mt-6 w-full disabled:opacity-50"
                 >
-                  {busy === p.code ? "Unlocking..." : !isProfileComplete ? "Profile setup required" : balance < cost ? "Not enough credits" : `Unlock for ${cost} credit${cost === 1 ? "" : "s"}`}
+                  {busy === p.code ? "Unlocking..." : !isProfileComplete ? "Profile setup required" : active ? "Setup Audit (Licensed)" : balance < cost ? "Not enough credits" : `Unlock for ${cost} credit${cost === 1 ? "" : "s"}`}
                 </button>
 
-                {!affordable && (
+                {!affordable && !active && (
                   <Link to="/app/wallet" className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-foreground">
                     Add credits in wallet
                     <ArrowRight className="h-4 w-4" />
@@ -302,7 +445,11 @@ export default function Licenses() {
                     </div>
                     <div>
                       <h3 className="font-display text-lg font-semibold">{meta?.label ?? license.pack}</h3>
-                      {cost !== null && <p className="text-xs text-muted-foreground">Bought for {cost} credit{cost === 1 ? "" : "s"}</p>}
+                      {cost !== null && meta && (
+                        <p className="text-xs text-muted-foreground">
+                          Bought for {cost} credit{cost === 1 ? "" : "s"} ({formatNaira(meta.price)} value)
+                        </p>
+                      )}
                     </div>
                   </div>
                   <span className={`rounded-full px-2 py-0.5 text-xs ${expired ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"}`}>
@@ -345,30 +492,32 @@ export default function Licenses() {
                 />
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Auditor in Charge</label>
-                <select
-                  className="input w-full font-sans text-sm font-semibold"
-                  value={selectedAuditorId}
-                  onChange={(e) => setSelectedAuditorId(e.target.value)}
-                >
-                  <option value="">— Select Auditor —</option>
-                  {auditors.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
-                {auditors.length === 0 && (
-                  <p className="mt-2 text-xs text-warning leading-normal">
-                    ⚠️ No auditors registered. Please register at least one auditor in{" "}
-                    <Link to="/app/team" className="underline font-bold text-foreground hover:text-primary">
-                      My Team
-                    </Link>{" "}
-                    first.
-                  </p>
-                )}
-              </div>
+              {currentOrg?.type !== "individual" && (
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Auditor in Charge</label>
+                  <select
+                    className="input w-full font-sans text-sm font-semibold"
+                    value={selectedAuditorId}
+                    onChange={(e) => setSelectedAuditorId(e.target.value)}
+                  >
+                    <option value="">— Select Auditor —</option>
+                    {auditors.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                  {auditors.length === 0 && (
+                    <p className="mt-2 text-xs text-warning leading-normal">
+                      ⚠️ No auditors registered. Please register at least one auditor in{" "}
+                      <Link to="/app/team" className="underline font-bold text-foreground hover:text-primary">
+                        My Team
+                      </Link>{" "}
+                      first.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl bg-secondary/40 p-4 border border-border/50 text-xs text-muted-foreground leading-relaxed">

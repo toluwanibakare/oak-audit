@@ -1,7 +1,7 @@
 import type { PackCode } from "./packs";
 
-// 1 credit = ₦5,000 (configurable here, also mirrored in DB function spend_credits_for_pack)
-export const NAIRA_PER_CREDIT = 5000;
+// 1 credit = ₦10,000 (configurable here, also mirrored in DB function spend_credits_for_pack)
+export const NAIRA_PER_CREDIT = 10000;
 
 export const formatNaira = (n: number) => `₦${n.toLocaleString("en-NG")}`;
 

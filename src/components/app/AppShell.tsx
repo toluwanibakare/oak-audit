@@ -21,8 +21,9 @@ import {
   Users,
   Wallet as WalletIcon,
   Workflow,
-  X,
   Lock,
+  LifeBuoy,
+  X,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import logo from "@/assets/logo.png";
@@ -36,6 +37,7 @@ const ORG_NAV = [
   { to: "/app/question-bank", label: "Question Banks", icon: BookOpen },
   { to: "/app/findings", label: "Findings", icon: AlertTriangle },
   { to: "/app/mrm", label: "Management Review", icon: FileText },
+  { to: "/contact", label: "Help & Support", icon: LifeBuoy },
 ];
 
 const INDIVIDUAL_NAV = [
@@ -44,6 +46,7 @@ const INDIVIDUAL_NAV = [
   { to: "/app/audits", label: "My Audits", icon: ClipboardCheck },
   { to: "/app/question-bank", label: "Question Banks", icon: BookOpen },
   { to: "/app/findings", label: "Findings", icon: AlertTriangle },
+  { to: "/contact", label: "Help & Support", icon: LifeBuoy },
 ];
 
 export const AppShell = ({ children }: { children: ReactNode }) => {
@@ -77,15 +80,38 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  /* ── Wallet balance ─────────────────────────────────────────── */
+  /* ── Wallet balance & Real-time Sync ─────────────────────────── */
   useEffect(() => {
     if (!currentOrg) return;
+    
+    // Initial load
     supabase
       .from("credit_wallets")
       .select("balance")
       .eq("org_id", currentOrg.id)
       .maybeSingle()
       .then(({ data }) => setBalance(data?.balance ?? 0));
+
+    // Real-time subscription
+    const channel = supabase
+      .channel(`appshell_wallet_${currentOrg.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "credit_wallets",
+          filter: `org_id=eq.${currentOrg.id}`,
+        },
+        (payload: any) => {
+          setBalance(payload.new?.balance ?? 0);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [currentOrg]);
 
   /* ── Top loader ─────────────────────────────────────────────── */

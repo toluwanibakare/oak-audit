@@ -850,11 +850,11 @@ export default function Landing() {
                 Visit Our Corporate Website (oak-global.com.ng)
               </a>
               <span className="text-muted-foreground/40 hidden sm:inline">•</span>
-              <a href="#" className="hover:text-foreground transition">Privacy Policy</a>
+              <Link to="/privacy" className="hover:text-foreground transition">Privacy Policy</Link>
               <span className="text-muted-foreground/30 hidden sm:inline">•</span>
-              <a href="#" className="hover:text-foreground transition">Terms of Service</a>
+              <Link to="/terms" className="hover:text-foreground transition">Terms of Service</Link>
               <span className="text-muted-foreground/30 hidden sm:inline">•</span>
-              <a href="mailto:info@oakglobal.com" className="hover:text-foreground transition">Contact Us</a>
+              <Link to="/contact" className="hover:text-foreground transition">Contact Us</Link>
             </div>
           </div>
           

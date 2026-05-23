@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const NAIRA_PER_CREDIT = 5000;
+const NAIRA_PER_CREDIT = 10000;
 const ALLOWED_BUNDLES = new Set([1, 3, 5, 10]);
 
 Deno.serve(async (req) => {

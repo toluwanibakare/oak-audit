@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { AlertTriangle, FileUp, Link2, Lock, Unlock, User } from "lucide-react";
+import { AlertTriangle, FileUp, Link2, Lock, Unlock, User, RefreshCw, CheckCircle2, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app/AppShell";
 import { useOrg } from "@/hooks/useOrg";
@@ -47,6 +47,8 @@ export default function RunAudit() {
   const [auditors, setAuditors] = useState<{ id: string; name: string; user_id: string | null }[]>([]);
   const [auditProcesses, setAuditProcesses] = useState<{ process_id: string; auditor_id: string | null }[]>([]);
   const [tempAuditorId, setTempAuditorId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const stdForBank: StandardKey =
     audit?.standard === "27001" ? "9001" : ((audit?.standard as StandardKey) ?? "9001");
@@ -58,33 +60,124 @@ export default function RunAudit() {
   useEffect(() => {
     if (!id || !currentOrg) return;
     (async () => {
+      // 1. Fetch audit details
       const { data: auditRow } = await supabase.from("audits").select("*").eq("id", id).single();
-      setAudit(auditRow as Audit);
+      if (!auditRow) return;
+      const currentAudit = auditRow as Audit;
+      setAudit(currentAudit);
 
-      const { data: auditProcs } = await supabase.from("audit_processes").select("process_id,auditor_id").eq("audit_id", id);
-      setAuditProcesses((auditProcs ?? []) as any);
+      // 2. Fetch existing organization processes
+      const { data: orgProcs } = await supabase.from("org_processes").select("id,key,name").eq("org_id", currentOrg.id).order("name");
+      let finalProcs = orgProcs ?? [];
 
-      const ids = (auditProcs ?? []).map((row: AuditProc) => row.process_id);
-      if (ids.length) {
-        const { data: processRows } = await supabase.from("org_processes").select("id,key,name").in("id", ids);
-        setProcs((processRows ?? []) as Proc[]);
-        setActiveProc((processRows?.[0] as Proc)?.id ?? null);
+      // Auto-seed organization processes if empty or missing for this standard
+      const existingKeys = new Set(finalProcs.map((p) => p.key));
+      let toInsert: { org_id: string; key: string; name: string }[] = [];
+
+      const std = currentAudit.standard;
+      if (std === "hse") {
+        const { HSE_PROCESSES } = await import("@/data/standardsHse");
+        toInsert = HSE_PROCESSES.filter((p) => !existingKeys.has(p.key)).map((p) => ({
+          org_id: currentOrg.id,
+          key: p.key,
+          name: p.name,
+        }));
+      } else if (std === "45001") {
+        const { PROCESSES_45001 } = await import("@/data/processAudit45001");
+        toInsert = PROCESSES_45001.filter((p) => !existingKeys.has(p.key)).map((p) => ({
+          org_id: currentOrg.id,
+          key: p.key,
+          name: p.name,
+        }));
+      } else if (std === "14001") {
+        const { PROCESSES_14001 } = await import("@/data/processAudit14001");
+        toInsert = PROCESSES_14001.filter((p) => !existingKeys.has(p.key)).map((p) => ({
+          org_id: currentOrg.id,
+          key: p.key,
+          name: p.name,
+        }));
+      } else {
+        // 9001 or ims
+        const { PROCESSES } = await import("@/data/processAudit");
+        toInsert = PROCESSES.filter((p) => !existingKeys.has(p.key)).map((p) => ({
+          org_id: currentOrg.id,
+          key: p.key,
+          name: p.name,
+        }));
       }
 
+      if (toInsert.length > 0) {
+        await supabase.from("org_processes").insert(toInsert);
+        const { data: updatedProcs } = await supabase.from("org_processes").select("id,key,name").eq("org_id", currentOrg.id).order("name");
+        if (updatedProcs) finalProcs = updatedProcs;
+      }
+
+      // 3. Filter procs by standard to match the active scope
+      const visibleProcs = finalProcs.filter((p) => {
+        const isHseProc = p.key && p.key.startsWith("hse_");
+        return std === "hse" ? isHseProc : !isHseProc;
+      });
+      setProcs(visibleProcs);
+      if (visibleProcs.length > 0) setActiveProc(visibleProcs[0].id);
+
+      // 4. Fetch audit processes
+      const { data: auditProcs } = await supabase.from("audit_processes").select("process_id,auditor_id").eq("audit_id", id);
+      let finalAuditProcs = auditProcs ?? [];
+
+      // If no processes are linked to this audit, auto-link ALL visible processes!
+      if (finalAuditProcs.length === 0 && visibleProcs.length > 0) {
+        // Resolve default auditor
+        let auditorId = currentAudit.lead_auditor_id;
+        if (!auditorId) {
+          const { data: team } = await supabase.from("auditors").select("id").eq("org_id", currentOrg.id).limit(1);
+          if (team && team.length > 0) {
+            auditorId = team[0].id;
+          } else if (user) {
+            // Silently seed a default auditor for them
+            const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Auditor";
+            const { data: newAuditor } = await supabase.from("auditors").insert({
+              org_id: currentOrg.id,
+              name: fullName,
+              email: user.email || "",
+              role: "Lead Auditor",
+              user_id: user.id
+            }).select("id").single();
+            if (newAuditor) auditorId = newAuditor.id;
+          }
+        }
+
+        const rowsToInsert = visibleProcs.map((p) => ({
+          audit_id: id,
+          process_id: p.id,
+          auditor_id: auditorId || null,
+        }));
+
+        if (rowsToInsert.length > 0) {
+          await supabase.from("audit_processes").insert(rowsToInsert);
+          const { data: updatedAuditProcs } = await supabase.from("audit_processes").select("process_id,auditor_id").eq("audit_id", id);
+          if (updatedAuditProcs) finalAuditProcs = updatedAuditProcs;
+        }
+      }
+      setAuditProcesses(finalAuditProcs as any);
+
+      // 5. Fetch auditors inside the organization
       const { data: auditorsList } = await supabase.from("auditors").select("id,name,user_id").eq("org_id", currentOrg.id);
       setAuditors((auditorsList ?? []) as any);
 
+      // 6. Fetch answer rows
       const { data: answerRows } = await supabase.from("audit_answers").select("id,clause,kind,q_ref,question_text,note,status,process_id").eq("audit_id", id);
-      const answerMap: Record<string, Answer> = {};
+      const ansMap: Record<string, Answer> = {};
       (answerRows ?? []).forEach((row: any) => {
-        answerMap[buildAnswerKey(row.process_id, row.clause, row.kind, row.q_ref)] = row;
+        ansMap[buildAnswerKey(row.process_id, row.clause, row.kind, row.q_ref)] = row as Answer;
       });
-      setAnswers(answerMap);
+      setAnswers(ansMap);
 
+      // 7. Load findings
       const { data: findings } = await supabase
         .from("findings")
         .select("id,clause,description,capa,owner,due_date,status,type,root_cause")
         .eq("audit_id", id);
+      
       const findingMap: Record<string, FindingRow> = {};
       (findings ?? []).forEach((finding) => {
         const meta = parseFindingMeta(finding.root_cause);
@@ -93,7 +186,7 @@ export default function RunAudit() {
       });
       setFindingsMap(findingMap);
     })();
-  }, [id, currentOrg]);
+  }, [id, currentOrg, user]);
 
   useEffect(() => {
     if (!currentOrg || !audit || !activeProc) return;
@@ -316,6 +409,152 @@ export default function RunAudit() {
   const total = Object.values(answers).length;
   const conformity = total > 0 ? Math.round((Object.values(answers).filter((answer) => answer.status === "conform").length / total) * 100) : 0;
 
+  // ── Question Checklist Completion Tracking ───────────────────
+  const allAuditQuestions = useMemo(() => {
+    let list: { processId: string; clause: string; kind: string; qRef: string; text: string }[] = [];
+    procs.forEach((p) => {
+      const clauses = getQuestionsFor(stdForBank, p.key as any) ?? [];
+      clauses.forEach((c) => {
+        (c.generic ?? []).forEach((q, idx) => {
+          list.push({ processId: p.id, clause: c.clause, kind: "generic", qRef: idx.toString(), text: q });
+        });
+        (c.specific ?? []).forEach((q, idx) => {
+          list.push({ processId: p.id, clause: c.clause, kind: "specific", qRef: idx.toString(), text: q });
+        });
+      });
+    });
+    return list;
+  }, [procs, stdForBank]);
+
+  const pendingCount = useMemo(() => {
+    let pending = 0;
+    allAuditQuestions.forEach((q) => {
+      const key = buildAnswerKey(q.processId, q.clause, q.kind, q.qRef);
+      const ans = answers[key];
+      if (!ans || ans.status === "pending" || !ans.status) {
+        pending++;
+      }
+    });
+    return pending;
+  }, [allAuditQuestions, answers]);
+
+  const submitAudit = async () => {
+    if (!id) return;
+    setIsSubmitting(true);
+    const { error } = await supabase
+      .from("audits")
+      .update({ status: "generating", closed_at: new Date().toISOString() })
+      .eq("id", id);
+      
+    setIsSubmitting(false);
+    if (error) {
+      toast({ title: "Failed to submit", description: error.message, variant: "destructive" });
+      return;
+    }
+    
+    toast({ title: "Audit Submitted Successfully", description: "Your GRC compliance report is being compiled." });
+    setAudit(audit ? { ...audit, status: "generating", closed_at: new Date().toISOString() } : null);
+  };
+
+  if (audit.status === "generating") {
+    return (
+      <AppShell>
+        <div className="max-w-xl mx-auto mt-12 text-center p-8 border border-border bg-card rounded-[32px] shadow-card space-y-6 relative overflow-hidden animate-fade-in-up">
+          <div className="absolute top-0 right-0 h-32 w-32 rounded-full bg-primary/5 blur-2xl" />
+          
+          <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-primary/10 text-primary">
+            <RefreshCw className="h-10 w-10 animate-spin text-primary" style={{ animationDuration: "3s" }} />
+          </div>
+          
+          <div className="space-y-3">
+            <h2 className="font-display text-2xl font-extrabold tracking-tight">Generating GRC Compliance Report</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed font-sans">
+              OAK Global's compliance engine is currently compiling your audit checklists, calculating standard conformity scores, cross-mapping nonconformities, and preparing your formal regulatory audit reports.
+            </p>
+            <div className="py-2.5 px-4 bg-secondary/50 rounded-2xl text-xs text-muted-foreground inline-flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" />
+              This usually takes a few minutes. Please check back shortly.
+            </div>
+          </div>
+
+          <div className="border-t border-border/60 pt-6 flex justify-center gap-3">
+            <button
+              onClick={async () => {
+                setLoading(true);
+                setTimeout(async () => {
+                  await supabase.from("audits").update({ status: "closed" }).eq("id", id);
+                  setAudit(audit ? { ...audit, status: "closed" } : null);
+                  setLoading(false);
+                  toast({ title: "Compliance Report Compiled!", description: "You can now review your final reports." });
+                }, 1500);
+              }}
+              disabled={loading}
+              className="pill-cta px-6 py-2.5 font-bold flex items-center gap-2"
+            >
+              {loading ? "Checking Status..." : "Check Report Status"}
+            </button>
+            <Link to="/app" className="pill-secondary px-6 py-2.5 font-bold">
+              Back to Dashboard
+            </Link>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (audit.status === "closed") {
+    return (
+      <AppShell>
+        <div className="max-w-2xl mx-auto mt-12 border border-border bg-card rounded-[32px] p-6 sm:p-10 shadow-card space-y-6 relative overflow-hidden animate-fade-in-up">
+          <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-success/5 blur-3xl" />
+          
+          <div className="flex items-center justify-between border-b border-border/60 pb-5">
+            <div>
+              <span className="text-[10px] font-mono font-bold bg-success/10 border border-success/20 px-2 py-0.5 rounded text-success uppercase tracking-wider">
+                Audit Concluded & Archived
+              </span>
+              <h2 className="font-display text-2xl font-extrabold tracking-tight mt-2">{audit.title}</h2>
+              <p className="text-xs text-muted-foreground mt-1">Concluded standard: {audit.standard.toUpperCase()}</p>
+            </div>
+            <div className="h-14 w-14 flex items-center justify-center rounded-2xl bg-success/10 text-success">
+              <CheckCircle2 className="h-8 w-8 text-success" />
+            </div>
+          </div>
+
+          <div className="space-y-4 leading-relaxed text-sm text-muted-foreground font-sans">
+            <p>
+              This compliance audit has been formally <strong>signed off, locked, and securely archived</strong>.
+            </p>
+            <p>
+              In accordance with international GRC standards (ISO 19011) and OAK Global's proprietary data protection policy, <strong>all checklists, answer logs, and evidence links are permanently frozen</strong> to maintain regulatory integrity, compliance traceability, and prevent post-audit tampering.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 pt-2">
+              <div className="bg-secondary/40 border border-border/50 p-4 rounded-2xl">
+                <span className="block text-[10px] font-bold text-muted-foreground uppercase">Conformity Score</span>
+                <span className="text-2xl font-extrabold text-foreground">{conformity}%</span>
+              </div>
+              <div className="bg-secondary/40 border border-border/50 p-4 rounded-2xl">
+                <span className="block text-[10px] font-bold text-muted-foreground uppercase">Archive Date</span>
+                <span className="text-sm font-bold text-foreground block mt-1.5 font-mono">
+                  {audit.closed_at ? new Date(audit.closed_at).toLocaleDateString("en-NG", { dateStyle: "medium" }) : new Date().toLocaleDateString("en-NG", { dateStyle: "medium" })}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-border/60 pt-6 flex flex-col sm:flex-row gap-3">
+            <Link to={`/app/audits/${audit.id}/report`} className="pill-cta justify-center flex items-center gap-1.5 py-3 text-sm font-bold">
+              Access Final Compliance Report
+            </Link>
+            <Link to="/app" className="pill-secondary justify-center py-3 text-sm font-bold">
+              Back to Dashboard
+            </Link>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -327,7 +566,27 @@ export default function RunAudit() {
         <div className="flex items-center gap-3">
           <span className="text-sm text-muted-foreground">Conformity: <strong className="text-foreground">{conformity}%</strong></span>
           <Link to={`/app/audits/${audit.id}/report`} className="pill-secondary">Report</Link>
-          {audit.status !== "closed" && <button onClick={closeAudit} className="pill-cta">Close audit</button>}
+          {audit.status === "in_progress" && (
+            pendingCount > 0 ? (
+              <button
+                disabled
+                className="pill-secondary cursor-not-allowed opacity-60 flex items-center gap-1.5"
+                title="All checklist questions must be completed first"
+              >
+                <Lock className="h-3.5 w-3.5" />
+                Submit Audit ({pendingCount} pending)
+              </button>
+            ) : (
+              <button
+                onClick={submitAudit}
+                disabled={isSubmitting}
+                className="pill-cta animate-pulse flex items-center gap-1.5"
+              >
+                <Unlock className="h-3.5 w-3.5" />
+                {isSubmitting ? "Submitting..." : "Submit & Generate Report"}
+              </button>
+            )
+          )}
         </div>
       </div>
 

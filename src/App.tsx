@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -33,16 +34,84 @@ import QuestionBank from "./pages/app/QuestionBank";
 import Settings from "./pages/app/Settings";
 import MrmWorkspace from "./pages/app/MrmWorkspace";
 import AdminDashboard from "./pages/app/AdminDashboard";
+import Contact from "./pages/Contact";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+};
+
+const App = () => {
+  useEffect(() => {
+    // 1. Disable Right-Click Context Menu
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    document.addEventListener("contextmenu", handleContextMenu);
+
+    // 2. Disable DevTools Keyboard Shortcuts
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // F12 key
+      if (e.key === "F12") {
+        e.preventDefault();
+      }
+      // Ctrl+Shift+I (DevTools)
+      if (e.ctrlKey && e.shiftKey && e.key === "I") {
+        e.preventDefault();
+      }
+      // Ctrl+Shift+J (Console)
+      if (e.ctrlKey && e.shiftKey && e.key === "J") {
+        e.preventDefault();
+      }
+      // Ctrl+U (View Source)
+      if (e.ctrlKey && e.key === "u") {
+        e.preventDefault();
+      }
+      // Ctrl+S (Save Page)
+      if (e.ctrlKey && e.key === "s") {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    // 3. Clear Console & Print Strict Security Warning
+    const warningStyle = "color: #ff3333; font-family: sans-serif; font-size: 2.2em; font-weight: bold; text-shadow: 1px 1px black;";
+    const infoStyle = "color: white; background: #0f172a; font-family: monospace; font-size: 1.1em; padding: 6px 12px; border-radius: 6px; border: 1px solid #334155;";
+    
+    const consoleInterval = window.setInterval(() => {
+      console.clear();
+      console.log("%cSTOP! Proprietary Software Notice", warningStyle);
+      console.log(
+        "%cThis platform and all its source files, database schemas, question checklists, and design systems are the highly confidential, proprietary intellectual property of OAK Global International.\n\nUnauthorized inspection, duplication, decompilation, scraping, or usage is strictly prohibited under international copyright law and subject to immediate civil and criminal prosecution.",
+        "font-size: 1.1em; color: #cbd5e1; line-height: 1.4; margin-bottom: 12px; font-weight: 500;"
+      );
+      console.log("%cFor licensing inquiries: o.kolawole@oak-global.com.ng", infoStyle);
+    }, 2500);
+
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("keydown", handleKeyDown);
+      window.clearInterval(consoleInterval);
+    };
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <TooltipProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ScrollToTop />
           <AuthProvider>
             <OrgProvider>
             <Routes>
@@ -73,6 +142,9 @@ const App = () => (
               <Route path="/risk-opportunity" element={<ProtectedRoute><RiskOpportunity /></ProtectedRoute>} />
               <Route path="/iso27001" element={<ProtectedRoute><Iso27001Audit /></ProtectedRoute>} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </OrgProvider>
@@ -81,6 +153,7 @@ const App = () => (
     </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

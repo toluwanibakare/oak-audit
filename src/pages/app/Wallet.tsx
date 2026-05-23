@@ -42,7 +42,41 @@ export default function Wallet() {
   };
 
   useEffect(() => {
+    if (!currentOrg) return;
     load();
+
+    // Real-time subscription to auto-refresh credits and transactions list!
+    const channel = supabase
+      .channel(`wallet_page_${currentOrg.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "credit_wallets",
+          filter: `org_id=eq.${currentOrg.id}`,
+        },
+        () => {
+          load();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "credit_transactions",
+          filter: `org_id=eq.${currentOrg.id}`,
+        },
+        () => {
+          load();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [currentOrg]);
 
   useEffect(() => {
