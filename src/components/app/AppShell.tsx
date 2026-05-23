@@ -31,9 +31,9 @@ const NAV = [
   { to: "/app/processes", label: "Processes", icon: Workflow },
   { to: "/app/team", label: "My Team", icon: Users },
   { to: "/app/audits", label: "My Audits", icon: ClipboardCheck },
-  { to: "/app/question-bank", label: "Customizable Question Banks", icon: BookOpen },
+  { to: "/app/question-bank", label: "Question Banks", icon: BookOpen },
   { to: "/app/findings", label: "Findings", icon: AlertTriangle },
-  { to: "/app/mrm", label: "Management Review Guides", icon: FileText },
+  { to: "/app/mrm", label: "Management Review", icon: FileText },
 ];
 
 export const AppShell = ({ children }: { children: ReactNode }) => {

@@ -452,28 +452,6 @@ export function exportAuditReport({
       font-style: italic;
     }
 
-    .watermark-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: -1000;
-      pointer-events: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-    }
-    .watermark-image {
-      width: 850px;
-      height: auto;
-      max-width: 95%;
-      max-height: 95%;
-      opacity: 0.035;
-      object-fit: contain;
-    }
-    
     @media print { 
       body { background: white; padding: 0; color: #000000; } 
       .finding-card { page-break-inside: avoid; }
@@ -498,13 +476,15 @@ export function exportAuditReport({
   </style>
 </head>
 <body>
-  ${logoUrl ? `
-  <div class="watermark-container">
-    <img class="watermark-image" src="${logoUrl}" alt="OAK Global Watermark" />
-  </div>
-  ` : ""}
   <div class="header-accent-bar"></div>
-  <div class="eyebrow">Audit & Assurance Services</div>
+  
+  <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 24px; border-bottom: 1px solid #f1f5f9; padding-bottom: 14px;">
+    ${logoUrl ? `<img src="${logoUrl}" alt="OAK Logo" style="height: 44px; width: auto; object-fit: contain; flex-shrink: 0;" />` : ""}
+    <div>
+      <div style="font-family: 'Outfit', sans-serif; font-size: 17px; font-weight: 800; color: #0f172a; tracking-tight: -0.02em; line-height: 1.1;">OAK Global International</div>
+      <div class="eyebrow" style="margin-bottom: 0; color: #13c653; font-size: 10px; font-weight: 700; margin-top: 2px;">Audit & Assurance Services</div>
+    </div>
+  </div>
   
   <div class="cover-box">
     <h1>${escape(meta.auditTitle)}</h1>

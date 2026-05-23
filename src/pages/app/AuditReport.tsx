@@ -264,22 +264,16 @@ const AuditReport = () => {
       </div>
 
       <div className="mt-6 rounded-3xl border border-border bg-card p-10 shadow-card print:border-none print:shadow-none relative overflow-hidden">
-        {/* Transparent Watermark Background Logo */}
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-0 select-none overflow-hidden opacity-[0.035] print:opacity-[0.035]">
-          <img 
-            src={logo} 
-            alt="OAK Global Watermark" 
-            className="w-[380px] sm:w-[680px] md:w-[850px] lg:w-[1050px] h-auto object-contain max-w-[95%] max-h-[95%] animate-fade-in duration-1000" 
-          />
-        </div>
-
         <div className="relative z-10">
           <div className="flex flex-wrap items-start justify-between gap-5 border-b border-border pb-6">
-          <div>
-            <span className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">OAK Global International - Audit Report</span>
-            <h1 className="mt-2 font-display text-4xl font-bold">{audit.title}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{currentOrg?.name} - Standard {formatStandard(audit.standard)}</p>
-          </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <img src={logo} alt="OAK Logo" className="h-14 w-auto object-contain shrink-0" />
+              <div>
+                <span className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">OAK Global International - Audit Report</span>
+                <h1 className="mt-1.5 font-display text-3xl sm:text-4xl font-bold">{audit.title}</h1>
+                <p className="mt-1 text-sm text-muted-foreground">{currentOrg?.name} - Standard {formatStandard(audit.standard)}</p>
+              </div>
+            </div>
           <div className="rounded-2xl bg-secondary px-4 py-3 text-right text-xs text-muted-foreground">
             <div>Started: {audit.started_at ? new Date(audit.started_at).toLocaleDateString() : "-"}</div>
             <div>Closed: {audit.closed_at ? new Date(audit.closed_at).toLocaleDateString() : "-"}</div>
