@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowRight,
+  BadgeCheck,
   BarChart3,
   ClipboardCheck,
   FolderLock,
@@ -169,8 +170,8 @@ const AppDashboard = () => {
           
           <div className="flex items-start justify-between gap-4">
             <div className="flex gap-4">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-success/20 text-success text-xl">
-                🎉
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-success/20 text-success">
+                <BadgeCheck className="h-6 w-6" />
               </span>
               <div>
                 <h2 className="font-display text-lg font-bold text-foreground">Account approved & ready</h2>
