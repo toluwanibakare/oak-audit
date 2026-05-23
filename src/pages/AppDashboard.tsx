@@ -313,7 +313,6 @@ const AppDashboard = () => {
             </div>
           )}
         </div>
-        </div>
 
         <div className="grid gap-5">
           <aside className="analytics-panel rounded-[28px] border border-border bg-card p-6 shadow-card" style={{ animationDelay: "140ms" }}>
