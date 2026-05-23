@@ -41,7 +41,7 @@ export default function QuestionBank() {
 
   return (
     <AppShell>
-      <Header title="Custom question bank" subtitle="Extend the standard ISO question banks with your own organizational procedures." />
+      <Header title="Customizable Question Banks" subtitle="Extend the standard ISO question banks with your own organizational procedures." />
       <div className="mt-6 grid gap-3 rounded-2xl border border-border bg-card p-5 md:grid-cols-12">
         <select className="input md:col-span-2" value={form.standard} onChange={(e) => setForm({ ...form, standard: e.target.value })}>
           {STDS.map((s) => <option key={s.k} value={s.k}>{s.label}</option>)}

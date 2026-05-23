@@ -227,6 +227,28 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
   ],
 };
 
-export function getQuestionsForHseProcess(proc: HseProcessKey): ClauseQuestionSet[] {
-  return HSE_QUESTIONS[proc] ?? [];
+export const HSE_KEY_MAPPING: Record<string, HseProcessKey> = {
+  warehouse: "hse_warehouse",
+  store: "hse_warehouse",
+  production: "hse_machine",
+  engineering: "hse_machine",
+  construction: "hse_general",
+  ict: "hse_electrical",
+  admin: "hse_general",
+  operations: "hse_general",
+  hr: "hse_welfare",
+  finance: "hse_management",
+  qaqc: "hse_management",
+  top_management: "hse_management",
+  qms: "hse_management",
+  project_management: "hse_general",
+  sales: "hse_general",
+  marketing: "hse_general",
+  procurement: "hse_contractor",
+  business_development: "hse_general",
+};
+
+export function getQuestionsForHseProcess(proc: string): ClauseQuestionSet[] {
+  const mappedKey = (proc.startsWith("hse_") ? proc : (HSE_KEY_MAPPING[proc.toLowerCase()] ?? "hse_general")) as HseProcessKey;
+  return HSE_QUESTIONS[mappedKey] ?? [];
 }

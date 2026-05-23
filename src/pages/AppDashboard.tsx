@@ -153,7 +153,7 @@ const AppDashboard = () => {
                 {loading || credits === null ? <Skeleton className="inline-block h-5 w-12 align-middle" /> : credits}
               </span>
             </div>
-            <Link to="/app/audits/new" className="pill-cta">+ New audit</Link>
+            <Link to="/app/licenses" className="pill-cta">+ New audit</Link>
           </div>
         </div>
 
@@ -230,7 +230,7 @@ const AppDashboard = () => {
                 <h3 className="mt-4 font-display text-lg font-semibold">No audits yet</h3>
                 <p className="mt-2 text-sm text-muted-foreground">Create your first audit or unlock more packs to widen what your team can run.</p>
                 <div className="mt-5 flex flex-wrap justify-center gap-3">
-                  <Link to="/app/audits/new" className="pill-cta">Start an audit</Link>
+                  <Link to="/app/licenses" className="pill-cta">Start an audit</Link>
                   <Link to="/app/licenses" className="inline-flex items-center justify-center rounded-full border border-border px-5 py-3 text-sm font-medium transition hover:bg-secondary">
                     Unlock more packs
                   </Link>

@@ -40,7 +40,7 @@ export default function Audits() {
     <AppShell>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <Header title="Audits" subtitle="All audit runs across your standards." />
-        <Link to="/app/audits/new" className="pill-cta">+ New audit</Link>
+        <Link to="/app/licenses" className="pill-cta">+ New audit</Link>
       </div>
 
       <section className="mt-6 grid gap-4 md:grid-cols-3">

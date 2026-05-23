@@ -216,38 +216,7 @@ const Auth = () => {
     }
   };
 
-  const handleDemo = async () => {
-    setBusy(true);
-    const demoEmail = "demo@oakglobal.app";
-    const demoPass = "Oak-Demo!7xPq2NvR9zKt";
-    try {
-      let { error } = await supabase.auth.signInWithPassword({ email: demoEmail, password: demoPass });
-      if (error) {
-        const { error: signUpErr } = await supabase.auth.signUp({
-          email: demoEmail,
-          password: demoPass,
-          options: {
-            emailRedirectTo: `${window.location.origin}/app`,
-            data: { 
-              full_name: "Demo User", 
-              account_type: "organization", 
-              org_name: "OAK Demo Org", 
-              industry: "Construction" 
-            },
-          },
-        });
-        if (signUpErr) throw signUpErr;
-        const { error: signInErr } = await supabase.auth.signInWithPassword({ email: demoEmail, password: demoPass });
-        if (signInErr) throw signInErr;
-      }
-      try { await supabase.rpc("grant_demo_credits"); } catch { /* non-fatal */ }
-      navigate("/app", { replace: true });
-    } catch (err: any) {
-      toast({ title: "Demo sign-in failed", description: err.message ?? "Try again", variant: "destructive" });
-    } finally {
-      setBusy(false);
-    }
-  };
+
 
   // Determine width of our visual step progress bar
   const progressWidth = mode === "signin" ? "0%" : accountType === "individual" ? "100%" : step === 1 ? "50%" : "100%";
@@ -479,17 +448,7 @@ const Auth = () => {
               )}
             </div>
 
-            {/* Demo user fallback (Only visible on Sign In) */}
-            {mode === "signin" && (
-              <button
-                type="button"
-                onClick={handleDemo}
-                disabled={busy}
-                className="w-full h-11 rounded-xl border border-dashed border-muted-foreground/30 text-sm font-semibold text-muted-foreground transition hover:border-primary hover:text-primary disabled:opacity-60"
-              >
-                Sign in as Demo User
-              </button>
-            )}
+
           </form>
 
           {/* Switch mode links */}

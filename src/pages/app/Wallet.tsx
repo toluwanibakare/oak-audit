@@ -27,6 +27,9 @@ export default function Wallet() {
   const [balance, setBalance] = useState<number>(0);
   const [txs, setTxs] = useState<Tx[]>([]);
   const [busy, setBusy] = useState<number | null>(null);
+  const [customCredits, setCustomCredits] = useState<string>("");
+
+  const numericCredits = parseInt(customCredits, 10) || 0;
 
   const load = async () => {
     if (!currentOrg) return;
@@ -61,19 +64,24 @@ export default function Wallet() {
   const topUp = async (credits: number) => {
     if (!currentOrg || !user) return;
     setBusy(credits);
-    const { data, error } = await supabase.functions.invoke("paystack-initiate", {
-      body: { org_id: currentOrg.id, credits, email: user.email },
+    const { error } = await supabase.rpc("bypass_topup_credits", {
+      _org_id: currentOrg.id,
+      _credits: credits,
     });
     setBusy(null);
-    if (error || !data?.authorization_url) {
+    if (error) {
       toast({
-        title: "Checkout unavailable",
-        description: data?.message ?? error?.message ?? "Add PAYSTACK_SECRET_KEY in Cloud secrets to enable payments.",
+        title: "Top-up failed",
+        description: error.message,
         variant: "destructive",
       });
       return;
     }
-    window.location.href = data.authorization_url;
+    toast({
+      title: "Top-up confirmed",
+      description: `${credits} credit(s) added to your wallet (Bypassed payment).`,
+    });
+    load();
   };
 
   return (
@@ -119,6 +127,35 @@ export default function Wallet() {
               </button>
             </div>
           ))}
+        </div>
+
+        <div className="mt-8 rounded-3xl border border-border bg-card/60 backdrop-blur-md p-6 shadow-card max-w-xl">
+          <h3 className="font-display text-base font-bold">Or Top Up a Custom Amount</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Fund your wallet with any custom credit count. 1 credit = {formatNaira(NAIRA_PER_CREDIT)}.
+          </p>
+          <div className="mt-4 flex flex-col sm:flex-row items-center gap-3">
+            <div className="relative flex-1 w-full">
+              <input
+                type="number"
+                min="1"
+                className="input w-full pr-16 text-sm font-semibold"
+                placeholder="Enter credit count (e.g. 5)"
+                value={customCredits}
+                onChange={(e) => setCustomCredits(e.target.value)}
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold font-mono text-muted-foreground uppercase">
+                Credits
+              </span>
+            </div>
+            <button
+              onClick={() => numericCredits > 0 && topUp(numericCredits)}
+              disabled={numericCredits <= 0 || busy !== null}
+              className="pill-cta w-full sm:w-auto shrink-0 justify-center text-xs py-2.5 px-4"
+            >
+              {busy ? "Redirecting..." : `Top Up ${numericCredits > 0 ? `(${formatNaira(numericCredits * NAIRA_PER_CREDIT)})` : ""}`}
+            </button>
+          </div>
         </div>
       </section>
 

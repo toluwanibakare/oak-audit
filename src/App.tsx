@@ -31,6 +31,7 @@ import Findings from "./pages/app/Findings";
 import QuestionBank from "./pages/app/QuestionBank";
 import Settings from "./pages/app/Settings";
 import MrmWorkspace from "./pages/app/MrmWorkspace";
+import AdminDashboard from "./pages/app/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="/kpi" element={<ProtectedRoute><KpiMonitoring /></ProtectedRoute>} />
               <Route path="/risk-opportunity" element={<ProtectedRoute><RiskOpportunity /></ProtectedRoute>} />
               <Route path="/iso27001" element={<ProtectedRoute><Iso27001Audit /></ProtectedRoute>} />
+              <Route path="/admin" element={<AdminDashboard />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </OrgProvider>

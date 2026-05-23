@@ -67,59 +67,54 @@ const features = [
 
 const pricingPlans = [
   {
-    name: "Starter",
-    price: "₦15,000",
-    period: "/month",
-    tagline: "Perfect for individual auditors",
+    name: "ISO Standard Pack",
+    price: "Standard Coverage",
+    period: "",
+    tagline: "Audit any single standard for your organization",
     color: "border-border",
-    badge: null,
+    badge: "ISO Certified",
     features: [
-      "1 user seat",
-      "Up to 5 audit packs",
-      "ISO 9001 & 14001 coverage",
-      "PDF report exports",
-      "Basic analytics dashboard",
-      "Email support",
+      "Full access to ISO 9001 / 14001 / 45001 / 27001",
+      "Seeded standard process question banks",
+      "Secure credentials for each team auditor",
+      "Auto-generate professional reports & watermarks",
+      "Detailed checklist compliance scoring",
     ],
-    cta: "Get started",
+    cta: "Start auditing now",
     ctaStyle: "pill-secondary w-full justify-center",
   },
   {
-    name: "Professional",
-    price: "₦45,000",
-    period: "/month",
-    tagline: "For growing audit teams",
+    name: "HSE Bundle Pack",
+    price: "Comprehensive Safety",
+    period: "",
+    tagline: "For comprehensive health & safety compliance",
     color: "border-primary",
     badge: "Most Popular",
     features: [
-      "Up to 5 user seats",
-      "Unlimited audit packs",
-      "All ISO standards incl. 27001",
-      "CAPA tracking & management",
-      "Advanced analytics",
-      "Team role assignments",
-      "Priority support",
+      "Full access to the 150-item HSE question bank",
+      "Multi-category process safety checks",
+      "Site inspection checklists & checklists photos",
+      "Audit title & lead auditor locks",
+      "Action tracking and corrective action logs",
     ],
-    cta: "Start free trial",
+    cta: "Start auditing now",
     ctaStyle: "pill-cta w-full justify-center",
   },
   {
-    name: "Enterprise",
-    price: "Custom",
+    name: "IMS Integrated Pack",
+    price: "Integrated GRC",
     period: "",
-    tagline: "For large organisations",
+    tagline: "All standards mapped into one command room",
     color: "border-accent",
-    badge: null,
+    badge: "All-in-One",
     features: [
-      "Unlimited user seats",
-      "Multi-site audit management",
-      "Custom audit packs",
-      "Dedicated onboarding",
-      "SLA guarantee",
-      "API access",
-      "Dedicated account manager",
+      "All standards cross-mapped (9001+14001+45001+27001)",
+      "Integrated Management System checklists",
+      "Dedicated management review guides",
+      "Customizable question bank access",
+      "Advanced action tracking & GRC dashboards",
     ],
-    cta: "Contact us",
+    cta: "Start auditing now",
     ctaStyle: "pill-outline-accent w-full justify-center",
   },
 ];
@@ -227,7 +222,7 @@ export default function Landing() {
               ) : (
                 <>
                   <Link to="/auth" className="pill-secondary text-xs px-3.5 py-2">Sign in</Link>
-                  <Link to="/auth" className="pill-cta text-xs px-4 py-2">
+                  <Link to="/auth?mode=signup" className="pill-cta text-xs px-4 py-2">
                     <span>Get started</span>
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
@@ -322,7 +317,7 @@ export default function Landing() {
                   Sign in
                 </Link>
                 <Link
-                  to="/auth"
+                  to="/auth?mode=signup"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="pill-cta w-full justify-center text-center text-xs py-3.5"
                 >
@@ -373,7 +368,7 @@ export default function Landing() {
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               ) : (
-                <Link to="/auth" className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:opacity-90 hover:-translate-y-0.5">
+                <Link to="/auth?mode=signup" className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:opacity-90 hover:-translate-y-0.5">
                   Start auditing free
                   <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -488,7 +483,7 @@ export default function Landing() {
                   ))}
                 </ul>
                 <div className="mt-8 flex gap-3">
-                  <Link to="/auth" className="pill-cta">
+                  <Link to="/auth?mode=signup" className="pill-cta">
                     Start auditing
                     <ArrowRight className="h-4 w-4" />
                   </Link>
@@ -655,11 +650,10 @@ export default function Landing() {
                 Simple pricing
               </span>
               <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight">
-                Plans that grow with your team
+                Pay per standard & auditor
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground">
-                Start free, scale when ready. No hidden fees, no per-audit charges — just clean access
-                to the tools your team actually needs.
+                Activate audit packs only for the standard and auditor you need. Each audit activation is valid for exactly one week of full access.
               </p>
             </div>
 
@@ -680,11 +674,10 @@ export default function Landing() {
                   <div>
                     <div className="font-display text-lg font-bold">{plan.name}</div>
                     <p className="mt-1 text-xs text-muted-foreground">{plan.tagline}</p>
-                    <div className="mt-5 flex items-end gap-1">
-                      <span className="font-display text-4xl font-extrabold">{plan.price}</span>
-                      {plan.period && (
-                        <span className="mb-1 text-sm text-muted-foreground">{plan.period}</span>
-                      )}
+                    <div className="mt-4 flex items-center">
+                      <span className="inline-flex items-center rounded-xl bg-primary/10 border border-primary/20 px-3 py-1.5 text-xs font-bold text-primary uppercase tracking-wider">
+                        {plan.price}
+                      </span>
                     </div>
                   </div>
 
@@ -698,7 +691,7 @@ export default function Landing() {
                   </ul>
 
                   <div className="mt-8">
-                    <Link to="/auth" className={plan.ctaStyle}>
+                    <Link to="/auth?mode=signup" className={plan.ctaStyle}>
                       {plan.cta}
                       <ArrowRight className="h-4 w-4" />
                     </Link>
@@ -738,7 +731,7 @@ export default function Landing() {
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3.5 max-w-xs mx-auto sm:max-w-none">
               <Link
-                to="/auth"
+                to="/auth?mode=signup"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:opacity-90 hover:-translate-y-0.5"
               >
                 Get started free
@@ -765,7 +758,7 @@ export default function Landing() {
               <img src={logo} alt="OAK Logo" className="h-9 w-auto shrink-0 object-contain" />
               <div>
                 <span className="font-display text-base font-bold text-foreground block">OAK Global International</span>
-                <span className="text-[10px] text-muted-foreground uppercase tracking-widest block">Audit & Compliance Solutions</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-widest block">ISO Audit Platform</span>
               </div>
             </div>
             

@@ -53,7 +53,7 @@ export function getProcessesFor(std: StandardKey) {
 export function getQuestionsFor(std: StandardKey, proc: AnyProcessKey): ClauseQuestionSet[] {
   if (std === "45001") return getQuestionsForProcess45001(proc as never) as unknown as ClauseQuestionSet[];
   if (std === "14001") return getQuestionsForProcess14001(proc as never) as unknown as ClauseQuestionSet[];
-  if (std === "hse") return getQuestionsForHseProcess(proc as HseProcessKey);
+  if (std === "hse") return getQuestionsForHseProcess(proc);
   if (std === "ims") return getQuestionsForIms(proc as ProcessKey);
   return getQuestionsForProcess(proc as ProcessKey);
 }

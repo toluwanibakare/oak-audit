@@ -15,7 +15,8 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [auditors, setAuditors] = useState<Auditor[]>([]);
-  const [newAuditor, setNewAuditor] = useState({ name: "", email: "", role: "auditor" });
+  const [newAuditor, setNewAuditor] = useState({ name: "", email: "", role: "auditor", password: "" });
+  const [busy, setBusy] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<string[]>(PROCESSES.map((p) => p.key));
   const [assignments, setAssignments] = useState<Record<string, string[]>>({}); // process_key -> auditor_ids
 
@@ -28,13 +29,63 @@ export default function Onboarding() {
   if (!currentOrg) return <AppShell><div>Loading…</div></AppShell>;
 
   const addAuditor = async () => {
-    if (!newAuditor.name.trim()) return;
-    const { data, error } = await supabase.from("auditors").insert({
-      org_id: currentOrg.id, ...newAuditor,
-    }).select().single();
-    if (error) return toast({ title: error.message, variant: "destructive" });
-    setAuditors([...auditors, data as Auditor]);
-    setNewAuditor({ name: "", email: "", role: "auditor" });
+    if (!newAuditor.name.trim() || !newAuditor.email.trim() || !newAuditor.password.trim()) {
+      return toast({ title: "Name, email, and password are required to create an auditor account", variant: "destructive" });
+    }
+    if (newAuditor.password.length < 8) {
+      return toast({ title: "Password must be at least 8 characters long", variant: "destructive" });
+    }
+
+    setBusy(true);
+    try {
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://retlzhncvxiicmgmdgtk.supabase.co";
+      const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJldGx6aG5jdnhpaWNtZ21kZ3RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MjEyMTMsImV4cCI6MjA5NTA5NzIxM30.5VM0sUHMiZ_Q2cBMt8yW5qpEj1uVNQu2z73286eLCMg";
+
+      const signupRes = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_PUBLISHABLE_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: newAuditor.email.trim(),
+          password: newAuditor.password.trim(),
+          data: {
+            full_name: newAuditor.name.trim(),
+            account_type: "auditor",
+            org_id: currentOrg.id,
+          }
+        })
+      });
+
+      const signupData = await signupRes.json();
+      if (!signupRes.ok) {
+        throw new Error(signupData.message ?? "Could not register auditor account.");
+      }
+
+      const userUuid = signupData.id || signupData.user?.id;
+      if (!userUuid) {
+        throw new Error("Failed to retrieve user identifier from registration.");
+      }
+
+      const { data, error } = await supabase.from("auditors").insert({
+        org_id: currentOrg.id,
+        name: newAuditor.name.trim(),
+        email: newAuditor.email.trim(),
+        role: newAuditor.role,
+        user_id: userUuid,
+      }).select().single();
+
+      if (error) throw error;
+
+      setAuditors([...auditors, data as Auditor]);
+      setNewAuditor({ name: "", email: "", role: "auditor", password: "" });
+      toast({ title: "Auditor account created successfully" });
+    } catch (err: any) {
+      toast({ title: "Failed to create auditor", description: err.message ?? "Try again", variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
   };
 
   const finish = async () => {
@@ -74,15 +125,20 @@ export default function Onboarding() {
                 </div>
               ))}
             </div>
-            <div className="mt-4 grid gap-3 rounded-xl border border-dashed border-border p-4 md:grid-cols-4">
+            <div className="mt-4 grid gap-3 rounded-xl border border-dashed border-border p-4 md:grid-cols-[1fr_1fr_1fr_1fr_100px] items-center">
               <input className="input" placeholder="Full name" value={newAuditor.name} onChange={(e) => setNewAuditor({ ...newAuditor, name: e.target.value })} />
               <input className="input" placeholder="Email" type="email" value={newAuditor.email} onChange={(e) => setNewAuditor({ ...newAuditor, email: e.target.value })} />
-              <select className="input" value={newAuditor.role} onChange={(e) => setNewAuditor({ ...newAuditor, role: e.target.value })}>
-                <option value="lead_auditor">Lead Auditor</option>
-                <option value="auditor">Auditor</option>
-                <option value="auditee">Auditee</option>
-              </select>
-              <button onClick={addAuditor} className="pill-cta">Add</button>
+              <input className="input" placeholder="Password" type="password" value={newAuditor.password} onChange={(e) => setNewAuditor({ ...newAuditor, password: e.target.value })} />
+              <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-semibold pl-2">
+                <input 
+                  type="checkbox" 
+                  checked={newAuditor.role === "lead_auditor"} 
+                  onChange={(e) => setNewAuditor({ ...newAuditor, role: e.target.checked ? "lead_auditor" : "auditor" })}
+                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                />
+                <span>Lead Auditor</span>
+              </label>
+              <button onClick={addAuditor} disabled={busy} className="pill-cta w-full">{busy ? "Adding..." : "Add"}</button>
             </div>
             <Footer onNext={() => setStep(2)} disabled={auditors.length === 0} />
           </Section>

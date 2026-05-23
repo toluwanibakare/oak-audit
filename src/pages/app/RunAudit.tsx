@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { AlertTriangle, FileUp, Link2 } from "lucide-react";
+import { AlertTriangle, FileUp, Link2, Lock, Unlock, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app/AppShell";
 import { useOrg } from "@/hooks/useOrg";
+import { useAuth } from "@/hooks/useAuth";
 import { getQuestionsFor, type StandardKey } from "@/data/standards";
 import { useToast } from "@/hooks/use-toast";
 import { parseAuditNote, serializeAuditNote, safeEvidenceName, type EvidenceItem } from "@/lib/auditEvidence";
@@ -33,6 +34,8 @@ export default function RunAudit() {
   const { id } = useParams();
   const { currentOrg } = useOrg();
   const { toast } = useToast();
+  const { user } = useAuth();
+  
   const [audit, setAudit] = useState<Audit | null>(null);
   const [procs, setProcs] = useState<Proc[]>([]);
   const [activeProc, setActiveProc] = useState<string | null>(null);
@@ -40,23 +43,36 @@ export default function RunAudit() {
   const [custom, setCustom] = useState<Custom[]>([]);
   const [findingsMap, setFindingsMap] = useState<Record<string, FindingRow>>({});
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+  
+  const [auditors, setAuditors] = useState<{ id: string; name: string; user_id: string | null }[]>([]);
+  const [auditProcesses, setAuditProcesses] = useState<{ process_id: string; auditor_id: string | null }[]>([]);
+  const [tempAuditorId, setTempAuditorId] = useState("");
 
   const stdForBank: StandardKey =
     audit?.standard === "27001" ? "9001" : ((audit?.standard as StandardKey) ?? "9001");
 
   useEffect(() => {
-    if (!id) return;
+    setTempAuditorId("");
+  }, [activeProc]);
+
+  useEffect(() => {
+    if (!id || !currentOrg) return;
     (async () => {
       const { data: auditRow } = await supabase.from("audits").select("*").eq("id", id).single();
       setAudit(auditRow as Audit);
 
-      const { data: auditProcesses } = await supabase.from("audit_processes").select("process_id,auditor_id").eq("audit_id", id);
-      const ids = (auditProcesses ?? []).map((row: AuditProc) => row.process_id);
+      const { data: auditProcs } = await supabase.from("audit_processes").select("process_id,auditor_id").eq("audit_id", id);
+      setAuditProcesses((auditProcs ?? []) as any);
+
+      const ids = (auditProcs ?? []).map((row: AuditProc) => row.process_id);
       if (ids.length) {
         const { data: processRows } = await supabase.from("org_processes").select("id,key,name").in("id", ids);
         setProcs((processRows ?? []) as Proc[]);
         setActiveProc((processRows?.[0] as Proc)?.id ?? null);
       }
+
+      const { data: auditorsList } = await supabase.from("auditors").select("id,name,user_id").eq("org_id", currentOrg.id);
+      setAuditors((auditorsList ?? []) as any);
 
       const { data: answerRows } = await supabase.from("audit_answers").select("id,clause,kind,q_ref,question_text,note,status,process_id").eq("audit_id", id);
       const answerMap: Record<string, Answer> = {};
@@ -77,7 +93,7 @@ export default function RunAudit() {
       });
       setFindingsMap(findingMap);
     })();
-  }, [id]);
+  }, [id, currentOrg]);
 
   useEffect(() => {
     if (!currentOrg || !audit || !activeProc) return;
@@ -253,12 +269,47 @@ export default function RunAudit() {
     }
   };
 
+  const handleAssignAuditor = async (auditorId: string) => {
+    if (!id || !activeProc) return;
+    const { error } = await supabase
+      .from("audit_processes")
+      .update({ auditor_id: auditorId })
+      .eq("audit_id", id)
+      .eq("process_id", activeProc);
+
+    if (error) {
+      toast({ title: "Failed to assign auditor", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Auditor assigned successfully" });
+      setAuditProcesses((prev) =>
+        prev.map((ap) => (ap.process_id === activeProc ? { ...ap, auditor_id: auditorId } : ap))
+      );
+    }
+  };
+
   const closeAudit = async () => {
     if (!id) return;
     await supabase.from("audits").update({ status: "closed", closed_at: new Date().toISOString() }).eq("id", id);
     toast({ title: "Audit closed" });
     setAudit(audit ? { ...audit, status: "closed" } : null);
   };
+
+  const currentAssignment = useMemo(() => {
+    return auditProcesses.find((ap) => ap.process_id === activeProc);
+  }, [auditProcesses, activeProc]);
+
+  const assignedAuditorId = currentAssignment?.auditor_id;
+  const assignedAuditor = useMemo(() => {
+    return auditors.find((a) => a.id === assignedAuditorId);
+  }, [auditors, assignedAuditorId]);
+
+  const currentAuditor = useMemo(() => {
+    return auditors.find((a) => a.user_id === user?.id);
+  }, [auditors, user]);
+
+  const isAssignedToMe = currentAuditor && assignedAuditorId === currentAuditor.id;
+  const isUnassigned = !assignedAuditorId;
+  const canEdit = !!isAssignedToMe;
 
   if (!audit) return <AppShell><div>Loading...</div></AppShell>;
 
@@ -297,92 +348,155 @@ export default function RunAudit() {
           </ul>
         </aside>
 
-        <div className="min-h-0 space-y-4">
+        <div className="min-h-0 space-y-4 flex-1">
           {!activeProc && <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">Pick a process on the left to begin.</div>}
 
-          {activeProc && clauseSets.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">No questions found for this process under this standard.</div>
+          {activeProc && isUnassigned && (
+            <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center max-w-xl mx-auto mt-6">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <User className="h-6 w-6" />
+              </div>
+              <h3 className="mt-4 text-base font-semibold text-foreground">Assign Auditor to Proceed</h3>
+              <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                To begin auditing <strong>{activeProcMeta?.name}</strong>, you must first assign a certified auditor. Once assigned, only that auditor will have access to record answers, upload evidence, and sync findings.
+              </p>
+              <div className="mt-5 flex flex-col sm:flex-row items-center gap-3 justify-center">
+                <select
+                  className="input w-64 text-xs font-semibold"
+                  value={tempAuditorId}
+                  onChange={(e) => setTempAuditorId(e.target.value)}
+                >
+                  <option value="">— Select Auditor —</option>
+                  {auditors.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => handleAssignAuditor(tempAuditorId)}
+                  disabled={!tempAuditorId}
+                  className="pill-cta text-xs px-4 py-2 shrink-0 disabled:opacity-50"
+                >
+                  Assign Auditor & Start
+                </button>
+              </div>
+            </div>
           )}
 
-          {activeProc && clauseSets.map((clauseSet: any) => (
-            <div key={clauseSet.clause} className="rounded-2xl border border-border bg-card p-5">
-              <div className="flex items-baseline gap-3">
-                <span className="font-mono text-sm font-semibold">{clauseSet.clause}</span>
-                <h3 className="font-display text-base font-semibold">{clauseSet.title}</h3>
-              </div>
-
-              {(clauseSet.evidence?.length ?? 0) > 0 && (
-                <div className="mt-3 rounded-xl border border-dashed border-border bg-background/70 p-3">
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    <FileUp className="h-3.5 w-3.5" />
-                    Evidence you should upload
+          {activeProc && !isUnassigned && (
+            <>
+              {/* Premium Assignment Banner */}
+              {isAssignedToMe ? (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2.5">
+                    <Unlock className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-xs font-medium text-foreground">
+                      ✓ You are the assigned auditor for <strong>{activeProcMeta?.name}</strong>. You have full edit access.
+                    </span>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {clauseSet.evidence.map((item: string, index: number) => (
-                      <span key={`${clauseSet.clause}-e-${index}`} className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-                        {item}
-                      </span>
-                    ))}
+                  <span className="rounded-full bg-primary/20 px-2.5 py-0.5 text-[10px] font-bold text-primary uppercase">Assigned to You</span>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-border bg-secondary/20 p-4 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2.5">
+                    <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-xs font-medium text-muted-foreground">
+                      🔒 This process is assigned to <strong>{assignedAuditor?.name}</strong>. You are currently in <strong>View-Only Mode</strong>.
+                    </span>
                   </div>
+                  <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground uppercase">Locked</span>
                 </div>
               )}
 
-              <div className="mt-4 space-y-3">
-                {(clauseSet.generic ?? []).map((question: string, index: number) => (
-                  <Row
-                    key={`g${index}`}
-                    processId={activeProc}
-                    clause={clauseSet.clause}
-                    kind="generic"
-                    qRef={`g${index}`}
-                    q={question}
-                    answers={answers}
-                    finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "generic", `g${index}`)]}
-                    evidenceHints={clauseSet.evidence ?? []}
-                    uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "generic", `g${index}`)}
-                    onSave={saveAnswer}
-                    onSyncFinding={syncFinding}
-                    onUploadEvidence={uploadEvidence}
-                  />
-                ))}
-                {(clauseSet.specific ?? []).map((question: string, index: number) => (
-                  <Row
-                    key={`s${index}`}
-                    processId={activeProc}
-                    clause={clauseSet.clause}
-                    kind="specific"
-                    qRef={`s${index}`}
-                    q={question}
-                    answers={answers}
-                    finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "specific", `s${index}`)]}
-                    evidenceHints={clauseSet.evidence ?? []}
-                    uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "specific", `s${index}`)}
-                    onSave={saveAnswer}
-                    onSyncFinding={syncFinding}
-                    onUploadEvidence={uploadEvidence}
-                  />
-                ))}
-                {custom.filter((item) => item.clause === clauseSet.clause).map((item) => (
-                  <Row
-                    key={item.id}
-                    processId={activeProc}
-                    clause={clauseSet.clause}
-                    kind="custom"
-                    qRef={item.id}
-                    q={item.text}
-                    answers={answers}
-                    finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)]}
-                    evidenceHints={clauseSet.evidence ?? []}
-                    uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)}
-                    onSave={saveAnswer}
-                    onSyncFinding={syncFinding}
-                    onUploadEvidence={uploadEvidence}
-                    badge="Custom"
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
+              {clauseSets.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">No questions found for this process under this standard.</div>
+              )}
+
+              {clauseSets.map((clauseSet: any) => (
+                <div key={clauseSet.clause} className="rounded-2xl border border-border bg-card p-5">
+                  <div className="flex items-baseline gap-3">
+                    <span className="font-mono text-sm font-semibold">{clauseSet.clause}</span>
+                    <h3 className="font-display text-base font-semibold">{clauseSet.title}</h3>
+                  </div>
+
+                  {(clauseSet.evidence?.length ?? 0) > 0 && (
+                    <div className="mt-3 rounded-xl border border-dashed border-border bg-background/70 p-3">
+                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        <FileUp className="h-3.5 w-3.5" />
+                        Evidence you should upload
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {clauseSet.evidence.map((item: string, index: number) => (
+                          <span key={`${clauseSet.clause}-e-${index}`} className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-4 space-y-3">
+                    {(clauseSet.generic ?? []).map((question: string, index: number) => (
+                      <Row
+                        key={`g${index}`}
+                        processId={activeProc}
+                        clause={clauseSet.clause}
+                        kind="generic"
+                        qRef={`g${index}`}
+                        q={question}
+                        answers={answers}
+                        finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "generic", `g${index}`)]}
+                        evidenceHints={clauseSet.evidence ?? []}
+                        uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "generic", `g${index}`)}
+                        onSave={saveAnswer}
+                        onSyncFinding={syncFinding}
+                        onUploadEvidence={uploadEvidence}
+                        readOnly={!canEdit}
+                      />
+                    ))}
+                    {(clauseSet.specific ?? []).map((question: string, index: number) => (
+                      <Row
+                        key={`s${index}`}
+                        processId={activeProc}
+                        clause={clauseSet.clause}
+                        kind="specific"
+                        qRef={`s${index}`}
+                        q={question}
+                        answers={answers}
+                        finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "specific", `s${index}`)]}
+                        evidenceHints={clauseSet.evidence ?? []}
+                        uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "specific", `s${index}`)}
+                        onSave={saveAnswer}
+                        onSyncFinding={syncFinding}
+                        onUploadEvidence={uploadEvidence}
+                        readOnly={!canEdit}
+                      />
+                    ))}
+                    {custom.filter((item) => item.clause === clauseSet.clause).map((item) => (
+                      <Row
+                        key={item.id}
+                        processId={activeProc}
+                        clause={clauseSet.clause}
+                        kind="custom"
+                        qRef={item.id}
+                        q={item.text}
+                        answers={answers}
+                        finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)]}
+                        evidenceHints={clauseSet.evidence ?? []}
+                        uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)}
+                        onSave={saveAnswer}
+                        onSyncFinding={syncFinding}
+                        onUploadEvidence={uploadEvidence}
+                        badge="Custom"
+                        readOnly={!canEdit}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       </div>
     </AppShell>
@@ -403,6 +517,7 @@ function Row({
   onSyncFinding,
   onUploadEvidence,
   badge,
+  readOnly,
 }: any) {
   const { toast } = useToast();
   const key = buildAnswerKey(processId, clause, kind, qRef);
@@ -541,7 +656,7 @@ function Row({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {!NONCONFORMING.has(status) && (
+          {!NONCONFORMING.has(status) && !readOnly && (
             <button
               onClick={handleAutoDeclare}
               className="inline-flex items-center gap-1.5 rounded-xl border border-warning/35 bg-warning/5 px-3.5 py-2 text-xs font-semibold text-warning transition hover:bg-warning/10"
@@ -559,6 +674,7 @@ function Row({
               await persistAnswer(nextStatus, note);
               await persistFinding(nextStatus);
             }}
+            disabled={readOnly}
             className="input w-32 text-xs animate-none"
           >
             {STATUSES.map((item) => <option key={item} value={item}>{item}</option>)}
@@ -570,7 +686,8 @@ function Row({
         value={note}
         onChange={(e) => setNote(e.target.value)}
         onBlur={() => persistAnswer(status, note)}
-        placeholder="Auditor notes and observations..."
+        placeholder={readOnly ? "No notes recorded." : "Auditor notes and observations..."}
+        disabled={readOnly}
         className="input mt-3 min-h-[72px] text-sm"
       />
 
@@ -583,20 +700,22 @@ function Row({
             </div>
             <p className="mt-1 text-xs text-muted-foreground">Upload records, photos, screenshots, reports, approvals, logs, or signed documents that support this answer.</p>
           </div>
-          <label className="pill-secondary cursor-pointer">
-            <input
-              type="file"
-              multiple
-              className="hidden"
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.wav,.mp3"
-              onChange={async (e) => {
-                const uploaded = await onUploadEvidence({ processId, clause, kind, qRef, files: e.target.files, currentNote: note });
-                if (uploaded) setEvidence(uploaded);
-                e.currentTarget.value = "";
-              }}
-            />
-            {uploading ? "Uploading..." : "Upload evidence"}
-          </label>
+          {!readOnly && (
+            <label className="pill-secondary cursor-pointer animate-none">
+              <input
+                type="file"
+                multiple
+                className="hidden"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.wav,.mp3"
+                onChange={async (e) => {
+                  const uploaded = await onUploadEvidence({ processId, clause, kind, qRef, files: e.target.files, currentNote: note });
+                  if (uploaded) setEvidence(uploaded);
+                  e.currentTarget.value = "";
+                }}
+              />
+              {uploading ? "Uploading..." : "Upload evidence"}
+            </label>
+          )}
         </div>
 
         {evidence.length > 0 && (
@@ -620,22 +739,22 @@ function Row({
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             <div className="md:col-span-2">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Finding statement</label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} onBlur={() => persistFinding()} className="input min-h-[76px] text-sm" />
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} onBlur={() => persistFinding()} disabled={readOnly} className="input min-h-[76px] text-sm" />
             </div>
             
             <div className="md:col-span-2">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Correction / Containment Action (Immediate containment)</label>
-              <textarea value={correction} onChange={(e) => setCorrection(e.target.value)} onBlur={() => persistFinding()} placeholder="Contain the problem, isolate/quarantine affected items, clean up immediately..." className="input min-h-[76px] text-sm" />
+              <textarea value={correction} onChange={(e) => setCorrection(e.target.value)} onBlur={() => persistFinding()} placeholder={readOnly ? "No containment action specified." : "Contain the problem, isolate/quarantine affected items, clean up immediately..."} disabled={readOnly} className="input min-h-[76px] text-sm" />
             </div>
 
             <div className="md:col-span-2">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Root Cause Analysis (RCA) Details</label>
-              <textarea value={rootCauseText} onChange={(e) => setRootCauseText(e.target.value)} onBlur={() => persistFinding()} placeholder="Why did this occur? Trace back to procedural, tool, training, or systemic root causes..." className="input min-h-[76px] text-sm" />
+              <textarea value={rootCauseText} onChange={(e) => setRootCauseText(e.target.value)} onBlur={() => persistFinding()} placeholder={readOnly ? "No RCA recorded." : "Why did this occur? Trace back to procedural, tool, training, or systemic root causes..."} disabled={readOnly} className="input min-h-[76px] text-sm" />
             </div>
 
             <div className="md:col-span-2">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Corrective & Preventive Action (CAPA)</label>
-              <textarea value={capa} onChange={(e) => setCapa(e.target.value)} onBlur={() => persistFinding()} placeholder="Long-term actions to prevent recurrence..." className="input min-h-[76px] text-sm" />
+              <textarea value={capa} onChange={(e) => setCapa(e.target.value)} onBlur={() => persistFinding()} placeholder={readOnly ? "No CAPA specified." : "Long-term actions to prevent recurrence..."} disabled={readOnly} className="input min-h-[76px] text-sm" />
             </div>
             
             <div>
@@ -658,7 +777,7 @@ function Row({
                   rootCauseText,
                   severity: nextSeverity,
                 });
-              }} className="input text-xs">
+              }} disabled={readOnly} className="input text-xs">
                 <option value="High">High</option>
                 <option value="Medium">Medium</option>
                 <option value="Low">Low</option>
@@ -667,12 +786,12 @@ function Row({
             
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Owner</label>
-              <input value={owner} onChange={(e) => setOwner(e.target.value)} onBlur={() => persistFinding()} className="input" placeholder="Responsible person" />
+              <input value={owner} onChange={(e) => setOwner(e.target.value)} onBlur={() => persistFinding()} disabled={readOnly} className="input" placeholder="Responsible person" />
             </div>
             
             <div className="md:col-span-2">
               <label className="mb-1 block text-xs font-medium text-muted-foreground">Due date</label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onBlur={() => persistFinding()} className="input w-full md:w-1/2" />
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onBlur={() => persistFinding()} disabled={readOnly} className="input w-full md:w-1/2" />
             </div>
           </div>
         </div>

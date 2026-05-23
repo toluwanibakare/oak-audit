@@ -18,10 +18,14 @@ const STANDARDS = [
 ];
 
 export default function NewAudit() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    navigate("/app/licenses", { replace: true });
+  }, [navigate]);
+
   const { currentOrg } = useOrg();
   const { user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [licenses, setLicenses] = useState<{ pack: string; expires_at: string }[]>([]);
   const [procs, setProcs] = useState<{ id: string; name: string; key: string }[]>([]);
   const [auditors, setAuditors] = useState<{ id: string; name: string }[]>([]);
@@ -77,13 +81,8 @@ export default function NewAudit() {
 
       if (updatedProcs) {
         setProcs(updatedProcs as any);
-        // Pre-select all HSE processes
-        const hseProcs = updatedProcs.filter((p) => p.key && p.key.startsWith("hse_"));
-        const newPicked: Record<string, string> = {};
-        for (const p of hseProcs) {
-          newPicked[p.id] = "";
-        }
-        setPicked(newPicked);
+        // HSE site inspection checklist should start completely unchecked
+        setPicked({});
       }
     };
 

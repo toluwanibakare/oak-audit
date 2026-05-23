@@ -1,9 +1,14 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 export const SiteNav = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isAuthPage = location.pathname === "/auth";
+  const params = new URLSearchParams(location.search);
+  const isSignUpMode = params.get("mode") === "signup";
 
   return (
     <header className="relative z-20">
@@ -34,8 +39,22 @@ export const SiteNav = () => {
             </>
           ) : (
             <>
-              <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">Sign in</Link>
-              <Link to="/auth?mode=signup" className="pill-cta px-5 py-2.5">Sign up</Link>
+              {isAuthPage ? (
+                isSignUpMode ? (
+                  <Link to="/auth" className="rounded-full bg-secondary px-5 py-2 text-sm font-medium text-foreground hover:bg-muted transition duration-200">
+                    Sign in
+                  </Link>
+                ) : (
+                  <Link to="/auth?mode=signup" className="pill-cta px-5 py-2.5">
+                    Sign up
+                  </Link>
+                )
+              ) : (
+                <>
+                  <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">Sign in</Link>
+                  <Link to="/auth?mode=signup" className="pill-cta px-5 py-2.5">Sign up</Link>
+                </>
+              )}
             </>
           )}
         </div>

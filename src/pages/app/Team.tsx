@@ -10,7 +10,8 @@ export default function Team() {
   const { currentOrg } = useOrg();
   const { toast } = useToast();
   const [list, setList] = useState<Auditor[]>([]);
-  const [form, setForm] = useState({ name: "", email: "", role: "auditor", certifications: "" });
+  const [form, setForm] = useState({ name: "", email: "", role: "auditor", certifications: "", password: "" });
+  const [busy, setBusy] = useState(false);
 
   const load = async () => {
     if (!currentOrg) return;
@@ -22,11 +23,64 @@ export default function Team() {
   }, [currentOrg]);
 
   const add = async () => {
-    if (!currentOrg || !form.name.trim()) return;
-    const { error } = await supabase.from("auditors").insert({ org_id: currentOrg.id, ...form });
-    if (error) return toast({ title: error.message, variant: "destructive" });
-    setForm({ name: "", email: "", role: "auditor", certifications: "" });
-    load();
+    if (!currentOrg || !form.name.trim() || !form.email.trim() || !form.password.trim()) {
+      return toast({ title: "Name, email, and password are required to create an auditor account", variant: "destructive" });
+    }
+    if (form.password.length < 8) {
+      return toast({ title: "Password must be at least 8 characters long", variant: "destructive" });
+    }
+
+    setBusy(true);
+    try {
+      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://retlzhncvxiicmgmdgtk.supabase.co";
+      const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJldGx6aG5jdnhpaWNtZ21kZ3RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MjEyMTMsImV4cCI6MjA5NTA5NzIxM30.5VM0sUHMiZ_Q2cBMt8yW5qpEj1uVNQu2z73286eLCMg";
+
+      const signupRes = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_PUBLISHABLE_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: form.email.trim(),
+          password: form.password.trim(),
+          data: {
+            full_name: form.name.trim(),
+            account_type: "auditor",
+            org_id: currentOrg.id,
+          }
+        })
+      });
+
+      const signupData = await signupRes.json();
+      if (!signupRes.ok) {
+        throw new Error(signupData.message ?? "Could not register auditor account.");
+      }
+
+      const userUuid = signupData.id || signupData.user?.id;
+      if (!userUuid) {
+        throw new Error("Failed to retrieve user identifier.");
+      }
+
+      const { error } = await supabase.from("auditors").insert({
+        org_id: currentOrg.id,
+        name: form.name.trim(),
+        email: form.email.trim(),
+        role: form.role,
+        certifications: form.certifications.trim() || null,
+        user_id: userUuid,
+      });
+
+      if (error) throw error;
+
+      setForm({ name: "", email: "", role: "auditor", certifications: "", password: "" });
+      toast({ title: "Auditor Account Created", description: `Unique credentials for ${form.name} successfully registered.` });
+      load();
+    } catch (err: any) {
+      toast({ title: "Failed to create auditor", description: err.message ?? "Try again", variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
   };
 
   const remove = async (id: string) => {
@@ -37,16 +91,17 @@ export default function Team() {
   return (
     <AppShell>
       <Header title="Audit team" subtitle="Manage your auditors and their roles." />
-      <div className="mt-6 grid gap-4 rounded-[28px] border border-border bg-card p-5 md:grid-cols-5">
-        <input className="input md:col-span-1" placeholder="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <input className="input md:col-span-1" type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        <select className="input md:col-span-1" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+      <div className="mt-6 grid gap-4 rounded-[28px] border border-border bg-card p-5 md:grid-cols-6 items-center">
+        <input className="input" placeholder="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <input className="input" type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+        <input className="input" type="password" placeholder="Password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+        <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
           <option value="lead_auditor">Lead Auditor</option>
           <option value="auditor">Auditor</option>
           <option value="auditee">Auditee</option>
         </select>
-        <input className="input md:col-span-1" placeholder="Certifications" value={form.certifications} onChange={(e) => setForm({ ...form, certifications: e.target.value })} />
-        <button onClick={add} className="pill-cta md:col-span-1">Add auditor</button>
+        <input className="input" placeholder="Certifications" value={form.certifications} onChange={(e) => setForm({ ...form, certifications: e.target.value })} />
+        <button onClick={add} disabled={busy} className="pill-cta w-full">{busy ? "Creating..." : "Add auditor"}</button>
       </div>
 
       <div className="mt-6 overflow-hidden rounded-[28px] border border-border bg-card shadow-card">

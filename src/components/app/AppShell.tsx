@@ -1,7 +1,8 @@
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrg } from "@/hooks/useOrg";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import {
   AlertTriangle,
@@ -21,6 +22,7 @@ import {
   Wallet as WalletIcon,
   Workflow,
   X,
+  Lock,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import logo from "@/assets/logo.png";
@@ -40,6 +42,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   const { user, signOut } = useAuth();
   const { orgs, currentOrg, setCurrentOrg } = useOrg();
   const { theme, setTheme } = useTheme();
+  const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -108,7 +111,24 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [userMenuOpen]);
 
-  /* ── Derived display values ─────────────────────────────────── */
+  const addressData = useMemo(() => {
+    if (!currentOrg?.address) return null;
+    try {
+      return JSON.parse(currentOrg.address);
+    } catch {
+      return null;
+    }
+  }, [currentOrg]);
+
+  const isCompanyPendingReview = useMemo(() => {
+    return currentOrg?.type === "organization" && addressData?.reviewStatus !== "approved";
+  }, [currentOrg, addressData]);
+
+  const isLockedRoute = useMemo(() => {
+    const path = location.pathname;
+    return path.startsWith("/app") && path !== "/app" && path !== "/app/settings";
+  }, [location.pathname]);
+
   const displayName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
   const displayEmail = user?.email ?? "";
 
@@ -129,26 +149,45 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="space-y-1.5 px-3 py-3 overflow-y-auto max-h-[calc(100vh-210px)] scrollbar-none">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              onClick={() => setIsMobileOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition ${
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-card"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                }`
-              }
-            >
-              <Icon className="h-4.5 w-4.5 shrink-0" />
-              <span className="flex-1 truncate whitespace-nowrap">{label}</span>
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-40" />
-            </NavLink>
-          ))}
+        <nav className="space-y-1.5 px-3 py-3">
+          {NAV.map(({ to, label, icon: Icon, end }) => {
+            const isLocked = isCompanyPendingReview && to !== "/app" && to !== "/app/settings";
+            return (
+              <NavLink
+                key={to}
+                to={isLocked ? "#" : to}
+                end={end}
+                onClick={(e) => {
+                  if (isLocked) {
+                    e.preventDefault();
+                    toast({
+                      title: "Workspace under review",
+                      description: "Your organization workspace is currently being reviewed by OAK Global administrators. Access to this section will be unlocked once approved.",
+                    });
+                    return;
+                  }
+                  setIsMobileOpen(false);
+                }}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition ${
+                    isLocked
+                      ? "text-muted-foreground/30 cursor-not-allowed select-none"
+                      : isActive
+                      ? "bg-primary text-primary-foreground shadow-card"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                  }`
+                }
+              >
+                <Icon className="h-4.5 w-4.5 shrink-0" />
+                <span className="flex-1 truncate whitespace-nowrap">{label}</span>
+                {isLocked ? (
+                  <Lock className="h-3.5 w-3.5 shrink-0 opacity-40 text-warning" />
+                ) : (
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-40" />
+                )}
+              </NavLink>
+            );
+          })}
         </nav>
       </div>
 
@@ -205,6 +244,77 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
           </div>
           <Settings className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-300 group-hover:rotate-45 group-hover:text-foreground" />
         </Link>
+        <div className="pt-2 text-[10px] text-center text-muted-foreground/60 select-none font-medium">
+          © {new Date().getFullYear()} OAK Global. All rights reserved.
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderUnderReviewBlock = () => (
+    <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 py-12 text-center animate-fade-in">
+      <div className="max-w-2xl w-full rounded-[32px] border border-border bg-card/60 backdrop-blur-md p-8 sm:p-10 shadow-elevated space-y-6">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-warning/10 text-warning animate-pulse">
+          <AlertTriangle className="h-8 w-8" />
+        </div>
+        
+        <div>
+          <span className="inline-flex items-center rounded-full bg-warning/10 px-3 py-1 text-xs font-bold text-warning tracking-wide uppercase">
+            Workspace Under Review
+          </span>
+          <h2 className="mt-4 font-display text-2xl sm:text-3xl font-extrabold tracking-tight">
+            Your GRC environment is being configured
+          </h2>
+          <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+            OAK Global International's compliance administrators are reviewing your company profile details to assess organizational size and activate tailored pricing structures for your audit runs.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-secondary/30 p-5 text-left space-y-3.5">
+          <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Submitted Company Data</div>
+          
+          <div className="grid gap-2 sm:grid-cols-2 text-xs">
+            <div>
+              <span className="text-muted-foreground block">Company Name</span>
+              <span className="font-semibold text-foreground">{currentOrg?.name}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block">Industry Sector</span>
+              <span className="font-semibold text-foreground">{currentOrg?.industry || "Not set"}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block">Company Strength / Size</span>
+              <span className="font-semibold text-foreground">{addressData?.size || "Not set"}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block">Corporate Website</span>
+              <span className="font-semibold text-foreground">{addressData?.website || "Not set"}</span>
+            </div>
+          </div>
+          
+          <div className="pt-2 border-t border-border/50 text-[11px]">
+            <span className="text-muted-foreground block">Location / Address</span>
+            <span className="font-semibold text-foreground">{addressData?.address || "Not set"}</span>
+          </div>
+        </div>
+
+        <div className="text-xs text-muted-foreground leading-normal flex items-center justify-center gap-2">
+          <span className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-warning animate-ping animate-duration-1000" />
+            Status: Awaiting Admin Approval
+          </span>
+          <span>·</span>
+          <span>You will be notified immediately upon approval</span>
+        </div>
+
+        <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
+          <Link to="/app" className="pill-secondary justify-center text-xs px-5 py-2.5">
+            ← Back to Dashboard
+          </Link>
+          <Link to="/app/settings" className="pill-cta justify-center text-xs px-5 py-2.5">
+            Update Profile Details
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -318,7 +428,9 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
           </Link>
         </header>
 
-        <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-10">{children}</main>
+        <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-10">
+          {isCompanyPendingReview && isLockedRoute ? renderUnderReviewBlock() : children}
+        </main>
       </div>
     </div>
   );
