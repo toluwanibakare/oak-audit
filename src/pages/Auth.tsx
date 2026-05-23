@@ -10,6 +10,8 @@ import {
   ArrowRight, 
   Building2, 
   CheckCircle2, 
+  Eye,
+  EyeOff,
   Globe, 
   Hash, 
   Lock, 
@@ -168,7 +170,7 @@ const Auth = () => {
           email: parsedStep1.data.email,
           password: parsedStep1.data.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/app`,
+            emailRedirectTo: "https://oak-audit.vercel.app/auth/callback",
             data: {
               full_name: parsedStep1.data.full_name,
               account_type: accountType,
@@ -311,14 +313,12 @@ const Auth = () => {
                   placeholder="you@company.com" 
                   required 
                 />
-                <Field 
-                  label="Password" 
-                  type="password" 
+                <PasswordField
+                  label="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  icon={Lock}
-                  placeholder="••••••••" 
-                  required 
+                  placeholder="••••••••"
+                  required
                 />
               </>
             )}
@@ -556,5 +556,38 @@ const TextareaField = ({
     </div>
   </label>
 );
+
+const PasswordField = ({
+  label,
+  ...rest
+}: {
+  label: string;
+} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "type">) => {
+  const [show, setShow] = useState(false);
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
+      <div className="relative rounded-xl shadow-sm">
+        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+          <Lock className="h-4 w-4 text-muted-foreground/80" />
+        </div>
+        <input
+          {...rest}
+          type={show ? "text" : "password"}
+          className="h-11 w-full rounded-xl border border-border bg-background/50 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 pl-10 pr-11"
+        />
+        <button
+          type="button"
+          onClick={() => setShow((v) => !v)}
+          className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-muted-foreground hover:text-foreground transition-colors"
+          tabIndex={-1}
+          aria-label={show ? "Hide password" : "Show password"}
+        >
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
+    </label>
+  );
+};
 
 export default Auth;
