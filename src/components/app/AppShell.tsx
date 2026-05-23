@@ -172,7 +172,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="space-y-1.5 px-3 py-3">
+        <nav className={`px-3 py-4 ${isIndividual ? "space-y-2" : "space-y-1.5"}`}>
           {NAV.map(({ to, label, icon: Icon, end }) => {
             const isLocked = isCompanyPendingReview && to !== "/app" && to !== "/app/settings";
             return (
@@ -192,7 +192,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
                   setIsMobileOpen(false);
                 }}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition ${
+                  `flex items-center gap-3 rounded-2xl px-3.5 ${isIndividual ? "py-3" : "py-2"} text-sm font-medium transition ${
                     isLocked
                       ? "text-muted-foreground/30 cursor-not-allowed select-none"
                       : isActive
