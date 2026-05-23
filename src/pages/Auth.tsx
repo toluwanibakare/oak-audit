@@ -84,6 +84,18 @@ const Auth = () => {
     setStep(1);
   }, [mode]);
 
+  // Sync mode state when URL param changes (e.g. browser back/forward)
+  useEffect(() => {
+    const urlMode = params.get("mode") === "signup" ? "signup" : "signin";
+    setMode(urlMode);
+  }, [params]);
+
+  // Switch mode and keep URL in sync so SiteNav reads the correct state
+  const switchMode = (newMode: "signin" | "signup") => {
+    setMode(newMode);
+    navigate(newMode === "signup" ? "/auth?mode=signup" : "/auth", { replace: true });
+  };
+
   const handleNextStep = () => {
     const parsed = step1Schema.safeParse({
       full_name: fullName,
@@ -231,7 +243,10 @@ const Auth = () => {
         <div className="orb left-[-100px] top-[300px] h-[260px] w-[260px] opacity-50" />
       </div>
       
-      <SiteNav />
+      <SiteNav
+        onSwitchToSignIn={() => switchMode("signin")}
+        onSwitchToSignUp={() => switchMode("signup")}
+      />
       
       <main className="mx-auto flex max-w-lg flex-col px-6 py-10">
         <div className="rounded-3xl border border-border bg-card p-8 shadow-elevated transition-all duration-300">
@@ -455,11 +470,11 @@ const Auth = () => {
           <div className="mt-6 text-center text-sm text-muted-foreground">
             {mode === "signup" ? (
               <>Already have an account?{" "}
-                <button onClick={() => setMode("signin")} className="font-semibold text-foreground hover:underline transition">Sign in</button>
+                <button onClick={() => switchMode("signin")} className="font-semibold text-foreground hover:underline transition">Sign in</button>
               </>
             ) : (
               <>New to OAK Global?{" "}
-                <button onClick={() => setMode("signup")} className="font-semibold text-foreground hover:underline transition">Create an account</button>
+                <button onClick={() => switchMode("signup")} className="font-semibold text-foreground hover:underline transition">Create an account</button>
               </>
             )}
           </div>

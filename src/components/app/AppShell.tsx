@@ -27,7 +27,7 @@ import {
 import { useTheme } from "next-themes";
 import logo from "@/assets/logo.png";
 
-const NAV = [
+const ORG_NAV = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/app/licenses", label: "Audit Packs", icon: Receipt },
   { to: "/app/processes", label: "Processes", icon: Workflow },
@@ -36,6 +36,14 @@ const NAV = [
   { to: "/app/question-bank", label: "Question Banks", icon: BookOpen },
   { to: "/app/findings", label: "Findings", icon: AlertTriangle },
   { to: "/app/mrm", label: "Management Review", icon: FileText },
+];
+
+const INDIVIDUAL_NAV = [
+  { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/app/licenses", label: "Audit Packs", icon: Receipt },
+  { to: "/app/audits", label: "My Audits", icon: ClipboardCheck },
+  { to: "/app/question-bank", label: "Question Banks", icon: BookOpen },
+  { to: "/app/findings", label: "Findings", icon: AlertTriangle },
 ];
 
 export const AppShell = ({ children }: { children: ReactNode }) => {
@@ -120,9 +128,12 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
     }
   }, [currentOrg]);
 
+  const isIndividual = currentOrg?.type === "individual";
+
   const isCompanyPendingReview = useMemo(() => {
-    return currentOrg?.type === "organization" && addressData?.reviewStatus !== "approved";
-  }, [currentOrg, addressData]);
+    // Only org accounts go through admin review — individuals get immediate access
+    return !isIndividual && currentOrg?.type === "organization" && addressData?.reviewStatus !== "approved";
+  }, [currentOrg, addressData, isIndividual]);
 
   const isLockedRoute = useMemo(() => {
     const path = location.pathname;
@@ -132,21 +143,32 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   const fullName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
   const displayName = fullName.split(" ")[0];
   const displayEmail = user?.email ?? "";
+  const NAV = isIndividual ? INDIVIDUAL_NAV : ORG_NAV;
 
   const renderSidebarContent = () => (
     <div className="flex h-full flex-col justify-between">
       <div className="flex flex-col overflow-hidden">
-        {/* Current workspace display */}
+        {/* Account header - personal card for individual, workspace for org */}
         <div className="px-4 pt-5 pb-2">
-          <div className="rounded-2xl border border-border bg-secondary/60 px-3 py-2.5">
-            <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Current workspace</div>
-            <div className="mt-0.5 truncate text-sm font-semibold text-foreground">
-              {currentOrg?.name ?? "Loading..."}
+          {isIndividual ? (
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 px-3 py-2.5 flex items-center gap-3">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                <User className="h-4 w-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-bold text-foreground">{fullName}</div>
+                <div className="text-[11px] text-muted-foreground">Personal account</div>
+              </div>
             </div>
-            <div className="text-[11px] text-muted-foreground">
-              {currentOrg?.type === "individual" ? "Personal audit space" : "Team audit command"}
+          ) : (
+            <div className="rounded-2xl border border-border bg-secondary/60 px-3 py-2.5">
+              <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Current workspace</div>
+              <div className="mt-0.5 truncate text-sm font-semibold text-foreground">
+                {currentOrg?.name ?? "Loading..."}
+              </div>
+              <div className="text-[11px] text-muted-foreground">Team audit command</div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Navigation */}
@@ -391,29 +413,38 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
               <span className="font-display text-sm font-bold text-foreground tracking-tight whitespace-nowrap truncate max-w-[100px] sm:max-w-none">
                 OAK Global
               </span>
-              <span className="hidden text-xs text-muted-foreground sm:inline-block whitespace-nowrap">· Audit Workspace</span>
-              {orgs.length > 1 ? (
-                <div className="flex items-center gap-1 min-w-0">
+              {isIndividual ? (
+                <>
                   <span className="text-xs text-muted-foreground shrink-0">·</span>
-                  <select
-                    value={currentOrg?.id ?? ""}
-                    onChange={(e) => setCurrentOrg(e.target.value)}
-                    className="rounded-xl border border-border/80 bg-background/50 px-1.5 py-0.5 sm:px-2.5 sm:py-1 text-[11px] sm:text-xs font-medium text-foreground focus:outline-none transition hover:bg-secondary truncate max-w-[90px] sm:max-w-none"
-                  >
-                    {orgs.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <span className="text-xs font-medium text-muted-foreground truncate max-w-[85px] sm:max-w-none">{fullName}</span>
+                </>
               ) : (
-                currentOrg?.name && (
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-xs text-muted-foreground shrink-0">·</span>
-                    <span className="text-xs font-medium text-muted-foreground truncate max-w-[85px] sm:max-w-none">{currentOrg.name}</span>
-                  </div>
-                )
+                <>
+                  <span className="hidden text-xs text-muted-foreground sm:inline-block whitespace-nowrap">· Audit Workspace</span>
+                  {orgs.length > 1 ? (
+                    <div className="flex items-center gap-1 min-w-0">
+                      <span className="text-xs text-muted-foreground shrink-0">·</span>
+                      <select
+                        value={currentOrg?.id ?? ""}
+                        onChange={(e) => setCurrentOrg(e.target.value)}
+                        className="rounded-xl border border-border/80 bg-background/50 px-1.5 py-0.5 sm:px-2.5 sm:py-1 text-[11px] sm:text-xs font-medium text-foreground focus:outline-none transition hover:bg-secondary truncate max-w-[90px] sm:max-w-none"
+                      >
+                        {orgs.map((org) => (
+                          <option key={org.id} value={org.id}>
+                            {org.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    currentOrg?.name && (
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-xs text-muted-foreground shrink-0">·</span>
+                        <span className="text-xs font-medium text-muted-foreground truncate max-w-[85px] sm:max-w-none">{currentOrg.name}</span>
+                      </div>
+                    )
+                  )}
+                </>
               )}
             </div>
           </div>
