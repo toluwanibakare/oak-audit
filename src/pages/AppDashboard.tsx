@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   FolderLock,
   TrendingUp,
+  X,
 } from "lucide-react";
 import {
   Bar,
@@ -57,6 +58,30 @@ const AppDashboard = () => {
   const [findings, setFindings] = useState<AnalyticsFinding[]>([]);
   const [processes, setProcesses] = useState<AnalyticsProcess[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showApprovalNotice, setShowApprovalNotice] = useState(false);
+
+  useEffect(() => {
+    if (!currentOrg?.address) return;
+    try {
+      const addrData = JSON.parse(currentOrg.address);
+      if (addrData?.reviewStatus === "approved") {
+        const dismissKey = `oak.dismiss_approval_notice.${currentOrg.id}`;
+        const dismissed = localStorage.getItem(dismissKey);
+        if (!dismissed) {
+          setShowApprovalNotice(true);
+        }
+      }
+    } catch {
+      // Ignored
+    }
+  }, [currentOrg]);
+
+  const handleDismissApprovalNotice = () => {
+    if (currentOrg) {
+      localStorage.setItem(`oak.dismiss_approval_notice.${currentOrg.id}`, "true");
+    }
+    setShowApprovalNotice(false);
+  };
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -137,6 +162,47 @@ const AppDashboard = () => {
 
   return (
     <AppShell>
+      {showApprovalNotice && (
+        <div className="mb-6 rounded-[24px] border border-success/30 bg-success/10 p-5 sm:p-6 shadow-sm relative overflow-hidden animate-fade-in">
+          {/* Subtle success colored glowing background decoration */}
+          <div className="absolute top-0 right-0 h-32 w-32 rounded-full bg-success/20 blur-2xl -z-10 animate-pulse" />
+          
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex gap-4">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-success/20 text-success text-xl">
+                🎉
+              </span>
+              <div>
+                <h2 className="font-display text-lg font-bold text-foreground">Account approved & ready</h2>
+                <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+                  OAK Global compliance administrators have successfully activated your GRC environment. Go ahead, unlock an audit pack, and start your compliance runs!
+                </p>
+                <div className="mt-3.5 flex flex-wrap items-center gap-4">
+                  <Link to="/app/licenses" className="inline-flex items-center gap-1.5 rounded-full bg-success px-4 py-2 text-xs font-bold text-success-foreground transition hover:opacity-90">
+                    Get an Audit Pack
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                  <button 
+                    onClick={handleDismissApprovalNotice} 
+                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition underline underline-offset-2"
+                  >
+                    Dismiss notice
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <button 
+              onClick={handleDismissApprovalNotice}
+              className="rounded-lg p-1 hover:bg-success/20 text-muted-foreground hover:text-foreground transition shrink-0"
+              aria-label="Close announcement"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <section className="analytics-panel rounded-[30px] border border-border bg-card p-6 shadow-card">
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="max-w-2xl">
@@ -185,65 +251,67 @@ const AppDashboard = () => {
 
       <section className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_340px]">
         <div className="analytics-panel rounded-[28px] border border-border bg-card p-6 shadow-card" style={{ animationDelay: "90ms" }}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">
-                <ClipboardCheck className="h-3.5 w-3.5" />
-                My audits
-              </div>
-              <h2 className="mt-3 font-display text-2xl font-semibold">Continue where you left off</h2>
-              <p className="mt-1 text-sm text-muted-foreground">The latest audit work stays up front, with clean cards and direct access back into execution.</p>
-            </div>
-            <Link to="/app/audits" className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium transition hover:bg-secondary">
-              View all audits
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-
-          <div className="mt-6 grid gap-3">
-            {loading &&
-              Array.from({ length: 3 }).map((_, index) => (
-                <div key={index} className="rounded-2xl border border-border bg-background/60 p-5">
-                  <Skeleton className="h-3 w-24" />
-                  <Skeleton className="mt-3 h-6 w-2/3" />
-                  <Skeleton className="mt-3 h-4 w-1/2" />
-                </div>
-              ))}
-
-            {!loading &&
-              recentAudits.map((audit) => (
-                <Link key={audit.id} to={`/app/audits/${audit.id}`} className="rounded-2xl border border-border bg-background/60 p-5 transition hover:-translate-y-0.5 hover:shadow-elevated">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{formatStandard(audit.standard)}</span>
-                      <h3 className="mt-2 font-display text-lg font-semibold">{audit.title}</h3>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {audit.scope || "No scope added yet"} - {new Date(audit.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <span className={`rounded-full px-3 py-1 text-xs ${statusTone[audit.status as keyof typeof statusTone] ?? "bg-secondary text-foreground"}`}>
-                      {audit.status.replace("_", " ")}
-                    </span>
+          {recentAudits.length > 0 ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">
+                    <ClipboardCheck className="h-3.5 w-3.5" />
+                    My audits
                   </div>
+                  <h2 className="mt-3 font-display text-2xl font-semibold">Continue where you left off</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">The latest audit work stays up front, with clean cards and direct access back into execution.</p>
+                </div>
+                <Link to="/app/audits" className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium transition hover:bg-secondary">
+                  View all audits
+                  <ArrowRight className="h-4 w-4" />
                 </Link>
-              ))}
-
-            {!loading && recentAudits.length === 0 && (
-              <div className="rounded-2xl border border-dashed border-border bg-background/60 p-10 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary">
-                  <ClipboardCheck className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <h3 className="mt-4 font-display text-lg font-semibold">No audits yet</h3>
-                <p className="mt-2 text-sm text-muted-foreground">Create your first audit or unlock more packs to widen what your team can run.</p>
-                <div className="mt-5 flex flex-wrap justify-center gap-3">
-                  <Link to="/app/licenses" className="pill-cta">Start an audit</Link>
-                  <Link to="/app/licenses" className="inline-flex items-center justify-center rounded-full border border-border px-5 py-3 text-sm font-medium transition hover:bg-secondary">
-                    Unlock more packs
-                  </Link>
-                </div>
               </div>
-            )}
-          </div>
+
+              <div className="mt-6 grid gap-3">
+                {loading &&
+                  Array.from({ length: 3 }).map((_, index) => (
+                    <div key={index} className="rounded-2xl border border-border bg-background/60 p-5">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="mt-3 h-6 w-2/3" />
+                      <Skeleton className="mt-3 h-4 w-1/2" />
+                    </div>
+                  ))}
+
+                {!loading &&
+                  recentAudits.map((audit) => (
+                    <Link key={audit.id} to={`/app/audits/${audit.id}`} className="rounded-2xl border border-border bg-background/60 p-5 transition hover:-translate-y-0.5 hover:shadow-elevated">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{formatStandard(audit.standard)}</span>
+                          <h3 className="mt-2 font-display text-lg font-semibold">{audit.title}</h3>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {audit.scope || "No scope added yet"} - {new Date(audit.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span className={`rounded-full px-3 py-1 text-xs ${statusTone[audit.status as keyof typeof statusTone] ?? "bg-secondary text-foreground"}`}>
+                          {audit.status.replace("_", " ")}
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+              </div>
+            </>
+          ) : (
+            <div className="py-8 text-center max-w-md mx-auto">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary animate-bounce">
+                <ClipboardCheck className="h-8 w-8" />
+              </div>
+              <h3 className="mt-6 font-display text-2xl font-bold text-foreground">Welcome to OAK Global</h3>
+              <p className="mt-2.5 text-sm text-muted-foreground leading-relaxed">
+                Start auditing with absolute confidence. Unlock an ISO standard, IMS, or HSE Safety pack from our catalog, seed your question bank, and get going.
+              </p>
+              <div className="mt-8 flex flex-wrap justify-center gap-3">
+                <Link to="/app/licenses" className="pill-cta px-6 py-3 text-sm">Unlock an Audit Pack</Link>
+              </div>
+            </div>
+          )}
+        </div>
         </div>
 
         <div className="grid gap-5">
