@@ -189,7 +189,7 @@ export default function Landing() {
                 OAK Global International
               </span>
               <span className="font-display text-[9px] sm:text-[10.5px] text-primary font-bold leading-none mt-1 tracking-wide block">
-                IMS Audit Platform
+                ISO Audit Platform
               </span>
             </div>
           </Link>

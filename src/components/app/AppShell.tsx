@@ -27,13 +27,13 @@ import logo from "@/assets/logo.png";
 
 const NAV = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/app/audits", label: "My audits", icon: ClipboardCheck },
-  { to: "/app/mrm", label: "Management Review", icon: FileText },
+  { to: "/app/licenses", label: "Audit Packs", icon: Receipt },
   { to: "/app/processes", label: "Processes", icon: Workflow },
-  { to: "/app/licenses", label: "Audit packs", icon: Receipt },
+  { to: "/app/team", label: "My Team", icon: Users },
+  { to: "/app/audits", label: "My Audits", icon: ClipboardCheck },
+  { to: "/app/question-bank", label: "Customizable Question Banks", icon: BookOpen },
   { to: "/app/findings", label: "Findings", icon: AlertTriangle },
-  { to: "/app/question-bank", label: "Question bank", icon: BookOpen },
-  { to: "/app/team", label: "Audit team", icon: Users },
+  { to: "/app/mrm", label: "Management Review Guides", icon: FileText },
 ];
 
 export const AppShell = ({ children }: { children: ReactNode }) => {
