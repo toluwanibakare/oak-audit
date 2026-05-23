@@ -129,7 +129,8 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
     return path.startsWith("/app") && path !== "/app" && path !== "/app/settings";
   }, [location.pathname]);
 
-  const displayName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
+  const fullName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
+  const displayName = fullName.split(" ")[0];
   const displayEmail = user?.email ?? "";
 
   const renderSidebarContent = () => (

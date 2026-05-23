@@ -1,7 +1,12 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
-export const SiteNav = () => {
+type SiteNavProps = {
+  onSwitchToSignIn?: () => void;
+  onSwitchToSignUp?: () => void;
+};
+
+export const SiteNav = ({ onSwitchToSignIn, onSwitchToSignUp }: SiteNavProps = {}) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -41,13 +46,19 @@ export const SiteNav = () => {
             <>
               {isAuthPage ? (
                 isSignUpMode ? (
-                  <Link to="/auth" className="rounded-full bg-secondary px-5 py-2 text-sm font-medium text-foreground hover:bg-muted transition duration-200">
+                  <button
+                    onClick={() => onSwitchToSignIn ? onSwitchToSignIn() : navigate("/auth")}
+                    className="rounded-full bg-secondary px-5 py-2 text-sm font-medium text-foreground hover:bg-muted transition duration-200"
+                  >
                     Sign in
-                  </Link>
+                  </button>
                 ) : (
-                  <Link to="/auth?mode=signup" className="pill-cta px-5 py-2.5">
+                  <button
+                    onClick={() => onSwitchToSignUp ? onSwitchToSignUp() : navigate("/auth?mode=signup")}
+                    className="pill-cta px-5 py-2.5"
+                  >
                     Sign up
-                  </Link>
+                  </button>
                 )
               ) : (
                 <>
