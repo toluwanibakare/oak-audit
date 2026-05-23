@@ -448,7 +448,7 @@ export default function Landing() {
               {[
                 { value: "End-to-End", label: "Audit Flow", sub: "From scope to PDF without leaving the workspace" },
                 { value: "ISO-Ready", label: "Coverage", sub: "Quality, OH&S, environment, information security & IMS" },
-                { value: "2026 Design", label: "Experience", sub: "Premium interface with fast navigation and cleaner reporting" },
+                { value: "Real-Time Wallet", label: "Instant Access", sub: "Automatic credit refreshes, seamless activations, and zero setup delays" },
               ].map(({ value, label, sub }) => (
                 <div key={label} className="text-center">
                   <div className="font-display text-2xl font-extrabold text-primary">{value}</div>
