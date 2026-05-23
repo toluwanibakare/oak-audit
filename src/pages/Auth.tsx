@@ -294,11 +294,11 @@ const Auth = () => {
               <>
                 {mode === "signup" && (
                   <Field 
-                    label="Full name" 
+                    label={accountType === "organization" ? "Organization name" : "Full name"} 
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     icon={User}
-                    placeholder="e.g. Adaeze Okonkwo" 
+                    placeholder={accountType === "organization" ? "e.g. Acme Corp" : "e.g. Adaeze Okonkwo"} 
                     required 
                   />
                 )}
