@@ -31,6 +31,10 @@ type Workspace = {
 export default function AdminDashboard() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const getSurnameWorkspace = (name: string) => {
+    const base = name.replace(/'s workspace$/i, "").trim();
+    return `${base.split(" ")[0]}'s workspace`;
+  };
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -128,13 +132,13 @@ export default function AdminDashboard() {
     workspaces.forEach((w) => {
       if (w.type === "individual") {
         individuals++;
+      }
+      
+      const addrData = parseAddressData(w.address);
+      if (addrData?.reviewStatus === "approved") {
+        approved++;
       } else {
-        const addrData = parseAddressData(w.address);
-        if (addrData?.reviewStatus === "approved") {
-          approved++;
-        } else {
-          awaiting++;
-        }
+        awaiting++;
       }
     });
 
@@ -340,7 +344,7 @@ export default function AdminDashboard() {
                 {filteredWorkspaces.map((w) => {
                   const addrData = parseAddressData(w.address);
                   const isCompany = w.type === "organization";
-                  const isApproved = isCompany ? addrData?.reviewStatus === "approved" : true;
+                  const isApproved = addrData?.reviewStatus === "approved";
 
                   return (
                     <div 
@@ -368,28 +372,30 @@ export default function AdminDashboard() {
                           </span>
                         </div>
                         
-                        <h3 className="font-display font-bold text-base truncate">{w.name}</h3>
+                        <h3 className="font-display font-bold text-base truncate">
+                          {w.type === "individual" ? getSurnameWorkspace(w.name) : w.name}
+                        </h3>
                         
                         <div className="text-xs text-slate-400 space-y-1">
                           <p>Creator Email: <strong className="text-slate-300">{w.created_by_email || "no creator email"}</strong></p>
-                          {isCompany && (
+                          {!isCompany ? (
+                            <p>Sector/Expertise: <span className="text-slate-300 font-medium">{w.industry || "Not mapped"}</span> · Experience: <span className="text-slate-300 font-medium">{addrData?.size ? `${addrData.size} years` : "Not mapped"}</span></p>
+                          ) : (
                             <p>Sector: <span className="text-slate-300 font-medium">{w.industry || "Not mapped"}</span> · Size: <span className="text-slate-300 font-medium">{addrData?.size || "Not mapped"}</span></p>
                           )}
                         </div>
                       </div>
 
-                      {isCompany && (
-                        <button
-                          onClick={() => handleOpenReview(w)}
-                          className={`pill-cta text-xs px-3.5 py-2 shrink-0 ${
-                            isApproved 
-                              ? "bg-slate-800 border border-slate-700 hover:bg-slate-750 text-slate-300"
-                              : "bg-warning hover:bg-warning/90 text-slate-950 font-bold"
-                          }`}
-                        >
-                          {isApproved ? "Adjust Pricing" : "GRC Review & Approve →"}
-                        </button>
-                      )}
+                      <button
+                        onClick={() => handleOpenReview(w)}
+                        className={`pill-cta text-xs px-3.5 py-2 shrink-0 ${
+                          isApproved 
+                            ? "bg-slate-800 border border-slate-700 hover:bg-slate-750 text-slate-300"
+                            : "bg-warning hover:bg-warning/90 text-slate-950 font-bold"
+                        }`}
+                      >
+                        {isApproved ? "Adjust Pricing" : "GRC Review & Approve →"}
+                      </button>
                     </div>
                   );
                 })}
@@ -404,29 +410,42 @@ export default function AdminDashboard() {
               <p className="text-xs text-slate-400 mt-1">Select any awaiting company from the register to configure.</p>
             </div>
 
-            {selectedWorkspace ? (
-              <div className="space-y-5">
-                <div className="rounded-2xl bg-slate-950 border border-slate-800 p-4 space-y-3.5">
-                  <div className="flex items-center justify-between border-b border-slate-800/60 pb-2">
-                    <span className="text-xs font-bold text-slate-400">Target Workspace</span>
-                    <span className="text-[10px] bg-warning/20 text-warning px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Awaiting Review</span>
+            {selectedWorkspace ? (() => {
+              const addrData = parseAddressData(selectedWorkspace.address);
+              const isCompany = selectedWorkspace.type === "organization";
+              const isApproved = addrData?.reviewStatus === "approved";
+              const cleanIndividualName = !isCompany ? selectedWorkspace.name.replace(/'s workspace$/, "") : selectedWorkspace.name;
+              
+              return (
+                <div className="space-y-5">
+                  <div className="rounded-2xl bg-slate-950 border border-slate-800 p-4 space-y-3.5">
+                    <div className="flex items-center justify-between border-b border-slate-800/60 pb-2">
+                      <span className="text-xs font-bold text-slate-400">Target Workspace</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                        isApproved ? "bg-success/20 text-success" : "bg-warning/20 text-warning"
+                      }`}>
+                        {isApproved ? "Approved" : "Awaiting Review"}
+                      </span>
+                    </div>
+
+                    <div className="text-xs space-y-2 leading-relaxed">
+                      <p><span className="text-slate-500 block">{isCompany ? "Workspace Name:" : "Workspace Name:"}</span> <strong className="text-slate-100 text-sm">{isCompany ? selectedWorkspace.name : getSurnameWorkspace(selectedWorkspace.name)}</strong></p>
+                      {!isCompany && (
+                        <p><span className="text-slate-500 block">Auditor Name:</span> <strong className="text-slate-100">{cleanIndividualName}</strong></p>
+                      )}
+                      <p><span className="text-slate-500 block">{isCompany ? "Industry Sector:" : "Field of Expertise:"}</span> <strong className="text-slate-100">{selectedWorkspace.industry || "Not provided"}</strong></p>
+                      <p><span className="text-slate-500 block">{isCompany ? "Corporate Website:" : "Professional Website / Portfolio:"}</span> <strong className="text-slate-100">{addrData?.website || "Not provided"}</strong></p>
+                      <p><span className="text-slate-500 block">{isCompany ? "Company Strength / Employees:" : "Years of Experience / Level:"}</span> <strong className="text-slate-100">{addrData?.size ? (isCompany ? addrData.size : `${addrData.size} years`) : "Not provided"}</strong></p>
+                      <p><span className="text-slate-500 block">{isCompany ? "Location Address:" : "Contact Address:"}</span> <strong className="text-slate-100">{addrData?.address || "Not provided"}</strong></p>
+                      <p><span className="text-slate-500 block">{isCompany ? "Corporate Overview / Scope:" : "Professional Bio / Scope:"}</span> <strong className="text-slate-100 block mt-0.5 text-slate-300 italic">{addrData?.description || "Not provided"}</strong></p>
+                    </div>
                   </div>
 
-                  <div className="text-xs space-y-2 leading-relaxed">
-                    <p><span className="text-slate-500 block">Workspace Name:</span> <strong className="text-slate-100 text-sm">{selectedWorkspace.name}</strong></p>
-                    <p><span className="text-slate-500 block">Industry Sector:</span> <strong className="text-slate-100">{selectedWorkspace.industry || "Not provided"}</strong></p>
-                    <p><span className="text-slate-500 block">Corporate Website:</span> <strong className="text-slate-100">{parseAddressData(selectedWorkspace.address)?.website || "Not provided"}</strong></p>
-                    <p><span className="text-slate-500 block">Company Strength / Employees:</span> <strong className="text-slate-100">{parseAddressData(selectedWorkspace.address)?.size || "Not provided"}</strong></p>
-                    <p><span className="text-slate-500 block">Location Address:</span> <strong className="text-slate-100">{parseAddressData(selectedWorkspace.address)?.address || "Not provided"}</strong></p>
-                    <p><span className="text-slate-500 block">Corporate Overview / Scope:</span> <strong className="text-slate-100 block mt-0.5 text-slate-300 italic">{parseAddressData(selectedWorkspace.address)?.description || "Not provided"}</strong></p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <DollarSign className="h-4 w-4 text-primary" />
-                    Configure Custom Credit Prices
-                  </div>
+                  <div className="space-y-4">
+                    <div className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <DollarSign className="h-4 w-4 text-primary" />
+                      Configure Custom Credit Prices
+                    </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -514,7 +533,7 @@ export default function AdminDashboard() {
                   </button>
                 </div>
               </div>
-            ) : (
+            ); })() : (
               <div className="rounded-2xl border border-dashed border-slate-850 p-10 text-center">
                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900/60 border border-slate-800 text-slate-500 mb-4 animate-bounce">
                   <Building2 className="h-5 w-5" />

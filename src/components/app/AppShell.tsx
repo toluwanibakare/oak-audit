@@ -131,9 +131,9 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   const isIndividual = currentOrg?.type === "individual";
 
   const isCompanyPendingReview = useMemo(() => {
-    // Only org accounts go through admin review — individuals get immediate access
-    return !isIndividual && currentOrg?.type === "organization" && addressData?.reviewStatus !== "approved";
-  }, [currentOrg, addressData, isIndividual]);
+    // Both individual and organization accounts go through compliance admin review
+    return currentOrg && addressData?.reviewStatus !== "approved";
+  }, [currentOrg, addressData]);
 
   const isLockedRoute = useMemo(() => {
     const path = location.pathname;
@@ -156,7 +156,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
                 <User className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-bold text-foreground">{fullName}</div>
+                <div className="truncate text-sm font-bold text-foreground">{displayName}</div>
                 <div className="text-[11px] text-muted-foreground">Personal account</div>
               </div>
             </div>
@@ -274,73 +274,89 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
     </div>
   );
 
-  const renderUnderReviewBlock = () => (
-    <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 py-12 text-center animate-fade-in">
-      <div className="max-w-2xl w-full rounded-[32px] border border-border bg-card/60 backdrop-blur-md p-8 sm:p-10 shadow-elevated space-y-6">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-warning/10 text-warning animate-pulse">
-          <AlertTriangle className="h-8 w-8" />
-        </div>
-        
-        <div>
-          <span className="inline-flex items-center rounded-full bg-warning/10 px-3 py-1 text-xs font-bold text-warning tracking-wide uppercase">
-            Workspace Under Review
-          </span>
-          <h2 className="mt-4 font-display text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Your GRC environment is being configured
-          </h2>
-          <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-            OAK Global International's compliance administrators are reviewing your company profile details to assess organizational size and activate tailored pricing structures for your audit runs.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-secondary/30 p-5 text-left space-y-3.5">
-          <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Submitted Company Data</div>
-          
-          <div className="grid gap-2 sm:grid-cols-2 text-xs">
-            <div>
-              <span className="text-muted-foreground block">Company Name</span>
-              <span className="font-semibold text-foreground">{currentOrg?.name}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block">Industry Sector</span>
-              <span className="font-semibold text-foreground">{currentOrg?.industry || "Not set"}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block">Company Strength / Size</span>
-              <span className="font-semibold text-foreground">{addressData?.size || "Not set"}</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground block">Corporate Website</span>
-              <span className="font-semibold text-foreground">{addressData?.website || "Not set"}</span>
-            </div>
+  const renderUnderReviewBlock = () => {
+    const cleanIndividualName = isIndividual ? currentOrg?.name.replace(/'s workspace$/, "") : currentOrg?.name;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 py-12 text-center animate-fade-in">
+        <div className="max-w-2xl w-full rounded-[32px] border border-border bg-card/60 backdrop-blur-md p-8 sm:p-10 shadow-elevated space-y-6">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-warning/10 text-warning animate-pulse">
+            <AlertTriangle className="h-8 w-8" />
           </div>
           
-          <div className="pt-2 border-t border-border/50 text-[11px]">
-            <span className="text-muted-foreground block">Location / Address</span>
-            <span className="font-semibold text-foreground">{addressData?.address || "Not set"}</span>
+          <div>
+            <span className="inline-flex items-center rounded-full bg-warning/10 px-3 py-1 text-xs font-bold text-warning tracking-wide uppercase">
+              {isIndividual ? "Account Under Review" : "Workspace Under Review"}
+            </span>
+            <h2 className="mt-4 font-display text-2xl sm:text-3xl font-extrabold tracking-tight">
+              {isIndividual ? "Your auditor environment is being configured" : "Your GRC environment is being configured"}
+            </h2>
+            <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+              {isIndividual 
+                ? "OAK Global's compliance administrators are reviewing your auditor profile details to activate your account and configure your pricing allocation."
+                : "OAK Global International's compliance administrators are reviewing your company profile details to assess organizational size and activate tailored pricing structures for your audit runs."}
+            </p>
           </div>
-        </div>
 
-        <div className="text-xs text-muted-foreground leading-normal flex items-center justify-center gap-2">
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-warning animate-ping animate-duration-1000" />
-            Status: Awaiting Admin Approval
-          </span>
-          <span>·</span>
-          <span>You will be notified immediately upon approval</span>
-        </div>
+          <div className="rounded-2xl border border-border bg-secondary/30 p-5 text-left space-y-3.5">
+            <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              {isIndividual ? "Submitted Profile Data" : "Submitted Company Data"}
+            </div>
+            
+            <div className="grid gap-2 sm:grid-cols-2 text-xs">
+              <div>
+                <span className="text-muted-foreground block">{isIndividual ? "Auditor Name" : "Company Name"}</span>
+                <span className="font-semibold text-foreground">{cleanIndividualName}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block">{isIndividual ? "Field of Expertise" : "Industry Sector"}</span>
+                <span className="font-semibold text-foreground">{currentOrg?.industry || "Not set"}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block">{isIndividual ? "Years of Experience" : "Company Strength / Size"}</span>
+                <span className="font-semibold text-foreground">{isIndividual ? (addressData?.size ? `${addressData.size} years` : "Not set") : addressData?.size || "Not set"}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block">{isIndividual ? "Professional Website" : "Corporate Website"}</span>
+                <span className="font-semibold text-foreground">{addressData?.website || "Not set"}</span>
+              </div>
+            </div>
+            
+            <div className="pt-2 border-t border-border/50 text-[11px]">
+              <span className="text-muted-foreground block">{isIndividual ? "Contact Address" : "Location / Address"}</span>
+              <span className="font-semibold text-foreground">{addressData?.address || "Not set"}</span>
+            </div>
+          </div>
 
-        <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
-          <Link to="/app" className="pill-secondary justify-center text-xs px-5 py-2.5">
-            ← Back to Dashboard
-          </Link>
-          <Link to="/app/settings" className="pill-cta justify-center text-xs px-5 py-2.5">
-            Update Profile Details
-          </Link>
+          <div className="text-xs text-muted-foreground leading-normal flex items-center justify-center gap-2">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-warning animate-ping animate-duration-1000" />
+              Status: Awaiting Admin Approval
+            </span>
+            <span>·</span>
+            <span>You will be notified immediately upon approval</span>
+          </div>
+
+          <div className="pt-2 flex flex-wrap gap-3 justify-center">
+            <Link to="/app" className="pill-secondary justify-center text-xs px-5 py-2.5">
+              ← Back to Dashboard
+            </Link>
+            <Link to="/app/settings" className="pill-cta justify-center text-xs px-5 py-2.5">
+              Update Profile Details
+            </Link>
+            <button
+              onClick={async () => {
+                await signOut();
+                window.location.href = "/auth";
+              }}
+              className="rounded-2xl border border-destructive/20 hover:border-destructive/40 bg-background hover:bg-destructive/5 px-5 py-2.5 text-xs font-semibold text-destructive transition duration-200"
+            >
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="app-shell-bg min-h-screen">
@@ -416,7 +432,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
               {isIndividual ? (
                 <>
                   <span className="text-xs text-muted-foreground shrink-0">·</span>
-                  <span className="text-xs font-medium text-muted-foreground truncate max-w-[85px] sm:max-w-none">{fullName}</span>
+                  <span className="text-xs font-medium text-muted-foreground truncate max-w-[85px] sm:max-w-none">{displayName}</span>
                 </>
               ) : (
                 <>

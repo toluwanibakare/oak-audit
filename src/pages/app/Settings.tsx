@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
+import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { AppShell } from "@/components/app/AppShell";
 import { Header } from "./Team";
 
 export default function Settings() {
   const { currentOrg, refresh } = useOrg();
+  const { user } = useAuth();
   const { toast } = useToast();
+  const isIndividual = currentOrg?.type === "individual";
   
   // Structured form states
   const [name, setName] = useState("");
@@ -21,7 +24,10 @@ export default function Settings() {
 
   useEffect(() => {
     if (!currentOrg) return;
-    setName(currentOrg.name);
+    const initialName = currentOrg.type === "individual"
+      ? currentOrg.name.replace(/'s workspace$/, "")
+      : currentOrg.name;
+    setName(initialName);
     setIndustry(currentOrg.industry ?? "");
     
     // Parse the address field for structured JSON company metadata
@@ -49,6 +55,11 @@ export default function Settings() {
   const save = async () => {
     if (!currentOrg) return;
     
+    const parsedAddr = (() => {
+      if (!currentOrg?.address) return null;
+      try { return JSON.parse(currentOrg.address); } catch { return null; }
+    })();
+
     // Serialize additional properties inside the address column to stay robust without migrations
     const serializedAddress = JSON.stringify({
       address,
@@ -56,15 +67,27 @@ export default function Settings() {
       size,
       phone,
       description,
+      reviewStatus: parsedAddr?.reviewStatus || "pending"
     });
 
+    const finalName = currentOrg.type === "individual"
+      ? `${name.trim()}'s workspace`
+      : name;
+
     const { error } = await supabase.from("organizations").update({
-      name,
+      name: finalName,
       industry,
       address: serializedAddress,
     }).eq("id", currentOrg.id);
 
     if (error) return toast({ title: error.message, variant: "destructive" });
+    
+    if (currentOrg.type === "individual") {
+      await supabase.auth.updateUser({
+        data: { full_name: name.trim() }
+      });
+    }
+
     toast({ title: "Profile settings saved successfully." });
     refresh();
   };
@@ -78,41 +101,60 @@ export default function Settings() {
       const { data } = supabase.storage.from("logos").getPublicUrl(path);
       await supabase.from("organizations").update({ logo_url: data.publicUrl }).eq("id", currentOrg.id);
       refresh();
-      toast({ title: "Logo updated successfully." });
+      toast({ title: isIndividual ? "Profile photo updated successfully." : "Logo updated successfully." });
     } else toast({ title: error.message, variant: "destructive" });
     setUploading(false);
   };
 
   return (
     <AppShell>
-      <Header title="Profile settings" subtitle="Update your organization profile, contact info, and business details." />
+      <Header 
+        title="Profile settings" 
+        subtitle={isIndividual ? "Update your personal profile, professional details, and contact info." : "Update your organization profile, contact info, and business details."} 
+      />
       
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         {/* Left column: Profile Details Form */}
         <div className="space-y-4 rounded-2xl border border-border bg-card p-6 lg:col-span-2 shadow-card">
-          <h3 className="font-display text-lg font-bold text-foreground">Company Profile</h3>
-          <p className="text-xs text-muted-foreground">This information will be reviewed by the OAK Global team to determine custom pricing tiers for your organization.</p>
+          <h3 className="font-display text-lg font-bold text-foreground">
+            {isIndividual ? "Personal Profile" : "Company Profile"}
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            {isIndividual 
+              ? "This information will be reviewed by the OAK Global team to determine custom pricing tiers for your audit runs."
+              : "This information will be reviewed by the OAK Global team to determine custom pricing tiers for your organization."}
+          </p>
           
           <div className="grid gap-4 md:grid-cols-2 mt-4">
-            <Field label="Organization name">
-              <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. OAK Global International" />
+            <Field label={isIndividual ? "Full name" : "Organization name"}>
+              <input 
+                className="input" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)} 
+                placeholder={isIndividual ? "e.g. Adaeze Okonkwo" : "e.g. OAK Global International"} 
+              />
             </Field>
 
-            <Field label="Company website">
-              <input className="input" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="e.g. www.oak-global.com.ng" />
+            <Field label={isIndividual ? "Professional website / Portfolio" : "Company website"}>
+              <input 
+                className="input" 
+                value={website} 
+                onChange={(e) => setWebsite(e.target.value)} 
+                placeholder={isIndividual ? "e.g. www.adaeze-okonkwo.com" : "e.g. www.oak-global.com.ng"} 
+              />
             </Field>
 
             <Field label="Contact phone number">
               <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. +234 800 000 0000" />
             </Field>
 
-            <Field label="Industry">
+            <Field label={isIndividual ? "Field of expertise" : "Industry"}>
               <select 
                 className="input" 
                 value={industry} 
                 onChange={(e) => setIndustry(e.target.value)}
               >
-                <option value="">Select industry...</option>
+                <option value="">Select sector...</option>
                 <option value="Oil & Gas">Oil & Gas</option>
                 <option value="Construction">Construction</option>
                 <option value="Manufacturing">Manufacturing</option>
@@ -126,39 +168,50 @@ export default function Settings() {
               </select>
             </Field>
 
-            <Field label="Company size">
+            <Field label={isIndividual ? "Auditor level / Experience" : "Company size"}>
               <select 
                 className="input" 
                 value={size} 
                 onChange={(e) => setSize(e.target.value)}
               >
-                <option value="">Select size...</option>
-                <option value="1-10">1-10 employees</option>
-                <option value="11-50">11-50 employees</option>
-                <option value="51-200">51-200 employees</option>
-                <option value="201-500">201-500 employees</option>
-                <option value="500+">500+ employees</option>
+                {isIndividual ? (
+                  <>
+                    <option value="">Select experience...</option>
+                    <option value="1-3">1-3 years (Associate Auditor)</option>
+                    <option value="4-7">4-7 years (Senior Auditor)</option>
+                    <option value="8+">8+ years (Lead Auditor / Consultant)</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="">Select size...</option>
+                    <option value="1-10">1-10 employees</option>
+                    <option value="11-50">11-50 employees</option>
+                    <option value="51-200">51-200 employees</option>
+                    <option value="201-500">201-500 employees</option>
+                    <option value="500+">500+ employees</option>
+                  </>
+                )}
               </select>
             </Field>
 
             <div className="md:col-span-2">
-              <Field label="Brief description">
+              <Field label={isIndividual ? "Professional bio / Background" : "Brief description"}>
                 <textarea 
                   className="input min-h-[72px] pt-2" 
                   value={description} 
                   onChange={(e) => setDescription(e.target.value)} 
-                  placeholder="Describe your organization's business, primary services, and audit needs..."
+                  placeholder={isIndividual ? "Describe your professional background, certifications (e.g. IRCA, ISO), and audit expertise..." : "Describe your organization's business, primary services, and audit needs..."}
                 />
               </Field>
             </div>
 
             <div className="md:col-span-2">
-              <Field label="Office address">
+              <Field label={isIndividual ? "Contact address" : "Office address"}>
                 <textarea 
                   className="input min-h-[72px] pt-2" 
                   value={address} 
                   onChange={(e) => setAddress(e.target.value)} 
-                  placeholder="Physical office address"
+                  placeholder={isIndividual ? "Physical contact address / Mailing address" : "Physical office address"}
                 />
               </Field>
             </div>
@@ -168,7 +221,7 @@ export default function Settings() {
             <button
               onClick={async () => {
                 await supabase.auth.signOut();
-                window.location.href = "/";
+                window.location.href = "/auth";
               }}
               className="rounded-2xl border border-destructive/30 hover:border-destructive/60 bg-background/50 hover:bg-destructive/10 px-5 py-2.5 text-xs font-semibold text-destructive transition duration-200"
             >
@@ -179,19 +232,25 @@ export default function Settings() {
 
         {/* Right column: Branding & Logo */}
         <div className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-card h-fit">
-          <h3 className="font-display text-lg font-bold text-foreground">Branding</h3>
-          <p className="text-xs text-muted-foreground">Upload your organization logo to customize reports and dashboard elements.</p>
+          <h3 className="font-display text-lg font-bold text-foreground">
+            {isIndividual ? "Profile Photo" : "Branding"}
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            {isIndividual 
+              ? "Upload your professional photo or avatar to customize reports and profile details."
+              : "Upload your organization logo to customize reports and dashboard elements."}
+          </p>
           
           <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-border rounded-xl bg-background/50 text-center mt-4">
             {currentOrg?.logo_url ? (
               <img 
                 src={currentOrg.logo_url} 
-                alt="Organization Logo" 
-                className="h-24 w-24 rounded-2xl border border-border object-cover bg-card shadow-sm mb-4" 
+                alt={isIndividual ? "Profile Avatar" : "Organization Logo"} 
+                className={`h-24 w-24 border border-border object-cover bg-card shadow-sm mb-4 ${isIndividual ? "rounded-full" : "rounded-2xl"}`} 
               />
             ) : (
-              <div className="h-24 w-24 rounded-2xl border border-dashed border-border bg-muted/30 flex items-center justify-center text-2xl font-bold text-muted-foreground mb-4">
-                {name ? name.charAt(0).toUpperCase() : "O"}
+              <div className={`h-24 w-24 border border-dashed border-border bg-muted/30 flex items-center justify-center text-2xl font-bold text-muted-foreground mb-4 ${isIndividual ? "rounded-full" : "rounded-2xl"}`}>
+                {name ? name.charAt(0).toUpperCase() : "U"}
               </div>
             )}
             
@@ -203,7 +262,7 @@ export default function Settings() {
                 onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])} 
                 className="hidden" 
               />
-              {uploading ? "Uploading..." : "Upload new logo"}
+              {uploading ? "Uploading..." : isIndividual ? "Upload profile photo" : "Upload new logo"}
             </label>
           </div>
         </div>

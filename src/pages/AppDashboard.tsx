@@ -21,6 +21,7 @@ import {
 } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
+import { useAuth } from "@/hooks/useAuth";
 import { AppShell } from "@/components/app/AppShell";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -45,6 +46,9 @@ import {
 
 const AppDashboard = () => {
   const { currentOrg } = useOrg();
+  const { user } = useAuth();
+  const fullName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
+  const displayName = fullName.split(" ")[0];
   const [stats, setStats] = useState({ audits: 0, findings: 0, licenses: 0, conformity: 0 });
   const [credits, setCredits] = useState<number | null>(null);
   const [needOnboarding, setNeedOnboarding] = useState(false);
@@ -137,7 +141,9 @@ const AppDashboard = () => {
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="max-w-2xl">
             <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Workspace</span>
-            <h1 className="mt-2 font-display text-4xl font-bold tracking-tight">{currentOrg?.name ?? "Loading..."}</h1>
+            <h1 className="mt-2 font-display text-4xl font-bold tracking-tight">
+              {currentOrg?.type === "individual" ? `${displayName}'s Workspace` : currentOrg?.name ?? "Loading..."}
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground">
               {currentOrg?.type === "organization" ? `${currentOrg?.industry ?? "Organization"} - audit command center` : "Individual auditor workspace"}
             </p>
