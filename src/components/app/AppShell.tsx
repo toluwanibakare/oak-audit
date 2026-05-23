@@ -129,7 +129,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="space-y-1 px-2.5 py-2 overflow-hidden">
+        <nav className="space-y-1.5 px-3 py-3 overflow-y-auto max-h-[calc(100vh-210px)] scrollbar-none">
           {NAV.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
@@ -137,16 +137,16 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
               end={end}
               onClick={() => setIsMobileOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-2 rounded-xl px-2.5 py-2 text-xs font-semibold transition ${
+                `flex items-center gap-3 rounded-2xl px-3 py-2 text-sm font-medium transition ${
                   isActive
                     ? "bg-primary text-primary-foreground shadow-card"
                     : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 }`
               }
             >
-              <Icon className="h-4 w-4 shrink-0" />
+              <Icon className="h-4.5 w-4.5 shrink-0" />
               <span className="flex-1 truncate whitespace-nowrap">{label}</span>
-              <ChevronRight className="h-3 w-3 shrink-0 opacity-40" />
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-40" />
             </NavLink>
           ))}
         </nav>
