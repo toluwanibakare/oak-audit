@@ -404,8 +404,6 @@ export default function RunAudit() {
   const isUnassigned = !assignedAuditorId;
   const canEdit = !!isAssignedToMe;
 
-  if (!audit) return <AppShell><div>Loading...</div></AppShell>;
-
   const total = Object.values(answers).length;
   const conformity = total > 0 ? Math.round((Object.values(answers).filter((answer) => answer.status === "conform").length / total) * 100) : 0;
 
@@ -437,6 +435,8 @@ export default function RunAudit() {
     });
     return pending;
   }, [allAuditQuestions, answers]);
+
+  if (!audit) return <AppShell><div>Loading...</div></AppShell>;
 
   const submitAudit = async () => {
     if (!id) return;

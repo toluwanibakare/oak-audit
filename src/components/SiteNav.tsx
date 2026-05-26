@@ -1,5 +1,6 @@
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import logo from "@/assets/logo.png";
 import { useAuth } from "@/hooks/useAuth";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 
 type SiteNavProps = {
   onSwitchToSignIn?: () => void;
@@ -19,9 +20,7 @@ export const SiteNav = ({ onSwitchToSignIn, onSwitchToSignUp }: SiteNavProps = {
     <header className="relative z-20">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-10">
         <Link to="/" className="flex items-center gap-2">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground">
-            <span className="font-display text-base font-bold">O</span>
-          </span>
+          <img src={logo} alt="OAK Logo" className="h-9 w-auto" />
           <span className="font-display text-base font-semibold tracking-tight">
             OAK Global<span className="ml-1 text-muted-foreground">ISO Audit</span>
           </span>

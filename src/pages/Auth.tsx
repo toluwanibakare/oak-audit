@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type InputHTMLAttributes } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -242,7 +242,6 @@ const Auth = () => {
         <div className="orb right-[-120px] top-[-80px] h-[460px] w-[460px]" />
         <div className="orb left-[-100px] top-[300px] h-[260px] w-[260px] opacity-50" />
       </div>
-      
       <SiteNav
         onSwitchToSignIn={() => switchMode("signin")}
         onSwitchToSignUp={() => switchMode("signup")}
@@ -490,14 +489,11 @@ const Auth = () => {
 
 // ── CUSTOM STYLED UTILITY SUBCOMPONENTS ──
 
-const Field = ({ 
-  label, 
-  icon: Icon, 
-  ...rest 
-}: { 
-  label: string; 
-  icon?: any 
-} & React.InputHTMLAttributes<HTMLInputElement>) => (
+const Field = ({
+  label,
+  icon: Icon,
+  ...rest
+}: any) => (
   <label className="block">
     <span className="mb-1.5 block text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
     <div className="relative rounded-xl shadow-sm">

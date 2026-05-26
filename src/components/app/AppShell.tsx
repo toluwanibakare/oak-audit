@@ -43,6 +43,7 @@ const ORG_NAV = [
 const INDIVIDUAL_NAV = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/app/licenses", label: "Audit Packs", icon: Receipt },
+  { to: "/app/processes", label: "Processes", icon: Workflow },
   { to: "/app/audits", label: "My Audits", icon: ClipboardCheck },
   { to: "/app/question-bank", label: "Question Banks", icon: BookOpen },
   { to: "/app/findings", label: "Findings", icon: AlertTriangle },
@@ -301,7 +302,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   );
 
   const renderUnderReviewBlock = () => {
-    const cleanIndividualName = isIndividual ? currentOrg?.name.replace(/'s workspace$/, "") : currentOrg?.name;
+    const cleanIndividualName = isIndividual ? (currentOrg?.name ?? "").replace(/'s workspace$/, "") : (currentOrg?.name ?? "");
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 py-12 text-center animate-fade-in">
         <div className="max-w-2xl w-full rounded-[32px] border border-border bg-card/60 backdrop-blur-md p-8 sm:p-10 shadow-elevated space-y-6">
