@@ -114,7 +114,7 @@ export default function AdminDashboard() {
       sessionStorage.setItem("oak_admin_token", "authenticated_oak_admin_2026");
       setIsLoggedIn(true);
       setLoginError("");
-      toast({ title: "Welcome back, Administrator", description: "OAK Global GRC portal successfully unlocked." });
+      toast({ title: "Welcome back, Administrator", description: "OAK Global ISO portal successfully unlocked." });
     } else {
       setLoginError("Invalid administrator credentials. Access Denied.");
     }
@@ -334,7 +334,7 @@ export default function AdminDashboard() {
           <div>
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
               <ShieldCheck className="h-4 w-4" />
-              GRC Administration Console
+              ISO Administration Console
             </div>
             <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight">OAK Global International</h1>
             <p className="mt-1 text-sm text-slate-400">Review workspace registers, assess organizational size, and assign custom credit rates.</p>
@@ -362,7 +362,7 @@ export default function AdminDashboard() {
           <div className="bg-slate-900/60 border border-slate-900 rounded-2xl p-5 shadow-card">
             <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-warning" />
-              Awaiting GRC Review
+              Awaiting ISO Review
             </div>
             <div className="mt-3 text-4xl font-extrabold text-warning">{stats.awaiting}</div>
             <p className="mt-1 text-xs text-slate-400">Companies pending custom pricing</p>
@@ -500,7 +500,7 @@ export default function AdminDashboard() {
                               : "bg-warning hover:bg-warning/90 text-slate-950 font-bold"
                           }`}
                         >
-                          {isApproved ? "Adjust Pricing" : "GRC Review & Approve →"}
+                          {isApproved ? "Adjust Pricing" : "ISO Review & Approve →"}
                         </button>
                       </div>
                     );
@@ -512,7 +512,7 @@ export default function AdminDashboard() {
             {/* Setup review sidebar panels */}
             <div className="bg-slate-900 border border-slate-900 rounded-3xl p-6 shadow-card space-y-6 lg:sticky lg:top-8">
               <div>
-                <h2 className="font-display text-lg font-bold">GRC Review Board</h2>
+                <h2 className="font-display text-lg font-bold">ISO Review Board</h2>
                 <p className="text-xs text-slate-400 mt-1">Select any awaiting company from the register to configure.</p>
               </div>
 

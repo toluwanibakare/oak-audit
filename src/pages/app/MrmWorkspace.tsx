@@ -47,7 +47,7 @@ export default function MrmWorkspace() {
           <div>
             <h2 className="font-display text-2xl font-bold text-foreground">Exclusive Workspace Benefits</h2>
             <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
-              As an exclusive benefit of using the OAK Global International GRC Platform, you get direct access to our premium, audit-proven management guides. Use these industry-standard minutes (MoM) templates to run high-yield reviews with top management and regulatory panels.
+              As an exclusive benefit of using the OAK Global International ISO Platform, you get direct access to our premium, audit-proven management guides. Use these industry-standard minutes (MoM) templates to run high-yield reviews with top management and regulatory panels.
             </p>
           </div>
         </div>

@@ -452,7 +452,7 @@ export default function RunAudit() {
       return;
     }
     
-    toast({ title: "Audit Submitted Successfully", description: "Your GRC compliance report is being compiled." });
+    toast({ title: "Audit Submitted Successfully", description: "Your ISO compliance report is being compiled." });
     setAudit(audit ? { ...audit, status: "generating", closed_at: new Date().toISOString() } : null);
   };
 
@@ -467,7 +467,7 @@ export default function RunAudit() {
           </div>
           
           <div className="space-y-3">
-            <h2 className="font-display text-2xl font-extrabold tracking-tight">Generating GRC Compliance Report</h2>
+            <h2 className="font-display text-2xl font-extrabold tracking-tight">Generating ISO Compliance Report</h2>
             <p className="text-sm text-muted-foreground leading-relaxed font-sans">
               OAK Global's compliance engine is currently compiling your audit checklists, calculating standard conformity scores, cross-mapping nonconformities, and preparing your formal regulatory audit reports.
             </p>
@@ -526,7 +526,7 @@ export default function RunAudit() {
               This compliance audit has been formally <strong>signed off, locked, and securely archived</strong>.
             </p>
             <p>
-              In accordance with international GRC standards (ISO 19011) and OAK Global's proprietary data protection policy, <strong>all checklists, answer logs, and evidence links are permanently frozen</strong> to maintain regulatory integrity, compliance traceability, and prevent post-audit tampering.
+              In accordance with international ISO standards (ISO 19011) and OAK Global's proprietary data protection policy, <strong>all checklists, answer logs, and evidence links are permanently frozen</strong> to maintain regulatory integrity, compliance traceability, and prevent post-audit tampering.
             </p>
             <div className="grid gap-3 sm:grid-cols-2 pt-2">
               <div className="bg-secondary/40 border border-border/50 p-4 rounded-2xl">

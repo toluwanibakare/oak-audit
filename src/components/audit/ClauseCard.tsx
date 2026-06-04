@@ -147,7 +147,7 @@ export function ClauseCard({
         {onFindingMetaChange && findingMeta && (status === "minor" || status === "major" || status === "ofi") && (
           <div className="mt-5 border-t border-border/60 pt-5">
             <span className="block font-mono text-[10px] uppercase tracking-[0.18em] text-primary font-semibold mb-3">
-              Detailed Finding Parameters (GRC)
+              Detailed Finding Parameters (ISO)
             </span>
             <div className="grid gap-4 md:grid-cols-2">
               <Field

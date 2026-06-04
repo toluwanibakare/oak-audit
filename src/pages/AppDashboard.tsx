@@ -176,7 +176,7 @@ const AppDashboard = () => {
               <div>
                 <h2 className="font-display text-lg font-bold text-foreground">Account approved & ready</h2>
                 <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                  OAK Global compliance administrators have successfully activated your GRC environment. Go ahead, unlock an audit pack, and start your compliance runs!
+                  OAK Global compliance administrators have successfully activated your ISO environment. Go ahead, unlock an audit pack, and start your compliance runs!
                 </p>
                 <div className="mt-3.5 flex flex-wrap items-center gap-4">
                   <Link to="/app/licenses" className="inline-flex items-center gap-1.5 rounded-full bg-success px-4 py-2 text-xs font-bold text-success-foreground transition hover:opacity-90">

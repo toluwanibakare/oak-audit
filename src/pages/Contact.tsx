@@ -281,7 +281,7 @@ export default function Contact() {
           <div className="space-y-1">
             <h3 className="font-display text-base font-bold text-foreground">No support tickets found</h3>
             <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">
-              You haven't submitted any GRC helpdesk tickets yet. If you have any inquiries, file a ticket in the submit panel.
+              You haven't submitted any ISO helpdesk tickets yet. If you have any inquiries, file a ticket in the submit panel.
             </p>
           </div>
         </div>
@@ -416,14 +416,14 @@ export default function Contact() {
   // Contact Details column
   const contactDetailsPanel = (
     <div className="space-y-6">
-      {/* GRC Channels card */}
+      {/* ISO Channels card */}
       <div className="bg-card border border-border rounded-[28px] p-6 shadow-card space-y-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 h-32 w-32 rounded-full bg-primary/5 blur-2xl" />
         
         <div>
           <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" />
-            GRC Compliance Board
+            ISO Compliance Board
           </h3>
           <p className="text-xs text-muted-foreground mt-1">Direct corporate resolution channels.</p>
         </div>

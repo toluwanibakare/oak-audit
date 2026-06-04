@@ -119,7 +119,7 @@ const organizationPlans = [
   },
   {
     name: "IMS Integrated Enterprise",
-    price: "Full GRC Command",
+    price: "Full ISO Command",
     tagline: "All standards integrated into one unified room",
     color: "border-accent/70 hover:border-accent",
     badge: "Most Popular",
@@ -130,7 +130,7 @@ const organizationPlans = [
       "Administrative controls & custom billing plans",
       "Advanced action tracking across all sites & departments",
     ],
-    cta: "Request GRC Setup",
+    cta: "Request ISO Setup",
     ctaStyle: "pill-cta w-full justify-center",
   },
 ];
@@ -781,7 +781,7 @@ export default function Landing() {
             </div>
             
             <p className="mt-10 text-center text-xs text-muted-foreground leading-relaxed max-w-md mx-auto">
-              All activations are credit-allocated and managed securely through the GRC console. Annual custom allocations available with additional discounts. Contact compliance admin to unlock.
+              All activations are credit-allocated and managed securely through the ISO console. Annual custom allocations available with additional discounts. Contact compliance admin to unlock.
             </p>
           </div>
         </section>

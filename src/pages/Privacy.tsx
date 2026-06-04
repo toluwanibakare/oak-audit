@@ -64,7 +64,7 @@ export default function Privacy() {
               <ul className="list-disc pl-5 space-y-1.5">
                 <li><strong>Secure Transport:</strong> All data is encrypted in transit using industry-standard Transport Layer Security (TLS) and SSL protocols.</li>
                 <li><strong>Row Level Security (RLS):</strong> Our secure databases enforce strict RLS policies, restricting workspace access strictly to authorized audit members and verified owners.</li>
-                <li><strong>Access Control:</strong> Administrative activities bypass RLS solely via audited security-definer procedures reserved for approved GRC administrators.</li>
+                <li><strong>Access Control:</strong> Administrative activities bypass RLS solely via audited security-definer procedures reserved for approved ISO administrators.</li>
               </ul>
             </section>
 
@@ -84,19 +84,19 @@ export default function Privacy() {
                 4. Data Retention and Erasure
               </h2>
               <p>
-                Audit licenses expire exactly **1 week** from activation, after which standard checklists remain archived in your workspace. You retain complete ownership of your data. Registered organizations can request full deletion of their auditor registers, finding categories, and compliance workspaces at any time by contacting our GRC helpdesk.
+                Audit licenses expire exactly **1 week** from activation, after which standard checklists remain archived in your workspace. You retain complete ownership of your data. Registered organizations can request full deletion of their auditor registers, finding categories, and compliance workspaces at any time by contacting our ISO helpdesk.
               </p>
             </section>
 
             <section className="space-y-3 pt-4 border-t border-border">
-              <h3 className="font-display text-base font-bold text-foreground">Contact GRC Legal Board</h3>
+              <h3 className="font-display text-base font-bold text-foreground">Contact ISO Legal Board</h3>
               <p>
                 For questions regarding data processing, privacy disclosures, or workspace isolation, please submit a ticket via our{" "}
                 <Link to="/contact" className="text-primary hover:underline font-bold">Help & Support</Link>{" "}
                 desk, or reach us at:
               </p>
               <address className="not-italic text-xs font-mono bg-secondary/50 border border-border p-4 rounded-xl mt-2 space-y-1 text-foreground">
-                <p>OAK Global International — GRC Legal Affairs</p>
+                <p>OAK Global International — ISO Legal Affairs</p>
                 <p>Email: o.kolawole@oak-global.com.ng / info@oak-global.com.ng</p>
                 <p>Phone: +234 802 364 4148</p>
               </address>

@@ -383,7 +383,7 @@ export function exportReport({ meta, statuses, notes, findings, findingsMeta = {
   <div class="header-accent-bar"></div>
   <div class="eyebrow">Internal Audit Report · ISO 9001:2015</div>
   <h1>Quality Management System Audit<span style="color:#13c653">.</span></h1>
-  <div class="subtitle">Comprehensive Management System Compliance and GRC Risk Review</div>
+  <div class="subtitle">Comprehensive Management System Compliance and ISO Risk Review</div>
 
   <table class="meta">
     <tr><td>Organization</td><td>${esc(meta.organization || "—")}</td></tr>
@@ -494,7 +494,7 @@ export function exportReport({ meta, statuses, notes, findings, findingsMeta = {
   ` : findingItems.map((it, i) => {
     const s = statuses[it.clause];
     const itemMeta = findingsMeta[it.clause] || {};
-    const hasGRC = s === "minor" || s === "major" || s === "ofi";
+    const hasISO = s === "minor" || s === "major" || s === "ofi";
     
     return `
     <div class="finding-card">
@@ -521,9 +521,9 @@ export function exportReport({ meta, statuses, notes, findings, findingsMeta = {
         </tr>
       </table>
       
-      ${hasGRC ? `
+      ${hasISO ? `
       <div class="grc-section">
-        <div class="grc-title">GRC Correction & Action Plan</div>
+        <div class="grc-title">ISO Correction & Action Plan</div>
         <table class="grc-table">
           <tr>
             <td class="lbl" style="width: 25%;">Action Owner</td>

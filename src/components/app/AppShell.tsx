@@ -315,7 +315,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
               {isIndividual ? "Account Under Review" : "Workspace Under Review"}
             </span>
             <h2 className="mt-4 font-display text-2xl sm:text-3xl font-extrabold tracking-tight">
-              {isIndividual ? "Your auditor environment is being configured" : "Your GRC environment is being configured"}
+              {isIndividual ? "Your auditor environment is being configured" : "Your ISO environment is being configured"}
             </h2>
             <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
               {isIndividual 

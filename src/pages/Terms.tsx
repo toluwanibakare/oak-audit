@@ -41,7 +41,7 @@ export default function Terms() {
             <div className="rounded-2xl border border-warning/30 bg-warning/5 p-4 text-warning flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
               <div className="text-xs leading-normal">
-                <strong>CRITICAL LEGAL WARRANTY:</strong> The OAK ISO Audit platform is a proprietary GRC software system. Replication, duplication, scraping, reverse-engineering, or unauthorized distribution of this codebase, layouts, and pre-built questions is strictly prohibited.
+                <strong>CRITICAL LEGAL WARRANTY:</strong> The OAK ISO Audit platform is a proprietary ISO software system. Replication, duplication, scraping, reverse-engineering, or unauthorized distribution of this codebase, layouts, and pre-built questions is strictly prohibited.
               </div>
             </div>
 
@@ -50,7 +50,7 @@ export default function Terms() {
                 1. Acceptance of Terms
               </h2>
               <p>
-                By registering a GRC workspace, funding your credit wallet, or using OAK Global International's platform, you agree to be bound by these Terms of Service. If you are registering an account on behalf of a company or individual auditor workspace, you warrant that you possess full administrative permissions to bind that organization.
+                By registering a ISO workspace, funding your credit wallet, or using OAK Global International's platform, you agree to be bound by these Terms of Service. If you are registering an account on behalf of a company or individual auditor workspace, you warrant that you possess full administrative permissions to bind that organization.
               </p>
             </section>
 
@@ -90,7 +90,7 @@ export default function Terms() {
                 To maintain the integrity of OAK Global International's platform:
               </p>
               <ul className="list-disc pl-5 space-y-1">
-                <li>Both corporate and individual auditor workspaces must complete Profile Settings and pass compliance review by GRC administrators before licensing or unlocking audit packs.</li>
+                <li>Both corporate and individual auditor workspaces must complete Profile Settings and pass compliance review by ISO administrators before licensing or unlocking audit packs.</li>
                 <li>We reserve the right to suspend any workspace that provides false, misleading, or fraudulent company details or profile metadata.</li>
               </ul>
             </section>

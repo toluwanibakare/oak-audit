@@ -243,7 +243,7 @@ const AuditReport = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `GRC_CAPA_Report_${audit?.title.replace(/\s+/g, "_") || "Audit"}.csv`);
+    link.setAttribute("download", `ISO_CAPA_Report_${audit?.title.replace(/\s+/g, "_") || "Audit"}.csv`);
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
@@ -300,7 +300,7 @@ const AuditReport = () => {
         <div className="mt-8 flex border-b border-border print:hidden">
           {[
             { id: "analytics", label: "Visual Analytics", icon: <PieChartIcon className="h-4 w-4" /> },
-            { id: "capa", label: "GRC CAPA Report", icon: <Table className="h-4 w-4" /> },
+            { id: "capa", label: "ISO CAPA Report", icon: <Table className="h-4 w-4" /> },
             { id: "responses", label: "Detailed Responses", icon: <Radar className="h-4 w-4" /> },
           ].map((tab) => (
             <button
@@ -504,12 +504,12 @@ const AuditReport = () => {
           </div>
         )}
 
-        {/* GRC CAPA Report Spreadsheet Tab */}
+        {/* ISO CAPA Report Spreadsheet Tab */}
         {activeTab === "capa" && (
           <div className="mt-8 space-y-6 animate-fade-in">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <h2 className="font-display text-xl font-bold text-foreground">Consolidated GRC CAPA Log</h2>
+                <h2 className="font-display text-xl font-bold text-foreground">Consolidated ISO CAPA Log</h2>
                 <p className="text-sm text-muted-foreground">Tracking compliance gaps, corrective action plans, root causes, and verification statuses.</p>
               </div>
               <button onClick={downloadCapaCsv} className="pill-cta bg-primary hover:bg-primary/90 flex items-center gap-2">

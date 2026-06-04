@@ -319,7 +319,7 @@ export default function Licenses() {
             <div className="max-w-2xl">
               <h3 className="font-display text-lg font-bold text-foreground">Complete your Profile Settings to proceed</h3>
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                Before you can purchase or unlock any audit packs, you are required to complete your organization profile details. This helps OAK Global International verify your GRC workspace and activate licensing permissions.
+                Before you can purchase or unlock any audit packs, you are required to complete your organization profile details. This helps OAK Global International verify your ISO workspace and activate licensing permissions.
               </p>
               <p className="mt-2 text-xs text-warning font-semibold tracking-wide uppercase">
                 Required fields: Website, Phone number, Industry, Company size, Address, and Description.
@@ -477,7 +477,7 @@ export default function Licenses() {
             <div>
               <h3 className="font-display text-2xl font-bold">Configure Audit Setup</h3>
               <p className="mt-1.5 text-xs text-muted-foreground">
-                Unlock this pack, assign it to an auditor, and launch your GRC workspace.
+                Unlock this pack, assign it to an auditor, and launch your ISO workspace.
               </p>
             </div>
 
