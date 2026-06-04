@@ -556,7 +556,7 @@ export default function Licenses() {
                     </button>
                     <button
                       onClick={handleUnlockAndLaunch}
-                      disabled={!auditTitle.trim() || !selectedAuditorId || busy !== null || isInsufficient}
+                      disabled={!auditTitle.trim() || (currentOrg?.type !== "individual" && !selectedAuditorId) || busy !== null || isInsufficient}
                       className="pill-cta flex-1 justify-center disabled:opacity-50"
                     >
                       {busy ? "Activating..." : "Launch Audit →"}
