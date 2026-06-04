@@ -279,6 +279,7 @@ const PROCESS_DETAILS: Record<ProcessKey, ProcessClauseMap> = {
 
   construction: {
     "6.1": { specific: ["Are site-specific HSE and quality risks identified and treated?"], evidence: ["Project risk register"] },
+    "6.2": { specific: ["Are site construction quality objectives (rework target, handover timelines) defined?"], evidence: ["Project quality objectives"] },
     "7.1": { specific: ["Are site equipment, calibrated tools, and welfare facilities provided and maintained?"], evidence: ["Equipment register", "Calibration records"] },
     "7.2": { specific: ["Are welders, NDT operators, supervisors, and crane operators qualified and certifications current?"], evidence: ["Operator certifications"] },
     "7.5": { specific: ["Are IFC drawings, method statements, and ITPs at point of work and at correct revision?"], evidence: ["Site document register", "Superseded-drawing log"] },
@@ -383,6 +384,7 @@ const PROCESS_DETAILS: Record<ProcessKey, ProcessClauseMap> = {
   },
 
   admin: {
+    "6.2": { specific: ["Are general administration and facility objectives set and monitored?"], evidence: ["Admin KPIs"] },
     "7.1": { specific: ["Are facilities (offices, utilities, cleanliness, security) suitable and maintained?"], evidence: ["Facility maintenance plan", "Cleaning schedule"] },
     "7.4": { specific: ["Are internal communications (notices, intranet, email distribution lists) effective?"], evidence: ["Communications matrix"] },
     "7.5": { specific: ["Are general records (visitor logs, travel, asset register) controlled?"], evidence: ["Records inventory"] },

@@ -940,7 +940,11 @@ function Row({
             disabled={readOnly}
             className="input w-32 text-xs animate-none"
           >
-            {STATUSES.map((item) => <option key={item} value={item}>{item}</option>)}
+            {STATUSES.map((item) => (
+              <option key={item} value={item}>
+                {item === "na" ? "N/A" : item.charAt(0).toUpperCase() + item.slice(1)}
+              </option>
+            ))}
           </select>
         </div>
       </div>

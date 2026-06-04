@@ -221,6 +221,7 @@ const PROCESS_DETAILS_14001: Record<ProcessKey14001, ProcessClauseMap> = {
   construction: {
     "6.1.2": { specific: ["Are site environmental aspects (dust, noise, runoff, waste, biodiversity) identified?"], evidence: ["Site aspects register", "EIA/CEMP"] },
     "6.1.3": { specific: ["Are environmental permits (discharge, dewatering, dust, waste) identified and posted on site?"], evidence: ["Permits"] },
+    "6.2": { specific: ["Are site environmental objectives (waste recycling rate, spill counts) defined?"], evidence: ["Site EMS objectives"] },
     "7.1": { specific: ["Are spill kits, bunds, dust suppression, sediment controls in place and inspected?"], evidence: ["Inspection logs"] },
     "8.1": { specific: ["Is the Construction EMP implemented (waste segregation, hazardous storage, vehicle washdown, refuelling controls)?", "Are subcontractors held to EMP requirements?"], evidence: ["CEMP", "Subcontractor inductions"] },
     "8.2": { specific: ["Are spill response, fire, and pollution incident plans in place and drilled?"], evidence: ["Spill drill records"] },
@@ -299,6 +300,7 @@ const PROCESS_DETAILS_14001: Record<ProcessKey14001, ProcessClauseMap> = {
   business_development: {
     "4.1": { specific: ["Is environmental regulatory landscape of new markets analyzed?"], evidence: ["Market entry assessment"] },
     "6.1": { specific: ["Are environmental risks of new ventures, partners, geographies assessed (incl. climate)?"], evidence: ["Opportunity env risk assessment"] },
+    "6.2": { specific: ["Are environmental objectives for new market/partnership opportunities defined?"], evidence: ["BD EMS objectives"] },
     "8.1": { specific: ["Is environmental due diligence performed on partners/JV/M&A targets?"], evidence: ["Due diligence reports"] },
   },
 };

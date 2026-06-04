@@ -219,6 +219,7 @@ const PROCESS_DETAILS_45001: Record<ProcessKey45001, ProcessClauseMap> = {
   },
   construction: {
     "6.1": { specific: ["Are site OH&S risks assessed via JSAs / Take 5 / pre-task; controls implemented?"], evidence: ["JSA library", "Pre-task records"] },
+    "6.2": { specific: ["Are construction site safety objectives (LTIFR target, toolbox compliance) defined?"], evidence: ["Site OH&S objectives"] },
     "7.1": { specific: ["Are PPE, fall arrest, scaffolds, lifting gear, and welfare provided and inspected?"], evidence: ["Inspection registers"] },
     "7.2": { specific: ["Are workers (incl. contractors) qualified for high-risk work (heights, confined space, hot work, lifting, electrical)?"], evidence: ["Operator certifications"] },
     "8.1": { specific: ["Is permit-to-work system used for high-risk activities (hot work, confined space, working at height, energy isolation)?", "Are contractors selected, inducted, and supervised for OH&S?"], evidence: ["Permits", "Contractor induction records", "Site supervision logs"] },
@@ -282,6 +283,7 @@ const PROCESS_DETAILS_45001: Record<ProcessKey45001, ProcessClauseMap> = {
   },
   admin: {
     "6.1": { specific: ["Are office OH&S risks (fire, slips/trips, ergonomics, security) assessed?"], evidence: ["Office HIRA"] },
+    "6.2": { specific: ["Are office safety and health objectives (accident-free hours, ergonomic adjustments) set?"], evidence: ["Office OH&S objectives"] },
     "7.1": { specific: ["Are fire detection/suppression, first aid, lighting, ventilation maintained?"], evidence: ["Maintenance & inspection records"] },
     "8.2": { specific: ["Are fire and evacuation drills conducted at defined frequency; first aiders/fire marshals trained?"], evidence: ["Drill records", "First aider list"] },
     "10.2": { specific: ["Are office incidents and near-misses reported and investigated?"], evidence: ["Incident log"] },
@@ -300,6 +302,7 @@ const PROCESS_DETAILS_45001: Record<ProcessKey45001, ProcessClauseMap> = {
   business_development: {
     "4.1": { specific: ["Is OH&S regulatory landscape of new markets analyzed?"], evidence: ["Market entry assessment"] },
     "6.1": { specific: ["Are OH&S risks of new ventures, partners, or geographies assessed before commitment?"], evidence: ["Opportunity OH&S risk assessment"] },
+    "6.2": { specific: ["Are health and safety objectives for new ventures or partners defined?"], evidence: ["BD OH&S objectives"] },
     "8.1": { specific: ["Is OH&S due diligence performed on partners/agents/JV targets?"], evidence: ["Due diligence reports"] },
   },
 };
