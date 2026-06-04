@@ -65,6 +65,7 @@ export default function AdminDashboard() {
   const [adminResponse, setAdminResponse] = useState("");
   const [sendingResponse, setSendingResponse] = useState(false);
   const [ticketSearch, setTicketSearch] = useState("");
+  const [ticketFilter, setTicketFilter] = useState<"all" | "open" | "resolved">("all");
 
   // Authenticate Admin locally
   useEffect(() => {
@@ -154,9 +155,14 @@ export default function AdminDashboard() {
       const nameMatch = (t.name || "").toLowerCase().includes(ticketSearch.toLowerCase());
       const subjectMatch = (t.subject || "").toLowerCase().includes(ticketSearch.toLowerCase());
       const messageMatch = (t.message || "").toLowerCase().includes(ticketSearch.toLowerCase());
-      return nameMatch || emailMatch || subjectMatch || messageMatch;
+      const textMatch = nameMatch || emailMatch || subjectMatch || messageMatch;
+      if (!textMatch) return false;
+
+      if (ticketFilter === "open") return t.status === "open";
+      if (ticketFilter === "resolved") return t.status === "resolved";
+      return true;
     });
-  }, [tickets, ticketSearch]);
+  }, [tickets, ticketSearch, ticketFilter]);
 
   // Summarize workspaces details
   const stats = useMemo(() => {
@@ -692,6 +698,23 @@ export default function AdminDashboard() {
                   />
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
                 </div>
+              </div>
+
+              {/* Status Filter Tabs */}
+              <div className="flex items-center gap-1 bg-slate-950/80 border border-slate-800/80 rounded-xl p-1 w-fit">
+                {(["all", "open", "resolved"] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setTicketFilter(f)}
+                    className={`rounded-lg px-3 py-1 text-xs font-semibold capitalize transition ${
+                      ticketFilter === f
+                        ? "bg-primary text-white shadow-sm"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
               </div>
 
               {loading ? (
