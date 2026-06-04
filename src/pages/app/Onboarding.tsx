@@ -26,6 +26,12 @@ export default function Onboarding() {
       .then(({ data }) => setAuditors((data ?? []) as Auditor[]));
   }, [currentOrg]);
 
+  useEffect(() => {
+    if (currentOrg?.type === "individual" && step === 1) {
+      setStep(2);
+    }
+  }, [currentOrg, step]);
+
   if (!currentOrg) return <AppShell><div>Loading…</div></AppShell>;
 
   const addAuditor = async () => {
@@ -89,18 +95,25 @@ export default function Onboarding() {
   };
 
   const finish = async () => {
-    await seedStandardProcesses(currentOrg.id);
-    // Persist assignments
-    const { data: procs } = await supabase.from("org_processes")
-      .select("id,key").eq("org_id", currentOrg.id);
-    const procMap = Object.fromEntries((procs ?? []).map((p) => [p.key, p.id]));
-    const rows: { org_id: string; process_id: string; auditor_id: string }[] = [];
-    for (const [key, ids] of Object.entries(assignments)) {
-      const pid = procMap[key];
-      if (!pid) continue;
-      for (const aid of ids) rows.push({ org_id: currentOrg.id, process_id: pid, auditor_id: aid });
+    const rows = PROCESSES.filter((p) => selectedKeys.includes(p.key)).map((p) => ({
+      org_id: currentOrg.id, key: p.key, name: p.name, scope: p.scope, is_custom: false,
+    }));
+    if (rows.length) await supabase.from("org_processes").insert(rows);
+
+    if (currentOrg.type === "organization") {
+      // Persist assignments
+      const { data: procs } = await supabase.from("org_processes")
+        .select("id,key").eq("org_id", currentOrg.id);
+      const procMap = Object.fromEntries((procs ?? []).map((p) => [p.key, p.id]));
+      const assignmentRows: { org_id: string; process_id: string; auditor_id: string }[] = [];
+      for (const [key, ids] of Object.entries(assignments)) {
+        const pid = procMap[key];
+        if (!pid) continue;
+        for (const aid of ids) assignmentRows.push({ org_id: currentOrg.id, process_id: pid, auditor_id: aid });
+      }
+      if (assignmentRows.length) await supabase.from("process_assignments").insert(assignmentRows);
     }
-    if (rows.length) await supabase.from("process_assignments").insert(rows);
+    
     await refresh();
     toast({ title: "Onboarding complete!", description: "Welcome to OAK Global." });
     navigate("/app");
@@ -159,7 +172,11 @@ export default function Onboarding() {
                 );
               })}
             </div>
-            <Footer onBack={() => setStep(1)} onNext={() => setStep(3)} />
+            {currentOrg.type === "individual" ? (
+              <Footer onNext={finish} nextLabel="Finish setup" />
+            ) : (
+              <Footer onBack={() => setStep(1)} onNext={() => setStep(3)} />
+            )}
           </Section>
         )}
 

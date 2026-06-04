@@ -124,7 +124,7 @@ const AppDashboard = () => {
         licenses: licensesResult.count ?? 0,
         conformity,
       });
-      setNeedOnboarding(currentOrg.type === "organization" && nextProcesses.length === 0);
+      setNeedOnboarding(nextProcesses.length === 0);
       setCredits(walletResult.data?.balance ?? 0);
       setAudits(nextAudits);
       setAnswers(nextAnswers);

@@ -149,18 +149,7 @@ begin
     new.raw_user_meta_data ->> 'phone'
   );
 
-  -- Always create a personal individual workspace
-  insert into public.organizations (type, name, created_by)
-  values ('individual', display_name || '''s workspace', new.id)
-  returning id into new_org_id;
-
-  insert into public.organization_members (org_id, user_id, status)
-  values (new_org_id, new.id, 'active');
-
-  insert into public.user_roles (user_id, org_id, role)
-  values (new.id, new_org_id, 'owner');
-
-  -- If signup metadata flagged this as an organization, also create the org
+  -- Create workspace based on account_type
   if (new.raw_user_meta_data ->> 'account_type') = 'organization' then
     insert into public.organizations (type, name, industry, address, created_by)
     values (
@@ -179,6 +168,17 @@ begin
     values (new.id, new_org_id, 'owner');
     insert into public.user_roles (user_id, org_id, role)
     values (new.id, new_org_id, 'admin');
+  else
+    -- Default/individual workspace
+    insert into public.organizations (type, name, created_by)
+    values ('individual', display_name || '''s workspace', new.id)
+    returning id into new_org_id;
+
+    insert into public.organization_members (org_id, user_id, status)
+    values (new_org_id, new.id, 'active');
+
+    insert into public.user_roles (user_id, org_id, role)
+    values (new.id, new_org_id, 'owner');
   end if;
 
   return new;

@@ -174,7 +174,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
 
   const renderSidebarContent = () => (
     <div className="flex h-full flex-col justify-between">
-      <div className="flex flex-col overflow-hidden">
+      <div className="flex flex-col overflow-y-auto flex-1">
         {/* Account header - personal card for individual, workspace for org */}
         <div className="px-4 pt-5 pb-2">
           {isIndividual ? (
@@ -456,38 +456,33 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
               <span className="font-display text-sm font-bold text-foreground tracking-tight whitespace-nowrap truncate max-w-[100px] sm:max-w-none">
                 OAK Global
               </span>
-              {isIndividual ? (
+              {orgs.length > 1 ? (
+                <div className="flex items-center gap-1 min-w-0">
+                  <span className="text-xs text-muted-foreground shrink-0">·</span>
+                  <select
+                    value={currentOrg?.id ?? ""}
+                    onChange={(e) => setCurrentOrg(e.target.value)}
+                    className="rounded-xl border border-border/80 bg-background/50 px-1.5 py-0.5 sm:px-2.5 sm:py-1 text-[11px] sm:text-xs font-medium text-foreground focus:outline-none transition hover:bg-secondary truncate max-w-[90px] sm:max-w-none"
+                  >
+                    {orgs.map((org) => (
+                      <option key={org.id} value={org.id}>
+                        {org.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : isIndividual ? (
                 <>
                   <span className="text-xs text-muted-foreground shrink-0">·</span>
                   <span className="text-xs font-medium text-muted-foreground truncate max-w-[85px] sm:max-w-none">{displayName}</span>
                 </>
               ) : (
-                <>
-                  <span className="hidden text-xs text-muted-foreground sm:inline-block whitespace-nowrap">· Audit Workspace</span>
-                  {orgs.length > 1 ? (
-                    <div className="flex items-center gap-1 min-w-0">
-                      <span className="text-xs text-muted-foreground shrink-0">·</span>
-                      <select
-                        value={currentOrg?.id ?? ""}
-                        onChange={(e) => setCurrentOrg(e.target.value)}
-                        className="rounded-xl border border-border/80 bg-background/50 px-1.5 py-0.5 sm:px-2.5 sm:py-1 text-[11px] sm:text-xs font-medium text-foreground focus:outline-none transition hover:bg-secondary truncate max-w-[90px] sm:max-w-none"
-                      >
-                        {orgs.map((org) => (
-                          <option key={org.id} value={org.id}>
-                            {org.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : (
-                    currentOrg?.name && (
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-xs text-muted-foreground shrink-0">·</span>
-                        <span className="text-xs font-medium text-muted-foreground truncate max-w-[85px] sm:max-w-none">{currentOrg.name}</span>
-                      </div>
-                    )
-                  )}
-                </>
+                currentOrg?.name && (
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-xs text-muted-foreground shrink-0">·</span>
+                    <span className="text-xs font-medium text-muted-foreground truncate max-w-[85px] sm:max-w-none">{currentOrg.name}</span>
+                  </div>
+                )
               )}
             </div>
           </div>

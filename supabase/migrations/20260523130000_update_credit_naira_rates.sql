@@ -35,9 +35,9 @@ BEGIN
 
   UPDATE public.credit_wallets SET balance = balance - cost, updated_at = now() WHERE org_id=_org_id;
 
-  -- Set expires_at to exactly 1 week from now
+  -- Set expires_at to 100 years from now (open forever)
   INSERT INTO public.audit_licenses (org_id, pack, paid_amount_ngn, paystack_ref, active, expires_at)
-  VALUES (_org_id, _pack, naira, 'wallet:' || gen_random_uuid()::text, true, now() + interval '1 week')
+  VALUES (_org_id, _pack, naira, 'wallet:' || gen_random_uuid()::text, true, now() + interval '100 years')
   RETURNING id INTO new_license_id;
 
   INSERT INTO public.credit_transactions (org_id, kind, credits, naira_amount, pack, audit_license_id, created_by)

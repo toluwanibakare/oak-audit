@@ -62,6 +62,7 @@ const Auth = () => {
   const [step, setStep] = useState<1 | 2>(1);
   const [accountType, setAccountType] = useState<"individual" | "organization">("individual");
   const [busy, setBusy] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   // Form states to preserve inputs when navigating back/forth
   const [fullName, setFullName] = useState("");
@@ -194,10 +195,7 @@ const Auth = () => {
         });
         
         if (error) throw error;
-        toast({ 
-          title: "Registration successful", 
-          description: "Please check your email inbox to verify your account." 
-        });
+        setRegistered(true);
       } else {
         // Sign-in
         const parsed = signinSchema.safeParse({ email, password });
@@ -248,235 +246,257 @@ const Auth = () => {
       />
       
       <main className="mx-auto flex max-w-lg flex-col px-6 py-10">
-        <div className="rounded-3xl border border-border bg-card p-8 shadow-elevated transition-all duration-300">
-          
-          {/* Visual Step Progress Indicator */}
-          {mode === "signup" && (
-            <div className="mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-primary">
-                  {accountType === "individual" 
-                    ? "Step 1 of 1: Credentials" 
-                    : `Step ${step} of 2: ${step === 1 ? "Credentials" : "Company Profile"}`}
-                </span>
-                <span className="text-xs text-muted-foreground font-semibold">
-                  {accountType === "individual" ? "100%" : step === 1 ? "50%" : "100%"} Complete
-                </span>
+          {registered ? (
+            <div className="text-center py-6 space-y-6">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Mail className="h-8 w-8" />
               </div>
-              <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500 ease-out"
-                  style={{ width: progressWidth }}
-                />
+              <div className="space-y-2">
+                <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">Sign Up Successful</h1>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  A verification link has been sent to your email address (<strong>{email}</strong>). Please check your email inbox and click the link to confirm your email address, then log in.
+                </p>
               </div>
+              <button
+                onClick={() => {
+                  setRegistered(false);
+                  switchMode("signin");
+                }}
+                className="pill-cta w-full py-2.5 text-sm font-semibold"
+              >
+                Go to Sign In
+              </button>
             </div>
-          )}
+          ) : (
+            <>
+              {/* Visual Step Progress Indicator */}
+              {mode === "signup" && (
+                <div className="mb-6">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-primary">
+                      {accountType === "individual" 
+                        ? "Step 1 of 1: Credentials" 
+                        : `Step ${step} of 2: ${step === 1 ? "Credentials" : "Company Profile"}`}
+                    </span>
+                    <span className="text-xs text-muted-foreground font-semibold">
+                      {accountType === "individual" ? "100%" : step === 1 ? "50%" : "100%"} Complete
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500 ease-out"
+                      style={{ width: progressWidth }}
+                    />
+                  </div>
+                </div>
+              )}
 
-          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
-            {mode === "signup" 
-              ? (step === 1 ? "Create your account" : "Tell us about your organization") 
-              : "Welcome back"}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {mode === "signup" 
-              ? (step === 1 ? "Start auditing in minutes." : "Required for determining your custom pricing tier.")
-              : "Sign in to your OAK Global workspace."}
-          </p>
+              <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
+                {mode === "signup" 
+                  ? (step === 1 ? "Create your account" : "Tell us about your organization") 
+                  : "Welcome back"}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {mode === "signup" 
+                  ? (step === 1 ? "Start auditing in minutes." : "Required for determining your custom pricing tier.")
+                  : "Sign in to your OAK Global workspace."}
+              </p>
 
-          {/* Account Type Selector - Only visible in Step 1 of Sign Up */}
-          {mode === "signup" && step === 1 && (
-            <div className="mt-6 grid grid-cols-2 gap-2 rounded-full border border-border bg-secondary p-1">
-              {(["individual", "organization"] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setAccountType(t)}
-                  className={`rounded-full py-2 text-sm font-semibold capitalize transition-all duration-200 ${
-                    accountType === t 
-                      ? "bg-card shadow-card text-foreground" 
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t === "individual" ? "Individual auditor" : "Organization"}
-                </button>
-              ))}
-            </div>
-          )}
+              {/* Account Type Selector - Only visible in Step 1 of Sign Up */}
+              {mode === "signup" && step === 1 && (
+                <div className="mt-6 grid grid-cols-2 gap-2 rounded-full border border-border bg-secondary p-1">
+                  {(["individual", "organization"] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setAccountType(t)}
+                      className={`rounded-full py-2 text-sm font-semibold capitalize transition-all duration-200 ${
+                        accountType === t 
+                          ? "bg-card shadow-card text-foreground" 
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {t === "individual" ? "Individual auditor" : "Organization"}
+                    </button>
+                  ))}
+                </div>
+              )}
 
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            
-            {/* ── STEP 1 (SIGNUP) / SIGNIN FIELDS ── */}
-            {step === 1 && (
-              <>
-                {mode === "signup" && (
-                  <Field 
-                    label={accountType === "organization" ? "Organization name" : "Full name"} 
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    icon={User}
-                    placeholder={accountType === "organization" ? "e.g. Acme Corp" : "e.g. Adaeze Okonkwo"} 
-                    required 
-                  />
+              <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                
+                {/* ── STEP 1 (SIGNUP) / SIGNIN FIELDS ── */}
+                {step === 1 && (
+                  <>
+                    {mode === "signup" && (
+                      <Field 
+                        label={accountType === "organization" ? "Organization name" : "Full name"} 
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        icon={User}
+                        placeholder={accountType === "organization" ? "e.g. Acme Corp" : "e.g. Adaeze Okonkwo"} 
+                        required 
+                      />
+                    )}
+                    <Field 
+                      label="Email" 
+                      type="email" 
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      icon={Mail}
+                      placeholder="you@company.com" 
+                      required 
+                    />
+                    <PasswordField
+                      label="Password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                    />
+                  </>
                 )}
-                <Field 
-                  label="Email" 
-                  type="email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  icon={Mail}
-                  placeholder="you@company.com" 
-                  required 
-                />
-                <PasswordField
-                  label="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                />
-              </>
-            )}
 
-            {/* ── STEP 2 (ORGANIZATION DETAILS) ── */}
-            {mode === "signup" && step === 2 && accountType === "organization" && (
-              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-300">
-                <Field 
-                  label="Organization name" 
-                  value={orgName}
-                  onChange={(e) => setOrgName(e.target.value)}
-                  icon={Building2}
-                  placeholder="e.g. Lagos Port Authority" 
-                  required 
-                />
+                {/* ── STEP 2 (ORGANIZATION DETAILS) ── */}
+                {mode === "signup" && step === 2 && accountType === "organization" && (
+                  <div className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-300">
+                    <Field 
+                      label="Organization name" 
+                      value={orgName}
+                      onChange={(e) => setOrgName(e.target.value)}
+                      icon={Building2}
+                      placeholder="e.g. Lagos Port Authority" 
+                      required 
+                    />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <SelectField 
-                    label="Industry" 
-                    value={industry}
-                    onChange={(e) => setIndustry(e.target.value)}
-                    icon={Building2}
-                    required
-                  >
-                    <option value="">Select industry…</option>
-                    {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
-                  </SelectField>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <SelectField 
+                        label="Industry" 
+                        value={industry}
+                        onChange={(e) => setIndustry(e.target.value)}
+                        icon={Building2}
+                        required
+                      >
+                        <option value="">Select industry…</option>
+                        {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
+                      </SelectField>
 
-                  <SelectField 
-                    label="Company size" 
-                    value={size}
-                    onChange={(e) => setSize(e.target.value)}
-                    icon={Hash}
-                    required
-                  >
-                    <option value="">Select size…</option>
-                    <option value="1-10">1-10 employees</option>
-                    <option value="11-50">11-50 employees</option>
-                    <option value="51-200">51-200 employees</option>
-                    <option value="201-500">201-500 employees</option>
-                    <option value="500+">500+ employees</option>
-                  </SelectField>
-                </div>
+                      <SelectField 
+                        label="Company size" 
+                        value={size}
+                        onChange={(e) => setSize(e.target.value)}
+                        icon={Hash}
+                        required
+                      >
+                        <option value="">Select size…</option>
+                        <option value="1-10">1-10 employees</option>
+                        <option value="11-50">11-50 employees</option>
+                        <option value="51-200">51-200 employees</option>
+                        <option value="201-500">201-500 employees</option>
+                        <option value="500+">500+ employees</option>
+                      </SelectField>
+                    </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Field 
-                    label="Company website" 
-                    value={website}
-                    onChange={(e) => setWebsite(e.target.value)}
-                    icon={Globe}
-                    placeholder="e.g. oak-global.com.ng" 
-                    required 
-                  />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Field 
+                        label="Company website" 
+                        value={website}
+                        onChange={(e) => setWebsite(e.target.value)}
+                        icon={Globe}
+                        placeholder="e.g. oak-global.com.ng" 
+                        required 
+                      />
 
-                  <Field 
-                    label="Contact phone number" 
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    icon={Phone}
-                    placeholder="e.g. +234 800 000 0000" 
-                    required 
-                  />
-                </div>
+                      <Field 
+                        label="Contact phone number" 
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        icon={Phone}
+                        placeholder="e.g. +234 800 000 0000" 
+                        required 
+                      />
+                    </div>
 
-                <TextareaField 
-                  label="Brief description" 
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  icon={TextQuote}
-                  placeholder="Describe your organization's business and audit needs..."
-                  rows={2}
-                  required 
-                />
+                    <TextareaField 
+                      label="Brief description" 
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      icon={TextQuote}
+                      placeholder="Describe your organization's business and audit needs..."
+                      rows={2}
+                      required 
+                    />
 
-                <TextareaField 
-                  label="Office address" 
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  icon={MapPin}
-                  placeholder="Physical office address" 
-                  rows={2}
-                  required 
-                />
-              </div>
-            )}
+                    <TextareaField 
+                      label="Office address" 
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      icon={MapPin}
+                      placeholder="Physical office address" 
+                      rows={2}
+                      required 
+                    />
+                  </div>
+                )}
 
-            {/* ── ACTION CONTROLS ── */}
-            <div className="pt-2 flex gap-3">
-              {/* Back button (Only visible in step 2 of Organization signup) */}
-              {mode === "signup" && step === 2 && accountType === "organization" && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => setStep(1)}
-                  className="rounded-full px-5 h-11 border border-border bg-background text-sm font-semibold hover:bg-secondary flex items-center justify-center gap-1.5 transition duration-200 disabled:opacity-60"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Back
-                </button>
-              )}
-
-              {/* Submit / Next Button */}
-              {mode === "signup" && step === 1 && accountType === "organization" ? (
-                <button
-                  type="button"
-                  onClick={handleNextStep}
-                  className="pill-cta flex-1 h-11 text-sm font-semibold flex items-center justify-center gap-1.5 transition duration-200"
-                >
-                  Continue to company profile
-                  <ArrowRight className="h-4 w-4" />
-                </button>
-              ) : (
-                <button 
-                  type="submit" 
-                  disabled={busy} 
-                  className="pill-cta flex-1 h-11 text-sm font-semibold flex items-center justify-center gap-1.5 transition duration-200 disabled:opacity-60"
-                >
-                  {busy ? "Please wait…" : (
-                    mode === "signup" ? (
-                      <>
-                        Create account
-                        <CheckCircle2 className="h-4 w-4" />
-                      </>
-                    ) : "Sign in"
+                {/* ── ACTION CONTROLS ── */}
+                <div className="pt-2 flex gap-3">
+                  {/* Back button (Only visible in step 2 of Organization signup) */}
+                  {mode === "signup" && step === 2 && accountType === "organization" && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setStep(1)}
+                      className="rounded-full px-5 h-11 border border-border bg-background text-sm font-semibold hover:bg-secondary flex items-center justify-center gap-1.5 transition duration-200 disabled:opacity-60"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                      Back
+                    </button>
                   )}
-                </button>
-              )}
-            </div>
 
+                  {/* Submit / Next Button */}
+                  {mode === "signup" && step === 1 && accountType === "organization" ? (
+                    <button
+                      type="button"
+                      onClick={handleNextStep}
+                      className="pill-cta flex-1 h-11 text-sm font-semibold flex items-center justify-center gap-1.5 transition duration-200"
+                    >
+                      Continue to company profile
+                      <ArrowRight className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <button 
+                      type="submit" 
+                      disabled={busy} 
+                      className="pill-cta flex-1 h-11 text-sm font-semibold flex items-center justify-center gap-1.5 transition duration-200 disabled:opacity-60"
+                    >
+                      {busy ? "Please wait…" : (
+                        mode === "signup" ? (
+                          <>
+                            Create account
+                            <CheckCircle2 className="h-4 w-4" />
+                          </>
+                        ) : "Sign in"
+                      )}
+                    </button>
+                  )}
+                </div>
 
-          </form>
+              </form>
 
-          {/* Switch mode links */}
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            {mode === "signup" ? (
-              <>Already have an account?{" "}
-                <button onClick={() => switchMode("signin")} className="font-semibold text-foreground hover:underline transition">Sign in</button>
-              </>
-            ) : (
-              <>New to OAK Global?{" "}
-                <button onClick={() => switchMode("signup")} className="font-semibold text-foreground hover:underline transition">Create an account</button>
-              </>
-            )}
-          </div>
+              {/* Switch mode links */}
+              <div className="mt-6 text-center text-sm text-muted-foreground">
+                {mode === "signup" ? (
+                  <>Already have an account?{" "}
+                    <button onClick={() => switchMode("signin")} className="font-semibold text-foreground hover:underline transition">Sign in</button>
+                  </>
+                ) : (
+                  <>New to OAK Global?{" "}
+                    <button onClick={() => switchMode("signup")} className="font-semibold text-foreground hover:underline transition">Create an account</button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </div>
         
         <Link to="/" className="mx-auto mt-6 text-xs text-muted-foreground hover:text-foreground transition">

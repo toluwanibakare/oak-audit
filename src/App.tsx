@@ -83,24 +83,20 @@ const App = () => {
     };
     document.addEventListener("keydown", handleKeyDown);
 
-    // 3. Clear Console & Print Strict Security Warning
+    // 3. Print Strict Security Warning Once on Mount
     const warningStyle = "color: #ff3333; font-family: sans-serif; font-size: 2.2em; font-weight: bold; text-shadow: 1px 1px black;";
     const infoStyle = "color: white; background: #0f172a; font-family: monospace; font-size: 1.1em; padding: 6px 12px; border-radius: 6px; border: 1px solid #334155;";
     
-    const consoleInterval = window.setInterval(() => {
-      console.clear();
-      console.log("%cSTOP! Proprietary Software Notice", warningStyle);
-      console.log(
-        "%cThis platform and all its source files, database schemas, question checklists, and design systems are the highly confidential, proprietary intellectual property of OAK Global International.\n\nUnauthorized inspection, duplication, decompilation, scraping, or usage is strictly prohibited under international copyright law and subject to immediate civil and criminal prosecution.",
-        "font-size: 1.1em; color: #cbd5e1; line-height: 1.4; margin-bottom: 12px; font-weight: 500;"
-      );
-      console.log("%cFor licensing inquiries: o.kolawole@oak-global.com.ng", infoStyle);
-    }, 2500);
+    console.log("%cSTOP! Proprietary Software Notice", warningStyle);
+    console.log(
+      "%cThis platform and all its source files, database schemas, question checklists, and design systems are the highly confidential, proprietary intellectual property of OAK Global International.\n\nUnauthorized inspection, duplication, decompilation, scraping, or usage is strictly prohibited under international copyright law and subject to immediate civil and criminal prosecution.",
+      "font-size: 1.1em; color: #cbd5e1; line-height: 1.4; margin-bottom: 12px; font-weight: 500;"
+    );
+    console.log("%cFor licensing inquiries: o.kolawole@oak-global.com.ng", infoStyle);
 
     return () => {
       document.removeEventListener("contextmenu", handleContextMenu);
       document.removeEventListener("keydown", handleKeyDown);
-      window.clearInterval(consoleInterval);
     };
   }, []);
 
