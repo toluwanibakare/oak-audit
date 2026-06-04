@@ -497,7 +497,6 @@ const Auth = () => {
               </div>
             </>
           )}
-        </div>
         
         <Link to="/" className="mx-auto mt-6 text-xs text-muted-foreground hover:text-foreground transition">
           ← Back to home
