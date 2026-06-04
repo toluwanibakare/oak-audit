@@ -77,15 +77,15 @@ export default function Processes() {
   return (
     <AppShell>
       <div className="flex items-end justify-between">
-        <Header title="Processes" subtitle="Standard ISO processes plus your custom ones." />
+        <Header title="Processes" subtitle="Standard ISO processes." />
         {!isIndividual && (
           <button onClick={seed} className="rounded-full border border-border bg-card px-4 py-2 text-sm">Add 18 standard processes</button>
         )}
       </div>
 
-      <div className="mt-6 grid gap-6 md:grid-cols-2">
+      <div className="mt-6">
         {/* Add Standard Process */}
-        <div className="rounded-2xl border border-border bg-card p-5 space-y-4 shadow-sm">
+        <div className="rounded-2xl border border-border bg-card p-5 space-y-4 shadow-sm max-w-xl">
           <div>
             <h3 className="font-display text-sm font-semibold text-foreground">Add Standard Process</h3>
             <p className="text-xs text-muted-foreground mt-0.5">Select a standard process to add to your organization's scope.</p>
@@ -108,21 +108,6 @@ export default function Processes() {
             </button>
           </div>
         </div>
-
-        {/* Add Custom Process */}
-        <div className="rounded-2xl border border-border bg-card p-5 space-y-4 shadow-sm">
-          <div>
-            <h3 className="font-display text-sm font-semibold text-foreground">Add Custom Process</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Define a custom process specific to your business workflow.</p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input className="input flex-1 h-11" placeholder="Custom process name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-            <input className="input flex-1 h-11" placeholder="Scope" value={form.scope} onChange={(e) => setForm({ ...form, scope: e.target.value })} />
-            <button onClick={add} disabled={!form.name.trim()} className="pill-cta h-11 px-5 text-sm font-semibold flex items-center justify-center shrink-0 disabled:opacity-50">
-              Add Custom
-            </button>
-          </div>
-        </div>
       </div>
 
       <div className="mt-6 grid gap-3 md:grid-cols-2">
@@ -130,9 +115,7 @@ export default function Processes() {
           <div key={p.id} className="rounded-2xl border border-border bg-card p-4">
             <div className="flex items-center justify-between">
               <h3 className="font-display text-base font-semibold">{p.name}</h3>
-              {p.is_custom && (
-                <button onClick={() => remove(p.id)} className="text-xs text-destructive hover:underline">Remove</button>
-              )}
+              <button onClick={() => remove(p.id)} className="text-xs text-destructive hover:underline">Remove</button>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">{p.scope}</p>
             <span className="mt-3 inline-block rounded-full bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-wider">
