@@ -117,8 +117,6 @@ export default function RunAudit() {
         const isHseProc = p.key && p.key.startsWith("hse_");
         return std === "hse" ? isHseProc : !isHseProc;
       });
-      setProcs(visibleProcs);
-      if (visibleProcs.length > 0) setActiveProc(visibleProcs[0].id);
 
       // 4. Fetch audit processes
       const { data: auditProcs } = await supabase.from("audit_processes").select("process_id,auditor_id").eq("audit_id", id);
@@ -159,6 +157,12 @@ export default function RunAudit() {
         }
       }
       setAuditProcesses(finalAuditProcs as any);
+
+      // Filter procs list to only show processes linked to this audit
+      const auditProcIds = new Set(finalAuditProcs.map((ap) => ap.process_id));
+      const activeAuditProcs = visibleProcs.filter((p) => auditProcIds.has(p.id));
+      setProcs(activeAuditProcs);
+      if (activeAuditProcs.length > 0) setActiveProc(activeAuditProcs[0].id);
 
       // 5. Fetch auditors inside the organization
       const { data: auditorsList } = await supabase.from("auditors").select("id,name,user_id").eq("org_id", currentOrg.id);
