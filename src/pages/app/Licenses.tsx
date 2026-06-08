@@ -219,48 +219,19 @@ export default function Licenses() {
       .select("id,key,name")
       .eq("org_id", currentOrg.id);
 
-    let finalProcs = orgProcs ?? [];
-    const existingKeys = new Set(finalProcs.map((p) => p.key));
-    let toInsert: { org_id: string; key: string; name: string }[] = [];
+    const finalProcs = orgProcs ?? [];
+    const visibleProcs = finalProcs.filter((p) => {
+      return isProcessInStandard(configuringPack as any, p.key);
+    });
 
-    if (configuringPack === "hse") {
-      const { HSE_PROCESSES } = await import("@/data/standardsHse");
-      toInsert = HSE_PROCESSES.filter((p) => !existingKeys.has(p.key)).map((p) => ({
-        org_id: currentOrg.id,
-        key: p.key,
-        name: p.name,
-      }));
-    } else if (configuringPack === "45001") {
-      const { PROCESSES_45001 } = await import("@/data/processAudit45001");
-      toInsert = PROCESSES_45001.filter((p) => !existingKeys.has(p.key)).map((p) => ({
-        org_id: currentOrg.id,
-        key: p.key,
-        name: p.name,
-      }));
-    } else if (configuringPack === "14001") {
-      const { PROCESSES_14001 } = await import("@/data/processAudit14001");
-      toInsert = PROCESSES_14001.filter((p) => !existingKeys.has(p.key)).map((p) => ({
-        org_id: currentOrg.id,
-        key: p.key,
-        name: p.name,
-      }));
-    } else {
-      // 9001 or ims
-      const { PROCESSES } = await import("@/data/processAudit");
-      toInsert = PROCESSES.filter((p) => !existingKeys.has(p.key)).map((p) => ({
-        org_id: currentOrg.id,
-        key: p.key,
-        name: p.name,
-      }));
-    }
-
-    if (toInsert.length > 0) {
-      await supabase.from("org_processes").insert(toInsert);
-      const { data: updatedProcs } = await supabase
-        .from("org_processes")
-        .select("id,key,name")
-        .eq("org_id", currentOrg.id);
-      if (updatedProcs) finalProcs = updatedProcs;
+    if (visibleProcs.length === 0) {
+      toast({
+        title: "No processes configured",
+        description: `Please select or add your processes for this standard in Processes settings before starting an audit.`,
+        variant: "destructive",
+      });
+      setBusy(null);
+      return;
     }
 
     // 3. Create the audit record directly

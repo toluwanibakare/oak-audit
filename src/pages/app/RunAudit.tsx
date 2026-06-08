@@ -70,54 +70,7 @@ export default function RunAudit() {
       const { data: orgProcs } = await supabase.from("org_processes").select("id,key,name").eq("org_id", currentOrg.id).order("name");
       let finalProcs = orgProcs ?? [];
 
-      // Auto-seed organization processes if empty or missing for this standard
-      const existingKeys = new Set(finalProcs.map((p) => p.key));
-      let toInsert: { org_id: string; key: string; name: string }[] = [];
-
       const std = currentAudit.standard;
-      if (std === "hse") {
-        const { HSE_PROCESSES } = await import("../../data/standardsHse");
-        toInsert = HSE_PROCESSES.filter((p) => !existingKeys.has(p.key)).map((p) => ({
-          org_id: currentOrg.id,
-          key: p.key,
-          name: p.name,
-        }));
-      } else if (std === "ims") {
-        const { IMS_PROCESSES } = await import("../../data/standardsIms");
-        toInsert = IMS_PROCESSES.filter((p) => !existingKeys.has(p.key)).map((p) => ({
-          org_id: currentOrg.id,
-          key: p.key,
-          name: p.name,
-        }));
-      } else if (std === "45001") {
-        const { PROCESSES_45001 } = await import("@/data/processAudit45001");
-        toInsert = PROCESSES_45001.filter((p) => !existingKeys.has(p.key)).map((p) => ({
-          org_id: currentOrg.id,
-          key: p.key,
-          name: p.name,
-        }));
-      } else if (std === "14001") {
-        const { PROCESSES_14001 } = await import("@/data/processAudit14001");
-        toInsert = PROCESSES_14001.filter((p) => !existingKeys.has(p.key)).map((p) => ({
-          org_id: currentOrg.id,
-          key: p.key,
-          name: p.name,
-        }));
-      } else {
-        // 9001
-        const { PROCESSES } = await import("@/data/processAudit");
-        toInsert = PROCESSES.filter((p) => !existingKeys.has(p.key)).map((p) => ({
-          org_id: currentOrg.id,
-          key: p.key,
-          name: p.name,
-        }));
-      }
-
-      if (toInsert.length > 0) {
-        await supabase.from("org_processes").insert(toInsert);
-        const { data: updatedProcs } = await supabase.from("org_processes").select("id,key,name").eq("org_id", currentOrg.id).order("name");
-        if (updatedProcs) finalProcs = updatedProcs;
-      }
 
       // 3. Filter procs by standard to match the active scope
       const visibleProcs = finalProcs.filter((p) => {
