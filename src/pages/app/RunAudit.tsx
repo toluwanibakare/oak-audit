@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app/AppShell";
 import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
-import { getQuestionsFor, type StandardKey } from "@/data/standards";
+import { getQuestionsFor, isProcessInStandard, type StandardKey } from "@/data/standards";
 import { useToast } from "@/hooks/use-toast";
 import { parseAuditNote, serializeAuditNote, safeEvidenceName, type EvidenceItem } from "@/lib/auditEvidence";
 
@@ -121,11 +121,7 @@ export default function RunAudit() {
 
       // 3. Filter procs by standard to match the active scope
       const visibleProcs = finalProcs.filter((p) => {
-        const isHseProc = p.key && p.key.startsWith("hse_");
-        const isImsProc = p.key && p.key.startsWith("ims_");
-        if (std === "hse") return isHseProc;
-        if (std === "ims") return isImsProc;
-        return !isHseProc && !isImsProc;
+        return isProcessInStandard(std as StandardKey, p.key);
       });
 
       // 4. Fetch audit processes

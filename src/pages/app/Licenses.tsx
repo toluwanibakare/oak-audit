@@ -9,6 +9,7 @@ import { AppShell } from "@/components/app/AppShell";
 import { Header } from "./Team";
 import { PACKS, formatNaira } from "@/lib/packs";
 import { PACK_CREDIT_COST, PACK_RPC_KEY } from "@/lib/credits";
+import { isProcessInStandard } from "@/data/standards";
 
 type License = { id: string; pack: string; paid_amount_ngn: number; expires_at: string; active: boolean; purchased_at: string };
 
@@ -282,8 +283,7 @@ export default function Licenses() {
 
     // 4. Seed audit processes and assign them to the selected auditor
     const visibleProcs = finalProcs.filter((p) => {
-      const isHseProc = p.key && p.key.startsWith("hse_");
-      return configuringPack === "hse" ? isHseProc : !isHseProc;
+      return isProcessInStandard(configuringPack as any, p.key);
     });
 
     const rows = visibleProcs.map((p) => ({

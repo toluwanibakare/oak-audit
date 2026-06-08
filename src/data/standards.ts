@@ -56,6 +56,11 @@ export function getProcessesFor(std: StandardKey) {
   return PROCESSES;
 }
 
+export function isProcessInStandard(std: StandardKey, key: string): boolean {
+  const procs = getProcessesFor(std);
+  return procs.some((p) => p.key === key);
+}
+
 export function getQuestionsFor(std: StandardKey, proc: AnyProcessKey): ClauseQuestionSet[] {
   if (std === "45001") return getQuestionsForProcess45001(proc as never) as unknown as ClauseQuestionSet[];
   if (std === "14001") return getQuestionsForProcess14001(proc as never) as unknown as ClauseQuestionSet[];
