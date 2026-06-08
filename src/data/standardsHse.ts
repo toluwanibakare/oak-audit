@@ -2,24 +2,24 @@
 import { type ClauseQuestionSet } from "./processAudit";
 
 export type HseProcessKey =
-  | "top_management"
-  | "qa_qc"
-  | "qms_quality_management"
-  | "human_resources"
-  | "operations"
-  | "engineering_design"
-  | "construction"
-  | "sales"
-  | "marketing"
-  | "procurement"
-  | "finance__accounts"
-  | "store"
-  | "ict_it"
-  | "warehouse"
-  | "project_management"
-  | "administration"
-  | "production_manufacturing"
-  | "business_development"
+  | "hse_top_management"
+  | "hse_qa_qc"
+  | "hse_qms_quality_management"
+  | "hse_human_resources"
+  | "hse_operations"
+  | "hse_engineering_design"
+  | "hse_construction"
+  | "hse_sales"
+  | "hse_marketing"
+  | "hse_procurement"
+  | "hse_finance__accounts"
+  | "hse_store"
+  | "hse_ict_it"
+  | "hse_warehouse"
+  | "hse_project_management"
+  | "hse_administration"
+  | "hse_production_manufacturing"
+  | "hse_business_development"
 ;
 
 export type HseProcessMeta = {
@@ -29,28 +29,28 @@ export type HseProcessMeta = {
 };
 
 export const HSE_PROCESSES: HseProcessMeta[] = [
-  { key: "top_management", name: "Top Management", scope: "Strategic direction, leadership, policy, resources, management review." },
-  { key: "qa_qc", name: "QA  QC", scope: "Inspection, testing, calibration, release of product/service, NCR control." },
-  { key: "qms_quality_management", name: "QMS  Quality Management", scope: "Document control, internal audit, CAPA, management of the QMS itself." },
-  { key: "human_resources", name: "Human Resources", scope: "Recruitment, competence, training, awareness, performance, work environment." },
-  { key: "operations", name: "Operations", scope: "Day-to-day operational planning, control of routine service/product delivery." },
-  { key: "engineering_design", name: "Engineering  Design", scope: "Design & development, technical specifications, drawings, change control." },
-  { key: "construction", name: "Construction", scope: "Site execution, ITPs, subcontractor control, site QA/QC, handover." },
-  { key: "sales", name: "Sales", scope: "Customer requirements, contract review, quotations, order acceptance." },
-  { key: "marketing", name: "Marketing", scope: "Market communication, brand, customer feedback channels, lead generation." },
-  { key: "procurement", name: "Procurement", scope: "Supplier evaluation, purchasing, externally provided processes/products." },
-  { key: "finance__accounts", name: "Finance & Accounts", scope: "Financial controls, costing, payments, resource availability for the QMS." },
-  { key: "store", name: "Store", scope: "Issue/receipt, stock accuracy, identification, preservation of stored items." },
-  { key: "ict_it", name: "ICT  IT", scope: "Information systems, data integrity, backups, cybersecurity, system uptime." },
-  { key: "warehouse", name: "Warehouse", scope: "Receipt, storage, FIFO/FEFO, dispatch, preservation, traceability." },
-  { key: "project_management", name: "Project Management", scope: "Project planning, monitoring, change, stakeholder, closeout." },
-  { key: "administration", name: "Administration", scope: "Facilities, records, travel, general services, support to operations." },
-  { key: "production_manufacturing", name: "Production  Manufacturing", scope: "Production planning, process control, identification, traceability, release." },
-  { key: "business_development", name: "Business Development", scope: "Opportunity identification, partnerships, new market entry, growth planning." },
+  { key: "hse_top_management", name: "Top Management", scope: "Strategic direction, leadership, policy, resources, management review." },
+  { key: "hse_qa_qc", name: "QA  QC", scope: "Inspection, testing, calibration, release of product/service, NCR control." },
+  { key: "hse_qms_quality_management", name: "QMS  Quality Management", scope: "Document control, internal audit, CAPA, management of the QMS itself." },
+  { key: "hse_human_resources", name: "Human Resources", scope: "Recruitment, competence, training, awareness, performance, work environment." },
+  { key: "hse_operations", name: "Operations", scope: "Day-to-day operational planning, control of routine service/product delivery." },
+  { key: "hse_engineering_design", name: "Engineering  Design", scope: "Design & development, technical specifications, drawings, change control." },
+  { key: "hse_construction", name: "Construction", scope: "Site execution, ITPs, subcontractor control, site QA/QC, handover." },
+  { key: "hse_sales", name: "Sales", scope: "Customer requirements, contract review, quotations, order acceptance." },
+  { key: "hse_marketing", name: "Marketing", scope: "Market communication, brand, customer feedback channels, lead generation." },
+  { key: "hse_procurement", name: "Procurement", scope: "Supplier evaluation, purchasing, externally provided processes/products." },
+  { key: "hse_finance__accounts", name: "Finance & Accounts", scope: "Financial controls, costing, payments, resource availability for the QMS." },
+  { key: "hse_store", name: "Store", scope: "Issue/receipt, stock accuracy, identification, preservation of stored items." },
+  { key: "hse_ict_it", name: "ICT  IT", scope: "Information systems, data integrity, backups, cybersecurity, system uptime." },
+  { key: "hse_warehouse", name: "Warehouse", scope: "Receipt, storage, FIFO/FEFO, dispatch, preservation, traceability." },
+  { key: "hse_project_management", name: "Project Management", scope: "Project planning, monitoring, change, stakeholder, closeout." },
+  { key: "hse_administration", name: "Administration", scope: "Facilities, records, travel, general services, support to operations." },
+  { key: "hse_production_manufacturing", name: "Production  Manufacturing", scope: "Production planning, process control, identification, traceability, release." },
+  { key: "hse_business_development", name: "Business Development", scope: "Opportunity identification, partnerships, new market entry, growth planning." },
 ];
 
 const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
-  "top_management": [
+  "hse_top_management": [
     {
       clause: "4.1",
       title: 'Context of the organization',
@@ -157,7 +157,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Audit reports', 'Corrective action register', 'Improvement plans', 'Incident logs', 'Inspection reports', 'KPI reports', 'Meeting minutes', 'Toolbox records', 'Training records'],
     },
   ],
-  "qa_qc": [
+  "hse_qa_qc": [
     {
       clause: "4.4",
       title: 'QMS & its processes',
@@ -278,7 +278,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Competency records', 'Emergency stop testing', 'Inspection logs', 'LOTO kits', 'Machine guarding', 'Maintenance records', 'Physical inspection', 'Preventive maintenance records', 'SOPs', 'Visual inspection'],
     },
   ],
-  "qms_quality_management": [
+  "hse_qms_quality_management": [
     {
       clause: "4.3",
       title: 'Scope of the QMS',
@@ -406,7 +406,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Audit reports', 'Corrective action register', 'Improvement plans', 'Incident logs', 'Inspection reports', 'KPI reports', 'Meeting minutes', 'Toolbox records', 'Training records'],
     },
   ],
-  "human_resources": [
+  "hse_human_resources": [
     {
       clause: "4.2",
       title: 'Needs & expectations of interested parties',
@@ -485,7 +485,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Awareness posters', 'Cafeteria', 'Clinic/medical room', 'Housekeeping', 'Locker rooms', 'Rest facilities', 'Toilets', 'Ventilation', 'Wash stations', 'Water facilities'],
     },
   ],
-  "operations": [
+  "hse_operations": [
     {
       clause: "4.4",
       title: 'QMS & its processes',
@@ -599,7 +599,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Access control', 'Alarm testing', 'Approval signatures', 'Competency records', 'Confined space permits', 'Drill records', 'Ear protection', 'Earthing verification', 'Emergency stop testing', 'Ergonomic assessment', 'Evacuation map', 'Evacuation plans', 'Exit signage', 'Fire extinguishers', 'Fire signage', 'First aid signage', 'Floor markings', 'GHS labels', 'Good housekeeping', 'Hearing protection signage', 'Height work permits', 'Hydrant system', 'Inspection logs', 'Inspection tags', 'LOTO kits', 'LOTO records', 'Lighting system', 'Load distribution', 'Machine guarding', 'Maintenance records', 'No loose cables, spills', 'No obstruction', 'No smoking signs', 'Noise monitoring records', 'Operating instructions', 'PPE hazard assessment', 'PPE inspection', 'PPE lockers', 'PPE signage', 'PTW procedure', 'Panel labels', 'Permit close-out', 'Permit files', 'Permit records', 'Physical inspection', 'Physical observation', 'Physical permits', 'Preventive maintenance records', 'Proper placement', 'Replacement records', 'Respirator stock', 'SOPs', 'Safe layout', 'Safe wiring', 'Safety goggles', 'Site observation', 'Storage control', 'Training records', 'Ventilation systems', 'Visitor PPE stock', 'Visual inspection', 'Visual observation', 'Warning signage', 'Warning signs', 'Waste disposal signs'],
     },
   ],
-  "engineering_design": [
+  "hse_engineering_design": [
     {
       clause: "6.1",
       title: 'Risks & opportunities',
@@ -685,7 +685,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Ergonomic assessment', 'Exit signage', 'Floor markings', 'Good housekeeping', 'Lighting system', 'No loose cables, spills', 'Noise monitoring records', 'Physical observation', 'Safe layout', 'Ventilation systems'],
     },
   ],
-  "construction": [
+  "hse_construction": [
     {
       clause: "6.1",
       title: 'Risks & opportunities',
@@ -792,7 +792,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Access control', 'Approval signatures', 'Confined space permits', 'Ear protection', 'Earthing verification', 'Ergonomic assessment', 'Exit signage', 'Floor markings', 'Good housekeeping', 'Height work permits', 'LOTO records', 'Lighting system', 'Load distribution', 'Maintenance records', 'No loose cables, spills', 'No obstruction', 'Noise monitoring records', 'PPE hazard assessment', 'PPE inspection', 'PPE lockers', 'PTW procedure', 'Panel labels', 'Permit close-out', 'Permit files', 'Permit records', 'Physical observation', 'Physical permits', 'Replacement records', 'Respirator stock', 'Safe layout', 'Safe wiring', 'Safety goggles', 'Site observation', 'Training records', 'Ventilation systems', 'Visitor PPE stock', 'Visual inspection', 'Visual observation', 'Warning signage'],
     },
   ],
-  "sales": [
+  "hse_sales": [
     {
       clause: "4.2",
       title: 'Needs & expectations of interested parties',
@@ -864,7 +864,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Ergonomic assessment', 'Exit signage', 'Floor markings', 'Good housekeeping', 'Lighting system', 'No loose cables, spills', 'Noise monitoring records', 'Physical observation', 'Safe layout', 'Ventilation systems'],
     },
   ],
-  "marketing": [
+  "hse_marketing": [
     {
       clause: "4.1",
       title: 'Context of the organization',
@@ -936,7 +936,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Ergonomic assessment', 'Exit signage', 'Floor markings', 'Good housekeeping', 'Lighting system', 'No loose cables, spills', 'Noise monitoring records', 'Physical observation', 'Safe layout', 'Ventilation systems'],
     },
   ],
-  "procurement": [
+  "hse_procurement": [
     {
       clause: "6.1",
       title: 'Risks & opportunities',
@@ -1008,7 +1008,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Audit records', 'Incident logs', 'Induction records', 'Inspection reports', 'PPE records', 'Performance reviews', 'Permit records', 'Risk assessments', 'Supervision records', 'Training records'],
     },
   ],
-  "finance__accounts": [
+  "hse_finance__accounts": [
     {
       clause: "5.1",
       title: 'Leadership & commitment',
@@ -1073,7 +1073,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Ergonomic assessment', 'Exit signage', 'Floor markings', 'Good housekeeping', 'Lighting system', 'No loose cables, spills', 'Noise monitoring records', 'Physical observation', 'Safe layout', 'Ventilation systems'],
     },
   ],
-  "store": [
+  "hse_store": [
     {
       clause: "6.1.2",
       title: 'Environmental aspects',
@@ -1152,7 +1152,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Bunded storage', 'Chemical register', 'Color coded bins', 'Contractor license', 'Covered storage', 'GHS labels', 'Hazardous storage', 'Labels', 'Recycling records', 'SDS files', 'SOPs', 'Site inspection', 'Spill response kits', 'Storage procedures', 'Storage rooms', 'Training records', 'Ventilation system', 'Visual inspection', 'Waste instructions', 'Waste manifests'],
     },
   ],
-  "ict_it": [
+  "hse_ict_it": [
     {
       clause: "4.2",
       title: 'Needs & expectations of interested parties',
@@ -1238,7 +1238,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Access control', 'Earthing verification', 'LOTO records', 'Load distribution', 'Maintenance records', 'No obstruction', 'Panel labels', 'Safe wiring', 'Visual inspection', 'Warning signage'],
     },
   ],
-  "warehouse": [
+  "hse_warehouse": [
     {
       clause: "6.1.2",
       title: 'Environmental aspects',
@@ -1324,7 +1324,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Certification records', 'Color coded bins', 'Contractor license', 'Covered storage', 'Hazardous storage', 'Labels', 'Lifting equipment', 'Lighting system', 'Pallet inspection', 'Recycling records', 'SOPs', 'Safe stacking', 'Site inspection', 'Storage layout', 'Storage practice', 'Traffic markings', 'Visual inspection', 'Waste instructions', 'Waste manifests'],
     },
   ],
-  "project_management": [
+  "hse_project_management": [
     {
       clause: "4.2",
       title: 'Needs & expectations of interested parties',
@@ -1438,7 +1438,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Audit records', 'Incident logs', 'Induction records', 'Inspection reports', 'PPE records', 'Performance reviews', 'Permit records', 'Risk assessments', 'Supervision records', 'Training records'],
     },
   ],
-  "administration": [
+  "hse_administration": [
     {
       clause: "6.1.2",
       title: 'Environmental aspects',
@@ -1517,7 +1517,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Access control', 'Alarm testing', 'Awareness posters', 'Cafeteria', 'Clinic/medical room', 'Contact list', 'Drill records', 'Drill reports', 'ERP document', 'Ergonomic assessment', 'Evacuation map', 'Evacuation plans', 'Exit signage', 'Fire extinguishers', 'Fire signage', 'First aid kits', 'First aid signage', 'First aider list', 'Floor markings', 'GHS labels', 'Good housekeeping', 'Hearing protection signage', 'Housekeeping', 'Hydrant system', 'Inspection log', 'Inspection tags', 'Lighting system', 'Locker rooms', 'Muster point signs', 'No loose cables, spills', 'No smoking signs', 'Noise monitoring records', 'Operating instructions', 'PPE signage', 'Physical observation', 'Proper placement', 'Rest facilities', 'Safe layout', 'Spill procedure', 'Storage control', 'Toilets', 'Training records', 'Ventilation', 'Ventilation systems', 'Warning signs', 'Wash stations', 'Waste disposal signs', 'Water facilities'],
     },
   ],
-  "production_manufacturing": [
+  "hse_production_manufacturing": [
     {
       clause: "4.4",
       title: 'QMS & its processes',
@@ -1645,7 +1645,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Access control', 'Competency records', 'Ear protection', 'Earthing verification', 'Emergency stop testing', 'Ergonomic assessment', 'Exit signage', 'Floor markings', 'Good housekeeping', 'Inspection logs', 'LOTO kits', 'LOTO records', 'Lighting system', 'Load distribution', 'Machine guarding', 'Maintenance records', 'No loose cables, spills', 'No obstruction', 'Noise monitoring records', 'PPE hazard assessment', 'PPE inspection', 'PPE lockers', 'Panel labels', 'Physical inspection', 'Physical observation', 'Preventive maintenance records', 'Replacement records', 'Respirator stock', 'SOPs', 'Safe layout', 'Safe wiring', 'Safety goggles', 'Training records', 'Ventilation systems', 'Visitor PPE stock', 'Visual inspection', 'Visual observation', 'Warning signage'],
     },
   ],
-  "business_development": [
+  "hse_business_development": [
     {
       clause: "4.1",
       title: 'Context of the organization',
@@ -1726,6 +1726,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
   ],
 };
 
-export function getQuestionsForHseProcess(proc: HseProcessKey): ClauseQuestionSet[] {
-  return HSE_QUESTIONS[proc] || [];
+export function getQuestionsForHseProcess(proc: string): ClauseQuestionSet[] {
+  const key = proc.startsWith("hse_") ? proc : `hse_${proc}`;
+  return HSE_QUESTIONS[key as HseProcessKey] || [];
 }

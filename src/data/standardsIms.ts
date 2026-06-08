@@ -2,24 +2,24 @@
 import { type ClauseQuestionSet } from "./processAudit";
 
 export type ImsProcessKey =
-  | "top_management"
-  | "qa_qc"
-  | "qms_quality_management"
-  | "human_resources"
-  | "operations"
-  | "engineering_design"
-  | "construction"
-  | "sales"
-  | "marketing"
-  | "procurement"
-  | "finance__accounts"
-  | "store"
-  | "ict_it"
-  | "warehouse"
-  | "project_management"
-  | "administration"
-  | "production_manufacturing"
-  | "business_development"
+  | "ims_top_management"
+  | "ims_qa_qc"
+  | "ims_qms_quality_management"
+  | "ims_human_resources"
+  | "ims_operations"
+  | "ims_engineering_design"
+  | "ims_construction"
+  | "ims_sales"
+  | "ims_marketing"
+  | "ims_procurement"
+  | "ims_finance__accounts"
+  | "ims_store"
+  | "ims_ict_it"
+  | "ims_warehouse"
+  | "ims_project_management"
+  | "ims_administration"
+  | "ims_production_manufacturing"
+  | "ims_business_development"
 ;
 
 export type ImsProcessMeta = {
@@ -29,28 +29,28 @@ export type ImsProcessMeta = {
 };
 
 export const IMS_PROCESSES: ImsProcessMeta[] = [
-  { key: "top_management", name: "Top Management", scope: "Strategic direction, leadership, policy, resources, management review." },
-  { key: "qa_qc", name: "QA   QC", scope: "Inspection, testing, calibration, release of product/service, NCR control." },
-  { key: "qms_quality_management", name: "QMS   Quality Management", scope: "Document control, internal audit, CAPA, management of the QMS itself." },
-  { key: "human_resources", name: "Human Resources", scope: "Recruitment, competence, training, awareness, performance, work environment." },
-  { key: "operations", name: "Operations", scope: "Day-to-day operational planning, control of routine service/product delivery." },
-  { key: "engineering_design", name: "Engineering   Design", scope: "Design & development, technical specifications, drawings, change control." },
-  { key: "construction", name: "Construction", scope: "Site execution, ITPs, subcontractor control, site QA/QC, handover." },
-  { key: "sales", name: "Sales", scope: "Customer requirements, contract review, quotations, order acceptance." },
-  { key: "marketing", name: "Marketing", scope: "Market communication, brand, customer feedback channels, lead generation." },
-  { key: "procurement", name: "Procurement", scope: "Supplier evaluation, purchasing, externally provided processes/products." },
-  { key: "finance__accounts", name: "Finance & Accounts", scope: "Financial controls, costing, payments, resource availability for the QMS." },
-  { key: "store", name: "Store", scope: "Issue/receipt, stock accuracy, identification, preservation of stored items." },
-  { key: "ict_it", name: "ICT   IT", scope: "Information systems, data integrity, backups, cybersecurity, system uptime." },
-  { key: "warehouse", name: "Warehouse", scope: "Receipt, storage, FIFO/FEFO, dispatch, preservation, traceability." },
-  { key: "project_management", name: "Project Management", scope: "Project planning, monitoring, change, stakeholder, closeout." },
-  { key: "administration", name: "Administration", scope: "Facilities, records, travel, general services, support to operations." },
-  { key: "production_manufacturing", name: "Production   Manufacturing", scope: "Production planning, process control, identification, traceability, release." },
-  { key: "business_development", name: "Business Development", scope: "Opportunity identification, partnerships, new market entry, growth planning." },
+  { key: "ims_top_management", name: "Top Management", scope: "Strategic direction, leadership, policy, resources, management review." },
+  { key: "ims_qa_qc", name: "QA   QC", scope: "Inspection, testing, calibration, release of product/service, NCR control." },
+  { key: "ims_qms_quality_management", name: "QMS   Quality Management", scope: "Document control, internal audit, CAPA, management of the QMS itself." },
+  { key: "ims_human_resources", name: "Human Resources", scope: "Recruitment, competence, training, awareness, performance, work environment." },
+  { key: "ims_operations", name: "Operations", scope: "Day-to-day operational planning, control of routine service/product delivery." },
+  { key: "ims_engineering_design", name: "Engineering   Design", scope: "Design & development, technical specifications, drawings, change control." },
+  { key: "ims_construction", name: "Construction", scope: "Site execution, ITPs, subcontractor control, site QA/QC, handover." },
+  { key: "ims_sales", name: "Sales", scope: "Customer requirements, contract review, quotations, order acceptance." },
+  { key: "ims_marketing", name: "Marketing", scope: "Market communication, brand, customer feedback channels, lead generation." },
+  { key: "ims_procurement", name: "Procurement", scope: "Supplier evaluation, purchasing, externally provided processes/products." },
+  { key: "ims_finance__accounts", name: "Finance & Accounts", scope: "Financial controls, costing, payments, resource availability for the QMS." },
+  { key: "ims_store", name: "Store", scope: "Issue/receipt, stock accuracy, identification, preservation of stored items." },
+  { key: "ims_ict_it", name: "ICT   IT", scope: "Information systems, data integrity, backups, cybersecurity, system uptime." },
+  { key: "ims_warehouse", name: "Warehouse", scope: "Receipt, storage, FIFO/FEFO, dispatch, preservation, traceability." },
+  { key: "ims_project_management", name: "Project Management", scope: "Project planning, monitoring, change, stakeholder, closeout." },
+  { key: "ims_administration", name: "Administration", scope: "Facilities, records, travel, general services, support to operations." },
+  { key: "ims_production_manufacturing", name: "Production   Manufacturing", scope: "Production planning, process control, identification, traceability, release." },
+  { key: "ims_business_development", name: "Business Development", scope: "Opportunity identification, partnerships, new market entry, growth planning." },
 ];
 
 const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
-  "top_management": [
+  "ims_top_management": [
     {
       clause: "4.1",
       title: 'Context of the organization',
@@ -157,7 +157,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Trend dashboards', 'Year-on-year KPI reports'],
     },
   ],
-  "qa_qc": [
+  "ims_qa_qc": [
     {
       clause: "4.4",
       title: 'QMS & its processes',
@@ -271,7 +271,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['CAPA on OH&S inspections', 'CAPA records', 'RCA forms (5-Why/Fishbone)'],
     },
   ],
-  "qms_quality_management": [
+  "ims_qms_quality_management": [
     {
       clause: "4.3",
       title: 'Scope of the QMS',
@@ -399,7 +399,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Maturity assessments', 'Year-over-year KPI improvement', 'YoY KPI improvement'],
     },
   ],
-  "human_resources": [
+  "ims_human_resources": [
     {
       clause: "4.2",
       title: 'Needs & expectations of interested parties',
@@ -478,7 +478,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['CAPA on competence gaps'],
     },
   ],
-  "operations": [
+  "ims_operations": [
     {
       clause: "4.4",
       title: 'QMS & its processes',
@@ -585,7 +585,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['CAPA records'],
     },
   ],
-  "engineering_design": [
+  "ims_engineering_design": [
     {
       clause: "6.1",
       title: 'Risks & opportunities',
@@ -664,7 +664,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Design CAPA', 'Lessons learned database'],
     },
   ],
-  "construction": [
+  "ims_construction": [
     {
       clause: "6.1",
       title: 'Risks & opportunities',
@@ -764,7 +764,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Community complaints log', 'Incident reports', 'Safety alerts', 'Site CAPA'],
     },
   ],
-  "sales": [
+  "ims_sales": [
     {
       clause: "4.2",
       title: 'Needs & expectations of interested parties',
@@ -829,7 +829,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Complaint CAPA', 'Complaints log with OH&S flag'],
     },
   ],
-  "marketing": [
+  "ims_marketing": [
     {
       clause: "4.1",
       title: 'Context of the organization',
@@ -908,7 +908,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Improvement log'],
     },
   ],
-  "procurement": [
+  "ims_procurement": [
     {
       clause: "6.1",
       title: 'Risks & opportunities',
@@ -973,7 +973,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['ASL change log', 'CAPA on suppliers', 'Supplier CAPA'],
     },
   ],
-  "finance__accounts": [
+  "ims_finance__accounts": [
     {
       clause: "5.1",
       title: 'Leadership & commitment',
@@ -1031,7 +1031,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Audit CAPA'],
     },
   ],
-  "store": [
+  "ims_store": [
     {
       clause: "6.1",
       title: 'Actions to address risks & opportunities (incl. hazard ID, OH&S risks, legal)',
@@ -1110,7 +1110,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Incident reports', 'Store CAPA'],
     },
   ],
-  "ict_it": [
+  "ims_ict_it": [
     {
       clause: "4.2",
       title: 'Needs & expectations of interested parties',
@@ -1196,7 +1196,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Problem records'],
     },
   ],
-  "warehouse": [
+  "ims_warehouse": [
     {
       clause: "6.1",
       title: 'Actions to address risks & opportunities (incl. hazard ID, OH&S risks, legal)',
@@ -1289,7 +1289,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Incident log', 'Warehouse CAPA'],
     },
   ],
-  "project_management": [
+  "ims_project_management": [
     {
       clause: "4.2",
       title: 'Needs & expectations of interested parties',
@@ -1396,7 +1396,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Incident reports', 'Lessons learned', 'Project CAPA'],
     },
   ],
-  "administration": [
+  "ims_administration": [
     {
       clause: "6.1",
       title: 'Actions to address risks & opportunities (incl. hazard ID, OH&S risks, legal)',
@@ -1475,7 +1475,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Admin CAPA', 'Incident log'],
     },
   ],
-  "production_manufacturing": [
+  "ims_production_manufacturing": [
     {
       clause: "4.4",
       title: 'QMS & its processes',
@@ -1596,7 +1596,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
       evidence: ['Improvement project register', 'Improvement projects'],
     },
   ],
-  "business_development": [
+  "ims_business_development": [
     {
       clause: "4.1",
       title: 'Context of the organization',
@@ -1670,6 +1670,7 @@ const IMS_QUESTIONS: Record<ImsProcessKey, ClauseQuestionSet[]> = {
   ],
 };
 
-export function getQuestionsForImsProcess(proc: ImsProcessKey): ClauseQuestionSet[] {
-  return IMS_QUESTIONS[proc] || [];
+export function getQuestionsForImsProcess(proc: string): ClauseQuestionSet[] {
+  const key = proc.startsWith("ims_") ? proc : `ims_${proc}`;
+  return IMS_QUESTIONS[key as ImsProcessKey] || [];
 }

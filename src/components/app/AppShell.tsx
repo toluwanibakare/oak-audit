@@ -419,8 +419,8 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
         {/* Mobile Sidebar Header with Close button */}
         <div className="flex items-center justify-between border-b border-border/50 px-4 py-3 bg-secondary/30">
           <div className="flex items-center gap-2">
-            <img src={logo} alt="OAK Logo" className="h-6 w-auto shrink-0 object-contain" />
-            <span className="font-display font-bold text-xs text-foreground uppercase tracking-wider">OAK Navigation</span>
+            <img src={logo} alt="Logo" className="h-6 w-auto shrink-0 object-contain" />
+            <span className="font-display font-bold text-xs text-foreground uppercase tracking-wider">Navigation</span>
           </div>
           <button
             onClick={() => setIsMobileOpen(false)}
@@ -449,13 +449,18 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
               <Menu className="h-4.5 w-4.5" />
             </button>
 
-            {/* Brand identity in header — Logo and Brand Text in one line */}
-            <img src={logo} alt="OAK Logo" className="h-7 w-auto shrink-0 object-contain hidden min-[380px]:block" />
+            <img src={logo} alt="Logo" className="h-7 w-auto shrink-0 object-contain hidden min-[380px]:block" />
             
-            <div className="flex items-center gap-1.5 min-w-0">
-              <span className="font-display text-sm font-bold text-foreground tracking-tight whitespace-nowrap truncate max-w-[100px] sm:max-w-none">
+            <div className="flex flex-col min-w-0">
+              <span className="font-display text-xs sm:text-sm font-bold text-foreground tracking-tight whitespace-nowrap leading-none">
                 ISO AUDIT PORT
               </span>
+              <span className="text-[8px] sm:text-[9px] text-muted-foreground font-normal tracking-wide mt-0.5 leading-none">
+                powered by Oak Global
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-1.5 min-w-0">
               {orgs.length > 1 ? (
                 <div className="flex items-center gap-1 min-w-0">
                   <span className="text-xs text-muted-foreground shrink-0">·</span>

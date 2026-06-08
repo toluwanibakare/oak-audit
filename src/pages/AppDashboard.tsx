@@ -176,7 +176,7 @@ const AppDashboard = () => {
               <div>
                 <h2 className="font-display text-lg font-bold text-foreground">Account approved & ready</h2>
                 <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                  OAK Global compliance administrators have successfully activated your ISO environment. Go ahead, unlock an audit pack, and start your compliance runs!
+                  ISO AUDIT PORT compliance administrators have successfully activated your ISO environment. Go ahead, unlock an audit pack, and start your compliance runs!
                 </p>
                 <div className="mt-3.5 flex flex-wrap items-center gap-4">
                   <Link to="/app/licenses" className="inline-flex items-center gap-1.5 rounded-full bg-success px-4 py-2 text-xs font-bold text-success-foreground transition hover:opacity-90">
@@ -303,7 +303,7 @@ const AppDashboard = () => {
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary animate-bounce">
                 <ClipboardCheck className="h-8 w-8" />
               </div>
-              <h3 className="mt-6 font-display text-2xl font-bold text-foreground">Welcome to OAK Global</h3>
+              <h3 className="mt-6 font-display text-2xl font-bold text-foreground">Welcome to ISO AUDIT PORT</h3>
               <p className="mt-2.5 text-sm text-muted-foreground leading-relaxed">
                 Start auditing with absolute confidence. Unlock an ISO standard, IMS, or HSE Safety pack from our catalog, seed your question bank, and get going.
               </p>
