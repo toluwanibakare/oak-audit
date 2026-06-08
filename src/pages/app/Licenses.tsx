@@ -143,6 +143,22 @@ export default function Licenses() {
   const handleUnlockAndLaunch = async () => {
     if (!currentOrg || !configuringPack || !user) return;
 
+    // Check if there are any active audits in progress
+    const { data: openAudits } = await supabase
+      .from("audits")
+      .select("id, title")
+      .eq("org_id", currentOrg.id)
+      .neq("status", "closed");
+
+    if (openAudits && openAudits.length > 0) {
+      toast({
+        title: "Active Audit in Progress",
+        description: `You have an open audit in progress ("${openAudits[0].title}"). You must submit and close it before you can unlock or start another audit.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     let auditorId = selectedAuditorId;
     if (currentOrg.type === "individual" && !auditorId) {
       // Retrieve or create on the fly to avoid race conditions

@@ -697,88 +697,103 @@ export default function RunAudit() {
                 <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">No questions found for this process under this standard.</div>
               )}
 
-              {clauseSets.map((clauseSet: any) => (
-                <div key={clauseSet.clause} className="rounded-2xl border border-border bg-card p-5">
-                  <div className="flex items-baseline gap-3">
-                    <span className="font-mono text-sm font-semibold">{clauseSet.clause}</span>
-                    <h3 className="font-display text-base font-semibold">{clauseSet.title}</h3>
-                  </div>
-
-                  {(clauseSet.evidence?.length ?? 0) > 0 && (
-                    <div className="mt-3 rounded-xl border border-dashed border-border bg-background/70 p-3">
-                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                        <FileUp className="h-3.5 w-3.5" />
-                        Evidence you should upload
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {clauseSet.evidence.map((item: string, index: number) => (
-                          <span key={`${clauseSet.clause}-e-${index}`} className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-                            {item}
-                          </span>
-                        ))}
-                      </div>
+              {(() => {
+                let questionIndex = 0;
+                return clauseSets.map((clauseSet: any) => (
+                  <div key={clauseSet.clause} className="rounded-2xl border border-border bg-card p-5">
+                    <div className="flex items-baseline gap-3">
+                      <span className="font-mono text-sm font-semibold">{clauseSet.clause}</span>
+                      <h3 className="font-display text-base font-semibold">{clauseSet.title}</h3>
                     </div>
-                  )}
 
-                  <div className="mt-4 space-y-3">
-                    {(clauseSet.generic ?? []).map((question: string, index: number) => (
-                      <Row
-                        key={`g${index}`}
-                        processId={activeProc}
-                        clause={clauseSet.clause}
-                        kind="generic"
-                        qRef={`g${index}`}
-                        q={question}
-                        answers={answers}
-                        finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "generic", `g${index}`)]}
-                        evidenceHints={clauseSet.evidence ?? []}
-                        uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "generic", `g${index}`)}
-                        onSave={saveAnswer}
-                        onSyncFinding={syncFinding}
-                        onUploadEvidence={uploadEvidence}
-                        readOnly={!canEdit}
-                      />
-                    ))}
-                    {(clauseSet.specific ?? []).map((question: string, index: number) => (
-                      <Row
-                        key={`s${index}`}
-                        processId={activeProc}
-                        clause={clauseSet.clause}
-                        kind="specific"
-                        qRef={`s${index}`}
-                        q={question}
-                        answers={answers}
-                        finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "specific", `s${index}`)]}
-                        evidenceHints={clauseSet.evidence ?? []}
-                        uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "specific", `s${index}`)}
-                        onSave={saveAnswer}
-                        onSyncFinding={syncFinding}
-                        onUploadEvidence={uploadEvidence}
-                        readOnly={!canEdit}
-                      />
-                    ))}
-                    {custom.filter((item) => item.clause === clauseSet.clause).map((item) => (
-                      <Row
-                        key={item.id}
-                        processId={activeProc}
-                        clause={clauseSet.clause}
-                        kind="custom"
-                        qRef={item.id}
-                        q={item.text}
-                        answers={answers}
-                        finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)]}
-                        evidenceHints={clauseSet.evidence ?? []}
-                        uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)}
-                        onSave={saveAnswer}
-                        onSyncFinding={syncFinding}
-                        onUploadEvidence={uploadEvidence}
-                        badge="Custom"
-                        readOnly={!canEdit}
-                      />
-                    ))}
+                    {(clauseSet.evidence?.length ?? 0) > 0 && (
+                      <div className="mt-3 rounded-xl border border-dashed border-border bg-background/70 p-3">
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                          <FileUp className="h-3.5 w-3.5" />
+                          Evidence you should upload
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {clauseSet.evidence.map((item: string, index: number) => (
+                            <span key={`${clauseSet.clause}-e-${index}`} className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mt-4 space-y-3">
+                      {(clauseSet.generic ?? []).map((question: string, index: number) => {
+                        questionIndex++;
+                        return (
+                          <Row
+                            key={`g${index}`}
+                            index={questionIndex}
+                            processId={activeProc}
+                            clause={clauseSet.clause}
+                            kind="generic"
+                            qRef={`g${index}`}
+                            q={question}
+                            answers={answers}
+                            finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "generic", `g${index}`)]}
+                            evidenceHints={clauseSet.evidence ?? []}
+                            uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "generic", `g${index}`)}
+                            onSave={saveAnswer}
+                            onSyncFinding={syncFinding}
+                            onUploadEvidence={uploadEvidence}
+                            readOnly={!canEdit}
+                          />
+                        );
+                      })}
+                      {(clauseSet.specific ?? []).map((question: string, index: number) => {
+                        questionIndex++;
+                        return (
+                          <Row
+                            key={`s${index}`}
+                            index={questionIndex}
+                            processId={activeProc}
+                            clause={clauseSet.clause}
+                            kind="specific"
+                            qRef={`s${index}`}
+                            q={question}
+                            answers={answers}
+                            finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "specific", `s${index}`)]}
+                            evidenceHints={clauseSet.evidence ?? []}
+                            uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "specific", `s${index}`)}
+                            onSave={saveAnswer}
+                            onSyncFinding={syncFinding}
+                            onUploadEvidence={uploadEvidence}
+                            readOnly={!canEdit}
+                          />
+                        );
+                      })}
+                      {custom.filter((item) => item.clause === clauseSet.clause).map((item, index) => {
+                        questionIndex++;
+                        return (
+                          <Row
+                            key={item.id}
+                            index={questionIndex}
+                            processId={activeProc}
+                            clause={clauseSet.clause}
+                            kind="custom"
+                            qRef={item.id}
+                            q={item.text}
+                            answers={answers}
+                            finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)]}
+                            evidenceHints={clauseSet.evidence ?? []}
+                            uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)}
+                            onSave={saveAnswer}
+                            onSyncFinding={syncFinding}
+                            onUploadEvidence={uploadEvidence}
+                            badge="Custom"
+                            readOnly={!canEdit}
+                          />
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ));
+              })()}
             </>
           )}
         </div>
@@ -937,6 +952,7 @@ function Row({
   onUploadEvidence,
   badge,
   readOnly,
+  index,
 }: any) {
   const { toast } = useToast();
   const key = buildAnswerKey(processId, clause, kind, qRef);
@@ -1008,6 +1024,38 @@ function Row({
     });
   };
 
+  // Debounced auto-save effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const initialNote = parseAuditNote(answer.note ?? "").text;
+      const initialDesc = finding?.description ?? (answer.question_text || q);
+      const initialCapa = finding?.capa ?? "";
+      const initialOwner = finding?.owner ?? "";
+      const initialDueDate = finding?.due_date ?? "";
+      const latestMeta = parseFindingMeta(finding?.root_cause ?? null);
+      const initialCorr = latestMeta?.correction ?? "";
+      const initialRoot = latestMeta?.rootCauseText ?? "";
+
+      const noteChanged = note !== initialNote;
+      const findingChanged = 
+        description !== initialDesc ||
+        capa !== initialCapa ||
+        owner !== initialOwner ||
+        dueDate !== initialDueDate ||
+        correction !== initialCorr ||
+        rootCauseText !== initialRoot;
+
+      if (noteChanged) {
+        persistAnswer(status, note);
+      }
+      if (findingChanged) {
+        persistFinding();
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [note, description, capa, owner, dueDate, correction, rootCauseText]);
+
   const handleAutoDeclare = async () => {
     const nextStatus = "minor";
     const nextDescText = `Clause ${clause} requirement is not fully met: ${q}`;
@@ -1067,6 +1115,7 @@ function Row({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex-1 min-w-[280px]">
           <p className="text-sm font-medium leading-relaxed text-foreground">
+            {index ? <span className="font-bold text-muted-foreground mr-1.5">{index}.</span> : null}
             {answer.question_text || q}
             {badge && <span className="ml-2 rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-gold">{badge}</span>}
           </p>
