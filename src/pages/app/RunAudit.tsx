@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { AlertTriangle, FileUp, Link2, Lock, Unlock, User, RefreshCw, CheckCircle2, Clock } from "lucide-react";
+import { AlertTriangle, FileUp, Link2, Lock, Unlock, User, RefreshCw, CheckCircle2, Clock, X, Search, ClipboardCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app/AppShell";
 import { useOrg } from "@/hooks/useOrg";
@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { getQuestionsFor, isProcessInStandard, type StandardKey } from "@/data/standards";
 import { useToast } from "@/hooks/use-toast";
 import { parseAuditNote, serializeAuditNote, safeEvidenceName, type EvidenceItem } from "@/lib/auditEvidence";
+import { HSE_CHECKLIST_DATA } from "@/data/hseInspectionChecklist";
 
 type Audit = { id: string; title: string; standard: string; scope: string | null; status: string; org_id: string };
 type Proc = { id: string; key: string; name: string };
@@ -49,6 +50,36 @@ export default function RunAudit() {
   const [tempAuditorId, setTempAuditorId] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [showHseChecklist, setShowHseChecklist] = useState(false);
+  const [checkedHseItems, setCheckedHseItems] = useState<Set<number>>(new Set());
+  const [hseSearch, setHseSearch] = useState("");
+
+  useEffect(() => {
+    if (!id) return;
+    const key = `hse_checked_items_${id}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        setCheckedHseItems(new Set(JSON.parse(saved)));
+      } catch (e) {
+        console.error("Error loading checked hse items", e);
+      }
+    }
+  }, [id]);
+
+  const toggleHseItem = (itemId: number) => {
+    const next = new Set(checkedHseItems);
+    if (next.has(itemId)) {
+      next.delete(itemId);
+    } else {
+      next.add(itemId);
+    }
+    setCheckedHseItems(next);
+    if (id) {
+      localStorage.setItem(`hse_checked_items_${id}`, JSON.stringify(Array.from(next)));
+    }
+  };
 
   const stdForBank: StandardKey =
     audit?.standard === "27001" ? "9001" : ((audit?.standard as StandardKey) ?? "9001");
@@ -539,6 +570,15 @@ export default function RunAudit() {
           <p className="mt-1 text-sm text-muted-foreground">{audit.scope}</p>
         </div>
         <div className="flex items-center gap-3">
+          {audit.standard === "hse" && (
+            <button
+              onClick={() => setShowHseChecklist(true)}
+              className="pill-cta bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white flex items-center gap-1.5 shadow-md shadow-emerald-600/10"
+            >
+              <ClipboardCheck className="h-4 w-4" />
+              <span>Inspection Checklist</span>
+            </button>
+          )}
           <span className="text-sm text-muted-foreground">Conformity: <strong className="text-foreground">{conformity}%</strong></span>
           <Link to={`/app/audits/${audit.id}/report`} className="pill-secondary">Report</Link>
           {audit.status === "in_progress" && (
@@ -743,6 +783,141 @@ export default function RunAudit() {
           )}
         </div>
       </div>
+
+      {/* HSE Inspection Checklist Modal */}
+      {showHseChecklist && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-md animate-fade-in">
+          <div className="flex h-[85vh] w-full max-w-5xl flex-col rounded-[28px] border border-border bg-card shadow-elevated overflow-hidden animate-fade-in-up">
+            
+            {/* Modal Header */}
+            <div className="border-b border-border/80 px-6 py-4 flex items-center justify-between bg-secondary/30">
+              <div className="flex items-center gap-2.5">
+                <div className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-600/10 text-emerald-600 dark:text-emerald-500">
+                  <ClipboardCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="font-display text-lg font-bold text-foreground">HSE Site Inspection Checklist</h2>
+                  <p className="text-xs text-muted-foreground">OIS HSE Site Inspection Reference Checklist (150 Items)</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {/* Search Bar */}
+                <div className="relative w-64">
+                  <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={hseSearch}
+                    onChange={(e) => setHseSearch(e.target.value)}
+                    placeholder="Search 150 checklist items..."
+                    className="input pl-9 pr-4 py-1.5 text-xs h-9 w-full bg-background"
+                  />
+                  {hseSearch && (
+                    <button
+                      onClick={() => setHseSearch("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-secondary text-muted-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setShowHseChecklist(false)}
+                  className="rounded-xl p-2 hover:bg-secondary text-muted-foreground hover:text-foreground transition"
+                  aria-label="Close checklist"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Checklist Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Progress Tracker */}
+              <div className="rounded-2xl border border-emerald-600/20 bg-emerald-600/5 p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div>
+                  <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-400">Walkthrough Progress</span>
+                  <p className="text-[11px] text-emerald-700/80 dark:text-emerald-500/80 mt-0.5">Use this interactive helper to check off items as you tour the facility.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <span className="text-lg font-extrabold text-foreground">{checkedHseItems.size} <span className="text-xs text-muted-foreground">/ 150</span></span>
+                    <span className="block text-[9px] text-muted-foreground font-bold uppercase tracking-wider">Checked Items</span>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      if (window.confirm("Are you sure you want to reset your checklist tour progress?")) {
+                        setCheckedHseItems(new Set());
+                        if (id) localStorage.removeItem(`hse_checked_items_${id}`);
+                      }
+                    }}
+                    className="text-xs text-destructive hover:underline font-semibold"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+
+              {/* Render Categories and Items */}
+              <div className="space-y-6">
+                {HSE_CHECKLIST_DATA.map((cat) => {
+                  const filteredItems = cat.items.filter(item => 
+                    item.item.toLowerCase().includes(hseSearch.toLowerCase()) || 
+                    item.evidence.toLowerCase().includes(hseSearch.toLowerCase())
+                  );
+
+                  if (filteredItems.length === 0) return null;
+
+                  return (
+                    <div key={cat.title} className="rounded-2xl border border-border bg-card/60 p-4 space-y-3">
+                      <h3 className="font-display text-sm font-bold text-foreground border-b border-border pb-2 flex items-center justify-between">
+                        <span>{cat.title}</span>
+                        <span className="text-xs text-muted-foreground font-normal">
+                          {cat.items.filter(i => checkedHseItems.has(i.id)).length} / {cat.items.length} done
+                        </span>
+                      </h3>
+                      
+                      <div className="grid gap-2.5">
+                        {filteredItems.map((i) => {
+                          const isChecked = checkedHseItems.has(i.id);
+                          return (
+                            <div 
+                              key={i.id}
+                              onClick={() => toggleHseItem(i.id)}
+                              className={`flex items-start gap-3 rounded-xl p-3 border transition cursor-pointer select-none ${
+                                isChecked 
+                                  ? "border-emerald-600/30 bg-emerald-600/5 text-foreground" 
+                                  : "border-border/60 hover:bg-secondary/40 text-foreground"
+                              }`}
+                            >
+                              <input 
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {}}
+                                className="mt-0.5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 h-4 w-4 shrink-0"
+                              />
+                              <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4">
+                                <div className="text-xs font-medium leading-relaxed">
+                                  <span className="font-bold text-muted-foreground mr-1.5">{i.id}.</span>
+                                  {i.item}
+                                </div>
+                                <div className="text-[10px] text-muted-foreground font-mono shrink-0">
+                                  Evidence: {i.evidence}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
