@@ -70,3 +70,18 @@ GRANT EXECUTE ON FUNCTION public.admin_get_all_workspaces() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_update_workspace_review(UUID, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_delete_workspace(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_delete_workspace(UUID) TO service_role;
+
+-- Drop old constraints
+ALTER TABLE public.audits DROP CONSTRAINT IF EXISTS audits_lead_auditor_id_fkey;
+ALTER TABLE public.audit_processes DROP CONSTRAINT IF EXISTS audit_processes_auditor_id_fkey;
+
+-- Add new constraints with ON DELETE SET NULL
+ALTER TABLE public.audits
+  ADD CONSTRAINT audits_lead_auditor_id_fkey
+  FOREIGN KEY (lead_auditor_id) REFERENCES public.auditors(id)
+  ON DELETE SET NULL;
+
+ALTER TABLE public.audit_processes
+  ADD CONSTRAINT audit_processes_auditor_id_fkey
+  FOREIGN KEY (auditor_id) REFERENCES public.auditors(id)
+  ON DELETE SET NULL;
