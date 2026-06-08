@@ -56,20 +56,41 @@ export function getProcessesFor(std: StandardKey) {
   return PROCESSES;
 }
 
+export function normalizeProcessKey(key: string): string {
+  const clean = key.toLowerCase().replace(/^(hse|ims)_/, "").replace(/__/, "_");
+  if (clean === "engineering_design" || clean === "engineering_design") return "engineering";
+  if (clean === "finance_accounts" || clean === "finance__accounts" || clean === "finance_accounts") return "finance";
+  if (clean === "qa_qc" || clean === "qaqc") return "qaqc";
+  if (clean === "qms_quality_management" || clean === "qms_quality_management") return "qms";
+  if (clean === "human_resources") return "hr";
+  if (clean === "ict_it" || clean === "ict_it") return "ict";
+  if (clean === "production_manufacturing" || clean === "production_manufacturing") return "production";
+  if (clean === "administration") return "admin";
+  return clean;
+}
+
 export function isProcessInStandard(std: StandardKey, key: string): boolean {
   if (key.startsWith("custom_")) return true;
   const procs = getProcessesFor(std);
-  const normalizedKey = key.replace(/^hse_/, "");
-  return procs.some((p) => p.key === key || p.key.replace(/^hse_/, "") === normalizedKey);
+  const normalizedKey = normalizeProcessKey(key);
+  return procs.some((p) => normalizeProcessKey(p.key) === normalizedKey);
 }
 
 export function getQuestionsFor(std: StandardKey, proc: AnyProcessKey): ClauseQuestionSet[] {
-  if (std === "45001") return getQuestionsForProcess45001(proc as never) as unknown as ClauseQuestionSet[];
-  if (std === "14001") return getQuestionsForProcess14001(proc as never) as unknown as ClauseQuestionSet[];
-  if (std === "hse") return getQuestionsForHseProcess(proc as HseProcessKey);
-  if (std === "ims") return getQuestionsForImsProcess(proc as ImsProcessKey);
-  return getQuestionsForProcess(proc as ProcessKey);
+  const normKey = normalizeProcessKey(proc);
+  if (std === "45001") return getQuestionsForProcess45001(normKey as never) as unknown as ClauseQuestionSet[];
+  if (std === "14001") return getQuestionsForProcess14001(normKey as never) as unknown as ClauseQuestionSet[];
+  if (std === "hse") {
+    const matchingHseProc = HSE_PROCESSES.find(p => normalizeProcessKey(p.key) === normKey);
+    return getQuestionsForHseProcess((matchingHseProc?.key ?? proc) as HseProcessKey);
+  }
+  if (std === "ims") {
+    const matchingImsProc = IMS_PROCESSES.find(p => normalizeProcessKey(p.key) === normKey);
+    return getQuestionsForImsProcess((matchingImsProc?.key ?? proc) as ImsProcessKey);
+  }
+  return getQuestionsForProcess(normKey as ProcessKey);
 }
+
 
 // IMS = union of 9001 + 14001 + 45001 question sets per process,
 // merged by clause. Each question is tagged with its source standard so

@@ -7,6 +7,7 @@ import { PROCESSES } from "@/data/processAudit";
 import { PROCESSES_14001 } from "@/data/processAudit14001";
 import { PROCESSES_45001 } from "@/data/processAudit45001";
 import { HSE_PROCESSES } from "@/data/standardsHse";
+import { normalizeProcessKey } from "@/data/standards";
 
 const ALL_STANDARD_PROCESSES = [
   ...PROCESSES,
@@ -16,8 +17,15 @@ const ALL_STANDARD_PROCESSES = [
 ];
 
 const UNIQUE_STANDARD_PROCESSES = Array.from(
-  new Map(ALL_STANDARD_PROCESSES.map((p) => [p.key, p])).values()
+  new Map(
+    ALL_STANDARD_PROCESSES.map((p) => {
+      const normKey = normalizeProcessKey(p.key);
+      const canonical = PROCESSES.find(sp => sp.key === normKey) || p;
+      return [normKey, { ...canonical, key: normKey }];
+    })
+  ).values()
 );
+
 
 import { AppShell } from "@/components/app/AppShell";
 

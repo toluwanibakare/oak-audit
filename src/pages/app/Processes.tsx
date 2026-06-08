@@ -4,7 +4,7 @@ import { useOrg } from "@/hooks/useOrg";
 import { AppShell } from "@/components/app/AppShell";
 import { Header } from "./Team";
 import { useToast } from "@/hooks/use-toast";
-import { getQuestionsFor } from "@/data/standards";
+import { getQuestionsFor, normalizeProcessKey } from "@/data/standards";
 import { PROCESSES } from "@/data/processAudit";
 import { PROCESSES_14001 } from "@/data/processAudit14001";
 import { PROCESSES_45001 } from "@/data/processAudit45001";
@@ -21,8 +21,15 @@ const ALL_STANDARD_PROCESSES = [
 ];
 
 const UNIQUE_STANDARD_PROCESSES = Array.from(
-  new Map(ALL_STANDARD_PROCESSES.map((p) => [p.key.replace(/^hse_/, ""), { ...p, key: p.key.replace(/^hse_/, "") }])).values()
+  new Map(
+    ALL_STANDARD_PROCESSES.map((p) => {
+      const normKey = normalizeProcessKey(p.key);
+      const canonical = PROCESSES.find(sp => sp.key === normKey) || p;
+      return [normKey, { ...canonical, key: normKey }];
+    })
+  ).values()
 );
+
 
 type Proc = { id: string; key: string; name: string; scope: string | null; is_custom: boolean };
 
@@ -70,7 +77,7 @@ export default function Processes() {
       const processesList = (data ?? []) as Proc[];
       const uniqueListMap = new Map<string, Proc>();
       processesList.forEach((p) => {
-        const normKey = p.is_custom ? p.key : p.key.replace(/^hse_/, "");
+        const normKey = p.is_custom ? p.key : normalizeProcessKey(p.key);
         if (!uniqueListMap.has(normKey)) {
           uniqueListMap.set(normKey, { ...p, key: normKey });
         }
