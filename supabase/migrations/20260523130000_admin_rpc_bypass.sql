@@ -44,5 +44,29 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.admin_delete_workspace(_org_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  _owner_id UUID;
+BEGIN
+  -- Get the owner/creator of the organization
+  SELECT created_by INTO _owner_id FROM public.organizations WHERE id = _org_id;
+
+  -- Delete the organization
+  DELETE FROM public.organizations WHERE id = _org_id;
+
+  -- Delete the owner user from auth.users if they exist
+  IF _owner_id IS NOT NULL THEN
+    DELETE FROM auth.users WHERE id = _owner_id;
+  END IF;
+END;
+$$;
+
 GRANT EXECUTE ON FUNCTION public.admin_get_all_workspaces() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_update_workspace_review(UUID, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_delete_workspace(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_delete_workspace(UUID) TO service_role;
