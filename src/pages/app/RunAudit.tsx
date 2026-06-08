@@ -796,7 +796,7 @@ function Row({
   const [status, setStatus] = useState(answer.status);
   const [note, setNote] = useState(parsed.text);
   const [evidence, setEvidence] = useState<EvidenceItem[]>(parsed.evidence);
-  const [description, setDescription] = useState(finding?.description ?? q);
+  const [description, setDescription] = useState(finding?.description ?? (answer.question_text || q));
   const [capa, setCapa] = useState(finding?.capa ?? "");
   const [owner, setOwner] = useState(finding?.owner ?? "");
   const [dueDate, setDueDate] = useState(finding?.due_date ?? "");
@@ -812,7 +812,7 @@ function Row({
     setStatus(answer.status);
     setNote(latest.text);
     setEvidence(latest.evidence);
-    setDescription(finding?.description ?? q);
+    setDescription(finding?.description ?? (answer.question_text || q));
     setCapa(finding?.capa ?? "");
     setOwner(finding?.owner ?? "");
     setDueDate(finding?.due_date ?? "");
@@ -911,7 +911,7 @@ function Row({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex-1 min-w-[280px]">
           <p className="text-sm font-medium leading-relaxed text-foreground">
-            {q}
+            {answer.question_text || q}
             {badge && <span className="ml-2 rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-gold">{badge}</span>}
           </p>
           {evidenceHints.length > 0 && (
