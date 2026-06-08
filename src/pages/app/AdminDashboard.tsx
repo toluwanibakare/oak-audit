@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import logo from "@/assets/logo.png";
 import { 
   Building2, 
   ShieldCheck, 
@@ -14,7 +15,7 @@ import {
   AlertTriangle,
   BadgeCheck,
   CheckCircle2,
-  DollarSign,
+  Coins,
   MessageSquare
 } from "lucide-react";
 
@@ -44,7 +45,9 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [search, setSearch] = useState("");
-  
+  const [workspaceToDelete, setWorkspaceToDelete] = useState<Workspace | null>(null);
+  const [deletingWorkspaceId, setDeletingWorkspaceId] = useState<string | null>(null);
+
   // Review configuration state
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
   const [customPricing, setCustomPricing] = useState<Record<string, number | "">>({
@@ -74,6 +77,21 @@ export default function AdminDashboard() {
       setIsLoggedIn(true);
     }
   }, []);
+
+  const handleDeleteWorkspace = async (orgId: string) => {
+    setDeletingWorkspaceId(orgId);
+    try {
+      const { error } = await supabase.rpc("admin_delete_workspace", { _org_id: orgId });
+      if (error) throw error;
+      toast({ title: "User & Workspace deleted successfully" });
+      setWorkspaceToDelete(null);
+      loadWorkspaces();
+    } catch (err: any) {
+      toast({ title: "Failed to delete user", description: err.message, variant: "destructive" });
+    } finally {
+      setDeletingWorkspaceId(null);
+    }
+  };
 
   // Fetch all workspaces via custom RPC bypassing RLS
   const loadWorkspaces = async () => {
@@ -276,11 +294,14 @@ export default function AdminDashboard() {
           <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-accent/20 rounded-full blur-[80px]" />
 
           <div className="text-center relative z-10">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 text-primary mb-4 animate-pulse">
-              <Lock className="h-6 w-6" />
+            <div className="flex justify-center mb-4">
+              <img src={logo} alt="ISO AUDIT PORT Logo" className="h-12 w-auto object-contain" />
             </div>
-            <h2 className="font-display text-2xl font-extrabold tracking-tight">OAK Global Admin Portal</h2>
-            <p className="mt-1.5 text-xs text-slate-400">
+            <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">ISO AUDIT PORT Admin Portal</h2>
+            <p className="text-[10px] uppercase font-mono tracking-wider text-slate-500 mt-1 select-none font-bold">
+              powered by Oak Global
+            </p>
+            <p className="mt-2 text-xs text-slate-400">
               Access restricted to corporate compliance administrators
             </p>
           </div>
@@ -325,7 +346,7 @@ export default function AdminDashboard() {
           </form>
 
           <div className="text-[10px] text-center text-slate-500 font-medium select-none pt-2 border-t border-slate-800/60 relative z-10">
-            © 2026 OAK Global International. All rights reserved.
+            © 2026 ISO AUDIT PORT (powered by Oak Global). All rights reserved.
           </div>
         </div>
       </div>
@@ -337,13 +358,19 @@ export default function AdminDashboard() {
       <div className="space-y-8 max-w-7xl mx-auto w-full">
         {/* Header */}
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-900 pb-5">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-              <ShieldCheck className="h-4 w-4" />
-              ISO Administration Console
+          <div className="flex flex-wrap items-center gap-4">
+            <img src={logo} alt="ISO AUDIT PORT Logo" className="h-10 w-auto object-contain shrink-0" />
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+                <ShieldCheck className="h-4 w-4" />
+                ISO Administration Console
+              </div>
+              <h1 className="mt-1 font-display text-3xl font-extrabold tracking-tight">ISO AUDIT PORT</h1>
+              <p className="text-[10px] uppercase font-mono tracking-wider text-slate-500 font-bold -mt-0.5">
+                powered by Oak Global
+              </p>
+              <p className="mt-1 text-sm text-slate-400">Review workspace registers, assess organizational size, and assign custom credit rates.</p>
             </div>
-            <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight">OAK Global International</h1>
-            <p className="mt-1 text-sm text-slate-400">Review workspace registers, assess organizational size, and assign custom credit rates.</p>
           </div>
           <button
             onClick={handleLogout}
@@ -498,16 +525,24 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
-                        <button
-                          onClick={() => handleOpenReview(w)}
-                          className={`pill-cta text-xs px-3.5 py-2 shrink-0 ${
-                            isApproved 
-                              ? "bg-slate-800 border border-slate-700 hover:bg-slate-750 text-slate-300"
-                              : "bg-warning hover:bg-warning/90 text-slate-950 font-bold"
-                          }`}
-                        >
-                          {isApproved ? "Adjust Pricing" : "ISO Review & Approve →"}
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => handleOpenReview(w)}
+                            className={`pill-cta text-xs px-3.5 py-2 ${
+                              isApproved 
+                                ? "bg-slate-800 border border-slate-700 hover:bg-slate-750 text-slate-300"
+                                : "bg-warning hover:bg-warning/90 text-slate-950 font-bold"
+                            }`}
+                          >
+                            {isApproved ? "Adjust Pricing" : "ISO Review & Approve →"}
+                          </button>
+                          <button
+                            onClick={() => setWorkspaceToDelete(w)}
+                            className="rounded-xl border border-destructive/30 bg-destructive/10 hover:bg-destructive text-destructive hover:text-white px-3 py-2 text-xs font-semibold transition"
+                          >
+                            Delete User
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -556,7 +591,7 @@ export default function AdminDashboard() {
                     <div className="space-y-4">
                       <div className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between gap-2 pb-1 border-b border-slate-800/40">
                         <span className="flex items-center gap-1.5 shrink-0">
-                          <DollarSign className="h-4 w-4 text-primary" />
+                          <Coins className="h-4 w-4 text-primary" />
                           Custom Pricing
                         </span>
                         <span className="text-[10px] text-white font-extrabold bg-primary border border-primary/30 px-2.5 py-0.5 rounded-full select-none whitespace-nowrap shadow-sm">
@@ -937,6 +972,43 @@ export default function AdminDashboard() {
                 className="flex-grow flex-1 bg-success hover:bg-success/95 text-slate-950 font-extrabold rounded-xl py-2.5 text-xs text-center transition tracking-wide uppercase disabled:opacity-50"
               >
                 {saving ? "Deploying..." : "Confirm & Deploy →"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {workspaceToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md rounded-3xl border border-slate-900 bg-slate-900/95 p-6 shadow-elevated animate-in zoom-in-95 duration-200 space-y-6">
+            <div>
+              <h3 className="font-display text-xl font-extrabold text-slate-100">Delete User & Workspace</h3>
+              <p className="text-sm text-slate-400 mt-2">
+                Are you sure you want to delete the user and workspace <strong>{workspaceToDelete.name}</strong>?
+              </p>
+            </div>
+            
+            <div className="rounded-2xl border border-destructive/35 bg-destructive/5 p-4 text-xs text-destructive leading-relaxed">
+              <strong>⚠️ CRITICAL WARNING:</strong>
+              <p className="mt-1">
+                This will permanently delete the workspace, all associated organization members, user accounts, roles, audits, answers, and findings. This action is irreversible.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                disabled={deletingWorkspaceId !== null}
+                onClick={() => setWorkspaceToDelete(null)}
+                className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2 text-sm font-semibold hover:bg-slate-800 text-slate-300 transition"
+              >
+                No, Cancel
+              </button>
+              <button
+                disabled={deletingWorkspaceId !== null}
+                onClick={() => handleDeleteWorkspace(workspaceToDelete.id)}
+                className="rounded-xl bg-destructive text-white px-4 py-2 text-sm font-semibold hover:bg-destructive/90 transition flex items-center gap-1.5"
+              >
+                {deletingWorkspaceId ? "Deleting..." : "Yes, Delete Permanent"}
               </button>
             </div>
           </div>

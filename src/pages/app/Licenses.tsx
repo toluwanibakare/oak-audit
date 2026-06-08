@@ -482,7 +482,7 @@ export default function Licenses() {
 
       {configuringPack && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-md rounded-[32px] border border-border bg-card p-8 shadow-elevated animate-scale-up space-y-6">
+          <div className="w-full max-w-2xl rounded-[32px] border border-border bg-card p-8 shadow-elevated animate-scale-up space-y-6">
             <div>
               <h3 className="font-display text-2xl font-bold">Configure Audit Setup</h3>
               <p className="mt-1.5 text-xs text-muted-foreground">
@@ -490,7 +490,7 @@ export default function Licenses() {
               </p>
             </div>
 
-            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
+            <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Title</label>
                 <input
@@ -522,7 +522,7 @@ export default function Licenses() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Object</label>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Objective</label>
                 <input
                   className="input w-full font-sans text-sm"
                   value={auditObject}
@@ -532,7 +532,7 @@ export default function Licenses() {
               </div>
 
               {currentOrg?.type !== "individual" && (
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Auditor in Charge</label>
                   <select
                     className="input w-full font-sans text-sm font-semibold"

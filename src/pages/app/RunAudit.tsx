@@ -406,7 +406,7 @@ export default function RunAudit() {
 
   const isAssignedToMe = currentAuditor && assignedAuditorId === currentAuditor.id;
   const isUnassigned = !assignedAuditorId;
-  const canEdit = !!isAssignedToMe;
+  const canEdit = true; // Always allow editing to support collaborative updates and remove view-only locks
 
   const total = Object.values(answers).length;
   const conformity = total > 0 ? Math.round((Object.values(answers).filter((answer) => answer.status === "conform").length / total) * 100) : 0;
@@ -689,14 +689,14 @@ export default function RunAudit() {
                   <span className="rounded-full bg-primary/20 px-2.5 py-0.5 text-[10px] font-bold text-primary uppercase">Assigned to You</span>
                 </div>
               ) : (
-                <div className="rounded-xl border border-border bg-secondary/20 p-4 flex items-center justify-between gap-4">
+                <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2.5">
-                    <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="text-xs font-medium text-muted-foreground">
-                      🔒 This process is assigned to <strong>{assignedAuditor?.name}</strong>. You are currently in <strong>View-Only Mode</strong>.
+                    <Unlock className="h-4 w-4 text-primary shrink-0" />
+                    <span className="text-xs font-medium text-foreground">
+                      ✓ This process is assigned to <strong>{assignedAuditor?.name || "another auditor"}</strong>. You have collaborative edit access.
                     </span>
                   </div>
-                  <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground uppercase">Locked</span>
+                  <span className="rounded-full bg-primary/20 px-2.5 py-0.5 text-[10px] font-bold text-primary uppercase">Collaborate Mode</span>
                 </div>
               )}
 
