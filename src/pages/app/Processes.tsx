@@ -68,10 +68,18 @@ export default function Processes() {
         .order("name");
       
       const processesList = (data ?? []) as Proc[];
-      setList(processesList);
+      const uniqueListMap = new Map<string, Proc>();
+      processesList.forEach((p) => {
+        const normKey = p.is_custom ? p.key : p.key.replace(/^hse_/, "");
+        if (!uniqueListMap.has(normKey)) {
+          uniqueListMap.set(normKey, { ...p, key: normKey });
+        }
+      });
+      const finalProcessesList = Array.from(uniqueListMap.values());
+      setList(finalProcessesList);
       
-      // Pre-fill selection keys with currently selected standard processes
-      setSelectedStandardKeys(processesList.filter(p => !p.is_custom).map(p => p.key));
+      // Pre-fill selection keys with currently selected standard processes (normalized)
+      setSelectedStandardKeys(finalProcessesList.filter(p => !p.is_custom).map(p => p.key));
     } finally {
       setLoading(false);
     }
