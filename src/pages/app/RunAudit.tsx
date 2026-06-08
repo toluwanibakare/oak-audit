@@ -394,12 +394,6 @@ export default function RunAudit() {
     }
   };
 
-  const closeAudit = async () => {
-    if (!id) return;
-    await supabase.from("audits").update({ status: "closed", closed_at: new Date().toISOString() }).eq("id", id);
-    toast({ title: "Audit closed" });
-    setAudit(audit ? { ...audit, status: "closed" } : null);
-  };
 
   const currentAssignment = useMemo(() => {
     return auditProcesses.find((ap) => ap.process_id === activeProc);
