@@ -309,7 +309,16 @@ const PROCESS_DETAILS_45001: Record<ProcessKey45001, ProcessClauseMap> = {
 
 export type ClauseQuestionSet45001 = { clause: string; title: string; generic: string[]; specific: string[]; evidence: string[] };
 export function getQuestionsForProcess45001(key: ProcessKey45001): ClauseQuestionSet45001[] {
-  const details = PROCESS_DETAILS_45001[key];
+  const baseKey = (String(key).startsWith("custom_") ? String(key).substring(7) : key) as ProcessKey45001;
+  const details = PROCESS_DETAILS_45001[baseKey] || PROCESS_DETAILS_45001[key];
+  if (!details) {
+    return ISO_CLAUSES_45001.map(c => ({
+      clause: c.clause, title: c.title,
+      generic: GENERIC_45001[c.clause] ?? [],
+      specific: [],
+      evidence: [],
+    })).filter(q => q.generic.length > 0);
+  }
   return ISO_CLAUSES_45001.filter(c => details[c.clause] !== undefined).map(c => ({
     clause: c.clause, title: c.title,
     generic: GENERIC_45001[c.clause] ?? [],

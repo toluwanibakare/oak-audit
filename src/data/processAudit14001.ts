@@ -307,7 +307,16 @@ const PROCESS_DETAILS_14001: Record<ProcessKey14001, ProcessClauseMap> = {
 
 export type ClauseQuestionSet14001 = { clause: string; title: string; generic: string[]; specific: string[]; evidence: string[] };
 export function getQuestionsForProcess14001(key: ProcessKey14001): ClauseQuestionSet14001[] {
-  const details = PROCESS_DETAILS_14001[key];
+  const baseKey = (String(key).startsWith("custom_") ? String(key).substring(7) : key) as ProcessKey14001;
+  const details = PROCESS_DETAILS_14001[baseKey] || PROCESS_DETAILS_14001[key];
+  if (!details) {
+    return ISO_CLAUSES_14001.map(c => ({
+      clause: c.clause, title: c.title,
+      generic: GENERIC_14001[c.clause] ?? [],
+      specific: [],
+      evidence: [],
+    })).filter(q => q.generic.length > 0);
+  }
   return ISO_CLAUSES_14001.filter(c => details[c.clause] !== undefined).map(c => ({
     clause: c.clause, title: c.title,
     generic: GENERIC_14001[c.clause] ?? [],

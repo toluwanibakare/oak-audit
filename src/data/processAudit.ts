@@ -423,7 +423,17 @@ const PROCESS_DETAILS: Record<ProcessKey, ProcessClauseMap> = {
 };
 
 export function getQuestionsForProcess(key: ProcessKey): ClauseQuestionSet[] {
-  const details = PROCESS_DETAILS[key];
+  const baseKey = (String(key).startsWith("custom_") ? String(key).substring(7) : key) as ProcessKey;
+  const details = PROCESS_DETAILS[baseKey] || PROCESS_DETAILS[key];
+  if (!details) {
+    return ISO_CLAUSES_FOR_AUDIT.map((c) => ({
+      clause: c.clause,
+      title: c.title,
+      generic: GENERIC[c.clause] ?? [],
+      specific: [],
+      evidence: [],
+    })).filter((q) => q.generic.length > 0);
+  }
   return ISO_CLAUSES_FOR_AUDIT
     .filter((c) => details[c.clause] !== undefined)
     .map((c) => ({

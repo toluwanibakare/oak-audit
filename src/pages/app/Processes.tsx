@@ -9,6 +9,7 @@ import { PROCESSES } from "@/data/processAudit";
 import { PROCESSES_14001 } from "@/data/processAudit14001";
 import { PROCESSES_45001 } from "@/data/processAudit45001";
 import { HSE_PROCESSES } from "@/data/standardsHse";
+import { Plus, X } from "lucide-react";
 
 const ALL_STANDARD_PROCESSES = [
   ...PROCESSES,
@@ -28,7 +29,8 @@ export default function Processes() {
   const { toast } = useToast();
   const [list, setList] = useState<Proc[]>([]);
   const [form, setForm] = useState({ name: "", scope: "" });
-  const [selectedStdKey, setSelectedStdKey] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [processToDelete, setProcessToDelete] = useState<Proc | null>(null);
 
   const load = async () => {
     if (!currentOrg) return;
@@ -55,67 +57,118 @@ export default function Processes() {
     load();
   };
 
-  const addStandard = async () => {
-    if (!currentOrg || !selectedStdKey) return;
-    const proc = UNIQUE_STANDARD_PROCESSES.find((p) => p.key === selectedStdKey);
-    if (!proc) return;
-    const { error } = await supabase.from("org_processes").insert({
-      org_id: currentOrg.id, key: proc.key, name: proc.name, scope: proc.scope, is_custom: false,
-    });
-    if (error) return toast({ title: error.message, variant: "destructive" });
-    setSelectedStdKey("");
-    load();
-    toast({ title: `Process "${proc.name}" added successfully.` });
-  };
-
   const remove = async (id: string) => { await supabase.from("org_processes").delete().eq("id", id); load(); };
 
   const isIndividual = currentOrg?.type === "individual";
-  const existingKeys = new Set(list.map((p) => p.key));
-  const availableStandardProcs = UNIQUE_STANDARD_PROCESSES.filter((p) => !existingKeys.has(p.key));
 
   return (
     <AppShell>
-      <div className="flex items-end justify-between">
-        <Header title="Processes" subtitle="Standard ISO processes." />
-        {!isIndividual && (
-          <button onClick={seed} className="rounded-full border border-border bg-card px-4 py-2 text-sm">Add 18 standard processes</button>
-        )}
-      </div>
-
-      <div className="mt-6">
-        {/* Add Standard Process */}
-        <div className="rounded-2xl border border-border bg-card p-5 space-y-4 shadow-sm max-w-xl">
-          <div>
-            <h3 className="font-display text-sm font-semibold text-foreground">Add Standard Process</h3>
-            <p className="text-xs text-muted-foreground mt-0.5">Select a standard process to add to your organization's scope.</p>
-          </div>
-          <div className="flex gap-2">
-            <select
-              className="input flex-1 h-11"
-              value={selectedStdKey}
-              onChange={(e) => setSelectedStdKey(e.target.value)}
-            >
-              <option value="">-- Select standard process --</option>
-              {availableStandardProcs.map((p) => (
-                <option key={p.key} value={p.key}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            <button onClick={addStandard} disabled={!selectedStdKey} className="pill-cta h-11 px-5 text-sm font-semibold flex items-center justify-center shrink-0 disabled:opacity-50">
-              Add Process
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <Header title="Processes" subtitle="Manage and define your organizational processes." />
+        <div className="flex items-center gap-3">
+          {!isIndividual && (
+            <button onClick={seed} className="rounded-full border border-border bg-card px-4 py-2 text-sm transition hover:bg-secondary">
+              Add 18 standard processes
             </button>
-          </div>
+          )}
+          <button onClick={() => setIsModalOpen(true)} className="pill-cta px-4 py-2 text-sm font-semibold flex items-center gap-1.5">
+            <Plus className="h-4 w-4" />
+            Add Process
+          </button>
         </div>
       </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-elevated animate-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-4 right-4 rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="mb-4">
+              <h3 className="font-display text-lg font-semibold text-foreground">Add New Process</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Type in the name and scope of the process to add to your scope.</p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Process Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Sales, Procurement, Maintenance..."
+                  className="input w-full h-11"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Scope / Description</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Managing supplier relations and purchasing operations..."
+                  className="input w-full h-11"
+                  value={form.scope}
+                  onChange={(e) => setForm({ ...form, scope: e.target.value })}
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-secondary transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    await add();
+                    setIsModalOpen(false);
+                  }}
+                  disabled={!form.name.trim()}
+                  className="pill-cta px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                >
+                  Add Process
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {processToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-elevated animate-in zoom-in-95 duration-200">
+            <h3 className="font-display text-lg font-semibold text-foreground">Remove Process</h3>
+            <p className="text-sm text-muted-foreground mt-2">
+              Are you sure you want to remove the process <strong>{processToDelete.name}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3 pt-4">
+              <button
+                onClick={() => setProcessToDelete(null)}
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-secondary transition"
+              >
+                No, Keep
+              </button>
+              <button
+                onClick={async () => {
+                  await remove(processToDelete.id);
+                  setProcessToDelete(null);
+                }}
+                className="rounded-xl bg-destructive text-destructive-foreground px-4 py-2 text-sm font-semibold hover:bg-destructive/90 transition"
+              >
+                Yes, Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 grid gap-3 md:grid-cols-2">
         {list.map((p) => (
           <div key={p.id} className="rounded-2xl border border-border bg-card p-4">
             <div className="flex items-center justify-between">
               <h3 className="font-display text-base font-semibold">{p.name}</h3>
-              <button onClick={() => remove(p.id)} className="text-xs text-destructive hover:underline">Remove</button>
+              <button onClick={() => setProcessToDelete(p)} className="text-xs text-destructive hover:underline">Remove</button>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">{p.scope}</p>
             <span className="mt-3 inline-block rounded-full bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-wider">

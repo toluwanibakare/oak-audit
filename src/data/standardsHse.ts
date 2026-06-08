@@ -249,6 +249,7 @@ export const HSE_KEY_MAPPING: Record<string, HseProcessKey> = {
 };
 
 export function getQuestionsForHseProcess(proc: string): ClauseQuestionSet[] {
-  const mappedKey = (proc.startsWith("hse_") ? proc : (HSE_KEY_MAPPING[proc.toLowerCase()] ?? "hse_general")) as HseProcessKey;
+  const cleanProc = String(proc).startsWith("custom_") ? String(proc).substring(7) : proc;
+  const mappedKey = (cleanProc.startsWith("hse_") ? cleanProc : (HSE_KEY_MAPPING[cleanProc.toLowerCase()] ?? "hse_general")) as HseProcessKey;
   return HSE_QUESTIONS[mappedKey] ?? [];
 }
