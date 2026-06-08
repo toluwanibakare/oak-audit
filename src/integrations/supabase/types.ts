@@ -216,8 +216,10 @@ export type Database = {
           closed_at: string | null
           created_at: string
           created_by: string
+          criteria: string | null
           id: string
           lead_auditor_id: string | null
+          object: string | null
           org_id: string
           scope: string | null
           standard: string
@@ -230,8 +232,10 @@ export type Database = {
           closed_at?: string | null
           created_at?: string
           created_by: string
+          criteria?: string | null
           id?: string
           lead_auditor_id?: string | null
+          object?: string | null
           org_id: string
           scope?: string | null
           standard: string
@@ -244,8 +248,10 @@ export type Database = {
           closed_at?: string | null
           created_at?: string
           created_by?: string
+          criteria?: string | null
           id?: string
           lead_auditor_id?: string | null
+          object?: string | null
           org_id?: string
           scope?: string | null
           standard?: string

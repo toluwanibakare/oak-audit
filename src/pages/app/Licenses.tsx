@@ -29,6 +29,9 @@ export default function Licenses() {
   // Pack setup state
   const [configuringPack, setConfiguringPack] = useState<string | null>(null);
   const [auditTitle, setAuditTitle] = useState("");
+  const [auditCriteria, setAuditCriteria] = useState("");
+  const [auditScope, setAuditScope] = useState("");
+  const [auditObject, setAuditObject] = useState("");
   const [selectedAuditorId, setSelectedAuditorId] = useState("");
   const [auditors, setAuditors] = useState<{ id: string; name: string }[]>([]);
 
@@ -267,6 +270,9 @@ export default function Licenses() {
         org_id: currentOrg.id,
         standard: configuringPack,
         title: auditTitle.trim(),
+        criteria: auditCriteria.trim() || null,
+        scope: auditScope.trim() || null,
+        object: auditObject.trim() || null,
         lead_auditor_id: auditorId,
         status: "in_progress",
         started_at: new Date().toISOString(),
@@ -403,7 +409,10 @@ export default function Licenses() {
                   onClick={() => {
                     if (isProfileComplete) {
                       setConfiguringPack(p.code);
-                      setAuditTitle(`Q3 ${p.label}`);
+                      setAuditTitle("");
+                      setAuditCriteria("");
+                      setAuditScope("");
+                      setAuditObject("");
                       setSelectedAuditorId("");
                     }
                   }}
@@ -481,14 +490,44 @@ export default function Licenses() {
               </p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Title</label>
                 <input
-                  className="input w-full"
+                  className="input w-full font-sans text-sm"
                   value={auditTitle}
                   onChange={(e) => setAuditTitle(e.target.value)}
-                  placeholder="e.g. Q3 2026 ISO 9001 Audit"
+                  placeholder="e.g. Q3 2026 Internal Audit"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Criteria</label>
+                <input
+                  className="input w-full font-sans text-sm"
+                  value={auditCriteria}
+                  onChange={(e) => setAuditCriteria(e.target.value)}
+                  placeholder="e.g. ISO 14001:2015 & ISO 45001:2018"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Scope</label>
+                <input
+                  className="input w-full font-sans text-sm"
+                  value={auditScope}
+                  onChange={(e) => setAuditScope(e.target.value)}
+                  placeholder="e.g. Operations, Warehouse, and HR"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Object</label>
+                <input
+                  className="input w-full font-sans text-sm"
+                  value={auditObject}
+                  onChange={(e) => setAuditObject(e.target.value)}
+                  placeholder="e.g. Health, Safety & Environmental Management"
                 />
               </div>
 
@@ -521,9 +560,9 @@ export default function Licenses() {
             </div>
 
             <div className="rounded-2xl bg-secondary/40 p-4 border border-border/50 text-xs text-muted-foreground leading-relaxed">
-              <strong>Weekly Pricing & Locks Notice:</strong>
+              <strong>Audit Pricing & Locks Notice:</strong>
               <p className="mt-1">
-                This audit is pay-per-standard and pay-per-auditor. Access to this audit pack is valid for exactly 1 week from activation. Once created, the audit title and assigned auditor cannot be changed.
+                This audit is pay-per-standard and pay-per-auditor. Once created, the audit title and assigned auditor cannot be changed. The audit will remain open until you submit and generate your final report.
               </p>
             </div>
 

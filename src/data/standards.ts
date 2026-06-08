@@ -57,6 +57,7 @@ export function getProcessesFor(std: StandardKey) {
 }
 
 export function isProcessInStandard(std: StandardKey, key: string): boolean {
+  if (key.startsWith("custom_")) return true;
   const procs = getProcessesFor(std);
   return procs.some((p) => p.key === key);
 }
