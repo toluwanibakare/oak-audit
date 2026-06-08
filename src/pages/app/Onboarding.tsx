@@ -49,7 +49,30 @@ export default function Onboarding() {
     }
   }, [currentOrg, step]);
 
-  if (!currentOrg) return <AppShell><div>Loading…</div></AppShell>;
+  if (!currentOrg) {
+    return (
+      <AppShell>
+        <div className="mx-auto max-w-4xl animate-pulse space-y-8">
+          <div className="flex gap-2">
+            <div className="h-1.5 flex-1 rounded-full bg-secondary/80" />
+            <div className="h-1.5 flex-1 rounded-full bg-secondary/80" />
+            <div className="h-1.5 flex-1 rounded-full bg-secondary/80" />
+          </div>
+          <div className="rounded-[28px] border border-border bg-card p-8 space-y-6">
+            <div>
+              <div className="h-6 w-48 bg-secondary/80 rounded-lg mb-2" />
+              <div className="h-4 w-96 bg-secondary/70 rounded-md" />
+            </div>
+            <div className="space-y-3">
+              <div className="h-14 w-full bg-secondary/60 rounded-xl" />
+              <div className="h-14 w-full bg-secondary/60 rounded-xl" />
+            </div>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
 
   const addAuditor = async () => {
     if (!newAuditor.name.trim() || !newAuditor.email.trim() || !newAuditor.password.trim()) {

@@ -59,7 +59,8 @@ export function getProcessesFor(std: StandardKey) {
 export function isProcessInStandard(std: StandardKey, key: string): boolean {
   if (key.startsWith("custom_")) return true;
   const procs = getProcessesFor(std);
-  return procs.some((p) => p.key === key);
+  const normalizedKey = key.replace(/^hse_/, "");
+  return procs.some((p) => p.key === key || p.key.replace(/^hse_/, "") === normalizedKey);
 }
 
 export function getQuestionsFor(std: StandardKey, proc: AnyProcessKey): ClauseQuestionSet[] {

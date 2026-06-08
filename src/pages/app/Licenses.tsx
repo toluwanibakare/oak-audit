@@ -275,9 +275,7 @@ export default function Licenses() {
     }
 
     // 4. Seed audit processes and assign them to the selected auditor
-    const visibleProcs = finalProcs.filter((p) => {
-      return isProcessInStandard(configuringPack as any, p.key);
-    });
+
 
     const rows = visibleProcs.map((p) => ({
       audit_id: newAudit.id,

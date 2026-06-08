@@ -10,6 +10,8 @@ import { PROCESSES_14001 } from "@/data/processAudit14001";
 import { PROCESSES_45001 } from "@/data/processAudit45001";
 import { HSE_PROCESSES } from "@/data/standardsHse";
 import { Plus, X, ArrowLeft, Check, ClipboardCopy, HelpCircle } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
 
 const ALL_STANDARD_PROCESSES = [
   ...PROCESSES,
@@ -19,7 +21,7 @@ const ALL_STANDARD_PROCESSES = [
 ];
 
 const UNIQUE_STANDARD_PROCESSES = Array.from(
-  new Map(ALL_STANDARD_PROCESSES.map((p) => [p.key, p])).values()
+  new Map(ALL_STANDARD_PROCESSES.map((p) => [p.key.replace(/^hse_/, ""), { ...p, key: p.key.replace(/^hse_/, "") }])).values()
 );
 
 type Proc = { id: string; key: string; name: string; scope: string | null; is_custom: boolean };
@@ -53,24 +55,30 @@ export default function Processes() {
     evidence: "",
   });
   const [addingQuestion, setAddingQuestion] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
     if (!currentOrg) return;
-    const { data } = await supabase
-      .from("org_processes")
-      .select("*")
-      .eq("org_id", currentOrg.id)
-      .order("is_custom")
-      .order("name");
-    
-    const processesList = (data ?? []) as Proc[];
-    setList(processesList);
-    
-    // Pre-fill selection keys with currently selected standard processes
-    setSelectedStandardKeys(processesList.filter(p => !p.is_custom).map(p => p.key));
+    try {
+      const { data } = await supabase
+        .from("org_processes")
+        .select("*")
+        .eq("org_id", currentOrg.id)
+        .order("is_custom")
+        .order("name");
+      
+      const processesList = (data ?? []) as Proc[];
+      setList(processesList);
+      
+      // Pre-fill selection keys with currently selected standard processes
+      setSelectedStandardKeys(processesList.filter(p => !p.is_custom).map(p => p.key));
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { load(); }, [currentOrg]);
+
 
   const saveStandardSelection = async () => {
     if (!currentOrg) return;
@@ -228,7 +236,41 @@ export default function Processes() {
 
   const showSelectionGrid = list.length === 0 || isEditingStandards;
 
+  if (loading) {
+    return (
+      <AppShell>
+        <div className="flex flex-wrap items-center justify-between gap-4 animate-pulse">
+          <div>
+            <Skeleton className="h-9 w-48 bg-secondary/80 rounded-xl" />
+            <Skeleton className="mt-2 h-4 w-96 bg-secondary/70 rounded-md" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-48 bg-secondary/80 rounded-full" />
+            <Skeleton className="h-10 w-32 bg-secondary/80 rounded-full" />
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3 animate-pulse">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-[24px] border border-border bg-card p-5 space-y-4">
+              <Skeleton className="h-5 w-40 bg-secondary/80 rounded-lg" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full bg-secondary/60 rounded" />
+                <Skeleton className="h-4 w-5/6 bg-secondary/60 rounded" />
+              </div>
+              <div className="flex justify-between items-center pt-2">
+                <Skeleton className="h-8 w-20 bg-secondary/80 rounded-full" />
+                <Skeleton className="h-8 w-14 bg-secondary/85 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
+
     <AppShell>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Header 

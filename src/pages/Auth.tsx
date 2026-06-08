@@ -381,7 +381,7 @@ const Auth = () => {
               <p className="mt-1 text-sm text-muted-foreground">
                 {mode === "signup" 
                   ? (step === 1 ? "Start auditing in minutes." : "Required for determining your custom pricing tier.")
-                  : (mode === "forgot" ? "Retrieve access to your ISO AUDIT PORT workspace." : "Sign in to your ISO AUDIT PORT workspace.")}
+                  : (mode === "forgot" ? "Retrieve access to your ISO AUDIT MANAGEMENT PORT workspace." : "Sign in to your ISO AUDIT MANAGEMENT PORT workspace.")}
               </p>
 
               {/* Account Type Selector - Only visible in Step 1 of Sign Up */}
@@ -638,7 +638,7 @@ const Auth = () => {
                     <button onClick={() => switchMode("signin")} className="font-semibold text-foreground hover:underline transition">Sign in</button>
                   </>
                 ) : (
-                  <>New to ISO AUDIT PORT?{" "}
+                  <>New to ISO AUDIT MANAGEMENT PORT?{" "}
                     <button onClick={() => switchMode("signup")} className="font-semibold text-foreground hover:underline transition">Create an account</button>
                   </>
                 )}

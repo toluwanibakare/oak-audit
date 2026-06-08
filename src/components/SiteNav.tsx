@@ -22,8 +22,9 @@ export const SiteNav = ({ onSwitchToSignIn, onSwitchToSignUp }: SiteNavProps = {
         <Link to="/" className="flex items-center gap-2">
           <img src={logo} alt="Logo" className="h-9 w-auto" />
           <span className="font-display">
-            <span className="block text-base font-semibold tracking-tight leading-none">ISO AUDIT PORT</span>
-            <span className="block text-[10px] text-muted-foreground font-normal tracking-wide mt-0.5">powered by Oak Global</span>
+            <span className="block text-base font-semibold tracking-tight leading-none">ISO AUDIT MANAGEMENT PORT</span>
+            <span className="block text-[10px] text-muted-foreground font-normal tracking-wide mt-0.5">powered by Oak Global International</span>
+
           </span>
         </Link>
         <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">

@@ -151,18 +151,52 @@ const AuditReport = () => {
   if (loading || !audit) {
     return (
       <AppShell>
-        <div className="space-y-4">
-          <Skeleton className="h-10 w-40" />
-          <Skeleton className="h-40 w-full rounded-[28px]" />
-          <div className="grid gap-4 md:grid-cols-3">
-            <Skeleton className="h-72 w-full rounded-[28px]" />
-            <Skeleton className="h-72 w-full rounded-[28px]" />
-            <Skeleton className="h-72 w-full rounded-[28px]" />
+        <div className="flex justify-between animate-pulse">
+          <Skeleton className="h-5 w-28 bg-secondary/80 rounded" />
+          <Skeleton className="h-10 w-48 bg-secondary/80 rounded-full" />
+        </div>
+
+        <div className="mt-6 rounded-3xl border border-border bg-card p-10 shadow-card animate-pulse space-y-8">
+          <div className="flex flex-wrap items-start justify-between gap-5 border-b border-border pb-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <Skeleton className="h-14 w-14 rounded-2xl bg-secondary/80" />
+              <div className="space-y-2">
+                <Skeleton className="h-3.5 w-48 bg-secondary/80 rounded" />
+                <Skeleton className="h-8 w-72 bg-secondary/80 rounded-xl" />
+                <Skeleton className="h-4 w-60 bg-secondary/80 rounded" />
+              </div>
+            </div>
+            <Skeleton className="h-14 w-48 bg-secondary/80 rounded-2xl" />
+          </div>
+
+          <section className="grid gap-4 md:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-border bg-background/80 p-4 space-y-2">
+                <Skeleton className="h-3 w-16 bg-secondary/70 rounded" />
+                <Skeleton className="h-7 w-12 bg-secondary/85 rounded-lg" />
+              </div>
+            ))}
+          </section>
+
+          <div className="flex border-b border-border pb-px">
+            <Skeleton className="h-10 w-36 bg-secondary/80 rounded-t-lg" />
+            <Skeleton className="h-10 w-36 bg-secondary/80 rounded-t-lg ml-2" />
+            <Skeleton className="h-10 w-36 bg-secondary/80 rounded-t-lg ml-2" />
+          </div>
+
+          <div className="space-y-4 pt-4">
+            <Skeleton className="h-40 w-full bg-secondary/65 rounded-[28px]" />
+            <div className="grid gap-4 md:grid-cols-3">
+              <Skeleton className="h-72 w-full bg-secondary/65 rounded-[28px]" />
+              <Skeleton className="h-72 w-full bg-secondary/65 rounded-[28px]" />
+              <Skeleton className="h-72 w-full bg-secondary/65 rounded-[28px]" />
+            </div>
           </div>
         </div>
       </AppShell>
     );
   }
+
 
   const downloadCapaCsv = () => {
     const headers = [

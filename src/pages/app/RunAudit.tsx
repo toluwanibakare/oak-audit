@@ -9,6 +9,8 @@ import { getQuestionsFor, isProcessInStandard, type StandardKey } from "@/data/s
 import { useToast } from "@/hooks/use-toast";
 import { parseAuditNote, serializeAuditNote, safeEvidenceName, type EvidenceItem } from "@/lib/auditEvidence";
 import { HSE_CHECKLIST_DATA } from "@/data/hseInspectionChecklist";
+import { Skeleton } from "@/components/ui/skeleton";
+
 
 type Audit = { id: string; title: string; standard: string; scope: string | null; status: string; org_id: string };
 type Proc = { id: string; key: string; name: string };
@@ -50,6 +52,7 @@ export default function RunAudit() {
   const [tempAuditorId, setTempAuditorId] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
 
   const [showHseChecklist, setShowHseChecklist] = useState(false);
   const [checkedHseItems, setCheckedHseItems] = useState<Set<number>>(new Set());
@@ -179,8 +182,10 @@ export default function RunAudit() {
         findingMap[buildAnswerKey(meta.processId, finding.clause ?? "", meta.kind, meta.qRef)] = finding as FindingRow;
       });
       setFindingsMap(findingMap);
+      setPageLoading(false);
     })();
   }, [id, currentOrg, user]);
+
 
   useEffect(() => {
     if (!currentOrg || !audit || !activeProc) return;
@@ -424,7 +429,65 @@ export default function RunAudit() {
     return pending;
   }, [allAuditQuestions, answers]);
 
-  if (!audit) return <AppShell><div>Loading...</div></AppShell>;
+  if (pageLoading || !audit) {
+    return (
+      <AppShell>
+        <div className="flex flex-wrap items-end justify-between gap-3 animate-pulse">
+          <div>
+            <Skeleton className="h-3.5 w-20 bg-secondary/80 rounded" />
+            <Skeleton className="mt-2 h-9 w-72 bg-secondary/80 rounded-xl" />
+            <Skeleton className="mt-2.5 h-4 w-96 bg-secondary/80 rounded-lg" />
+          </div>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-4 w-24 bg-secondary/80 rounded" />
+            <Skeleton className="h-10 w-24 bg-secondary/80 rounded-full" />
+            <Skeleton className="h-10 w-36 bg-secondary/80 rounded-full" />
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start animate-pulse">
+          <aside className="rounded-[24px] border border-border bg-card p-4 lg:h-[calc(100vh-8rem)]">
+            <Skeleton className="h-4 w-24 bg-secondary/85 rounded-md mb-4" />
+            <div className="space-y-2">
+              <Skeleton className="h-9 w-full bg-secondary/70 rounded-xl" />
+              <Skeleton className="h-9 w-full bg-secondary/70 rounded-xl" />
+              <Skeleton className="h-9 w-full bg-secondary/70 rounded-xl" />
+              <Skeleton className="h-9 w-full bg-secondary/70 rounded-xl" />
+              <Skeleton className="h-9 w-full bg-secondary/70 rounded-xl" />
+            </div>
+          </aside>
+
+          <div className="min-h-0 space-y-5 flex-1">
+            <div className="rounded-[24px] border border-border bg-card p-6 space-y-4">
+              <div className="flex justify-between items-center">
+                <Skeleton className="h-5 w-48 bg-secondary/80 rounded-lg" />
+                <Skeleton className="h-9 w-32 bg-secondary/80 rounded-full" />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="rounded-[24px] border border-border bg-card p-6 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <Skeleton className="h-5 w-56 bg-secondary/80 rounded-lg" />
+                    <Skeleton className="h-6 w-20 bg-secondary/80 rounded-full" />
+                  </div>
+                  <Skeleton className="h-4 w-full bg-secondary/70 rounded" />
+                  <Skeleton className="h-4 w-5/6 bg-secondary/70 rounded" />
+                  <div className="flex gap-2.5 pt-2">
+                    <Skeleton className="h-9 w-24 bg-secondary/70 rounded-xl" />
+                    <Skeleton className="h-9 w-24 bg-secondary/70 rounded-xl" />
+                    <Skeleton className="h-9 w-24 bg-secondary/70 rounded-xl" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
 
   const submitAudit = async () => {
     if (!id) return;
@@ -475,7 +538,7 @@ export default function RunAudit() {
           <div className="space-y-3">
             <h2 className="font-display text-2xl font-extrabold tracking-tight">Generating ISO Compliance Report</h2>
             <p className="text-sm text-muted-foreground leading-relaxed font-sans">
-              ISO AUDIT PORT's compliance engine is currently compiling your audit checklists, calculating standard conformity scores, cross-mapping nonconformities, and preparing your formal regulatory audit reports.
+              ISO AUDIT MANAGEMENT PORT's compliance engine is currently compiling your audit checklists, calculating standard conformity scores, cross-mapping nonconformities, and preparing your formal regulatory audit reports.
             </p>
             <div className="py-2.5 px-4 bg-secondary/50 rounded-2xl text-xs text-muted-foreground inline-flex items-center gap-2">
               <Clock className="h-4 w-4 text-primary" />
@@ -532,7 +595,7 @@ export default function RunAudit() {
               This compliance audit has been formally <strong>signed off, locked, and securely archived</strong>.
             </p>
             <p>
-              In accordance with international ISO standards (ISO 19011) and ISO AUDIT PORT's proprietary data protection policy, <strong>all checklists, answer logs, and evidence links are permanently frozen</strong> to maintain regulatory integrity, compliance traceability, and prevent post-audit tampering.
+              In accordance with international ISO standards (ISO 19011) and ISO AUDIT MANAGEMENT PORT's proprietary data protection policy, <strong>all checklists, answer logs, and evidence links are permanently frozen</strong> to maintain regulatory integrity, compliance traceability, and prevent post-audit tampering.
             </p>
             <div className="grid gap-3 sm:grid-cols-2 pt-2">
               <div className="bg-secondary/40 border border-border/50 p-4 rounded-2xl">

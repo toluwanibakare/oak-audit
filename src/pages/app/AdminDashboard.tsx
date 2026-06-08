@@ -295,11 +295,11 @@ export default function AdminDashboard() {
 
           <div className="text-center relative z-10">
             <div className="flex justify-center mb-4">
-              <img src={logo} alt="ISO AUDIT PORT Logo" className="h-12 w-auto object-contain" />
+              <img src={logo} alt="ISO AUDIT MANAGEMENT PORT Logo" className="h-12 w-auto object-contain" />
             </div>
-            <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">ISO AUDIT PORT Admin Portal</h2>
+            <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">ISO AUDIT MANAGEMENT PORT Admin Portal</h2>
             <p className="text-[10px] uppercase font-mono tracking-wider text-slate-500 mt-1 select-none font-bold">
-              powered by Oak Global
+              powered by Oak Global International
             </p>
             <p className="mt-2 text-xs text-slate-400">
               Access restricted to corporate compliance administrators
@@ -346,7 +346,7 @@ export default function AdminDashboard() {
           </form>
 
           <div className="text-[10px] text-center text-slate-500 font-medium select-none pt-2 border-t border-slate-800/60 relative z-10">
-            © 2026 ISO AUDIT PORT (powered by Oak Global). All rights reserved.
+            © 2026 ISO AUDIT MANAGEMENT PORT (powered by Oak Global International). All rights reserved.
           </div>
         </div>
       </div>
@@ -359,15 +359,15 @@ export default function AdminDashboard() {
         {/* Header */}
         <header className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-900 pb-5">
           <div className="flex flex-wrap items-center gap-4">
-            <img src={logo} alt="ISO AUDIT PORT Logo" className="h-10 w-auto object-contain shrink-0" />
+            <img src={logo} alt="ISO AUDIT MANAGEMENT PORT Logo" className="h-10 w-auto object-contain shrink-0" />
             <div>
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
                 <ShieldCheck className="h-4 w-4" />
                 ISO Administration Console
               </div>
-              <h1 className="mt-1 font-display text-3xl font-extrabold tracking-tight">ISO AUDIT PORT</h1>
+              <h1 className="mt-1 font-display text-3xl font-extrabold tracking-tight">ISO AUDIT MANAGEMENT PORT</h1>
               <p className="text-[10px] uppercase font-mono tracking-wider text-slate-500 font-bold -mt-0.5">
-                powered by Oak Global
+                powered by Oak Global International
               </p>
               <p className="mt-1 text-sm text-slate-400">Review workspace registers, assess organizational size, and assign custom credit rates.</p>
             </div>
@@ -475,8 +475,19 @@ export default function AdminDashboard() {
               </div>
 
               {loading ? (
-                <div className="py-16 text-center text-sm text-slate-500">Querying secure database registers...</div>
+                <div className="space-y-3 animate-pulse">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="rounded-2xl border border-slate-900 bg-slate-900/30 p-4 flex flex-wrap items-center justify-between gap-4">
+                      <div className="space-y-2">
+                        <div className="h-4 w-48 bg-slate-800 rounded" />
+                        <div className="h-3 w-32 bg-slate-800/60 rounded" />
+                      </div>
+                      <div className="h-8 w-24 bg-slate-800 rounded-lg" />
+                    </div>
+                  ))}
+                </div>
               ) : filteredWorkspaces.length === 0 ? (
+
                 <div className="py-16 text-center text-sm text-slate-500">No workspaces match your query.</div>
               ) : (
                 <div className="space-y-3">
@@ -753,8 +764,19 @@ export default function AdminDashboard() {
               </div>
 
               {loading ? (
-                <div className="py-16 text-center text-sm text-slate-500">Querying tickets in secure database...</div>
+                <div className="space-y-3 animate-pulse">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="rounded-2xl border border-slate-900 bg-slate-900/30 p-4 flex flex-wrap items-center justify-between gap-4">
+                      <div className="space-y-2">
+                        <div className="h-4 w-36 bg-slate-800 rounded" />
+                        <div className="h-3 w-64 bg-slate-800/60 rounded" />
+                      </div>
+                      <div className="h-6 w-16 bg-slate-800 rounded-full" />
+                    </div>
+                  ))}
+                </div>
               ) : filteredTickets.length === 0 ? (
+
                 <div className="py-16 text-center text-sm text-slate-500">No support tickets match your search.</div>
               ) : (
                 <div className="space-y-3">

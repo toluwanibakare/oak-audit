@@ -308,7 +308,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
           <Settings className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-300 group-hover:rotate-45 group-hover:text-foreground" />
         </Link>
         <div className="pt-2 text-[10px] text-center text-muted-foreground/60 select-none font-medium">
-          © {new Date().getFullYear()} ISO AUDIT PORT. All rights reserved.
+          © {new Date().getFullYear()} ISO AUDIT MANAGEMENT PORT. All rights reserved.
         </div>
       </div>
     </div>
@@ -466,11 +466,12 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
             
             <div className="flex flex-col min-w-0">
               <span className="font-display text-xs sm:text-sm font-bold text-foreground tracking-tight whitespace-nowrap leading-none">
-                ISO AUDIT PORT
+                ISO AUDIT MANAGEMENT PORT
               </span>
               <span className="text-[8px] sm:text-[9px] text-muted-foreground font-normal tracking-wide mt-0.5 leading-none">
-                powered by Oak Global
+                powered by Oak Global International
               </span>
+
             </div>
             
             <div className="flex items-center gap-1.5 min-w-0">
