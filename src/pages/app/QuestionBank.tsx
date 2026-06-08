@@ -255,7 +255,19 @@ export default function QuestionBank() {
       });
     });
 
-    return list;
+    const clauseSort = (a: string) => a.split(".").map((n) => parseInt(n, 10) || 0);
+
+    return list.sort((a, b) => {
+      const A = clauseSort(a.clause), B = clauseSort(b.clause);
+      for (let i = 0; i < Math.max(A.length, B.length); i++) {
+        const x = A[i] ?? 0, y = B[i] ?? 0;
+        if (x !== y) return x - y;
+      }
+      if (a.isCustom !== b.isCustom) {
+        return a.isCustom ? -1 : 1;
+      }
+      return 0;
+    });
   }, [selectedAudit, selectedAuditProc, auditProcs, answers, customQuestions]);
 
   // Derived browse questions list

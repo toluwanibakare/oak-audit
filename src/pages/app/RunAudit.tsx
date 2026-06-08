@@ -786,6 +786,29 @@ export default function RunAudit() {
                     )}
 
                     <div className="mt-4 space-y-3">
+                      {custom.filter((item) => item.clause === clauseSet.clause).map((item, index) => {
+                        questionIndex++;
+                        return (
+                          <Row
+                            key={item.id}
+                            index={questionIndex}
+                            processId={activeProc}
+                            clause={clauseSet.clause}
+                            kind="custom"
+                            qRef={item.id}
+                            q={item.text}
+                            answers={answers}
+                            finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)]}
+                            evidenceHints={clauseSet.evidence ?? []}
+                            uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)}
+                            onSave={saveAnswer}
+                            onSyncFinding={syncFinding}
+                            onUploadEvidence={uploadEvidence}
+                            badge="Custom"
+                            readOnly={!canEdit}
+                          />
+                        );
+                      })}
                       {(clauseSet.generic ?? []).map((question: string, index: number) => {
                         questionIndex++;
                         return (
@@ -826,29 +849,6 @@ export default function RunAudit() {
                             onSave={saveAnswer}
                             onSyncFinding={syncFinding}
                             onUploadEvidence={uploadEvidence}
-                            readOnly={!canEdit}
-                          />
-                        );
-                      })}
-                      {custom.filter((item) => item.clause === clauseSet.clause).map((item, index) => {
-                        questionIndex++;
-                        return (
-                          <Row
-                            key={item.id}
-                            index={questionIndex}
-                            processId={activeProc}
-                            clause={clauseSet.clause}
-                            kind="custom"
-                            qRef={item.id}
-                            q={item.text}
-                            answers={answers}
-                            finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)]}
-                            evidenceHints={clauseSet.evidence ?? []}
-                            uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)}
-                            onSave={saveAnswer}
-                            onSyncFinding={syncFinding}
-                            onUploadEvidence={uploadEvidence}
-                            badge="Custom"
                             readOnly={!canEdit}
                           />
                         );
