@@ -54,8 +54,8 @@ const Auth = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [mode, setMode] = useState<"signin" | "signup">(
-    params.get("mode") === "signup" ? "signup" : "signin",
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">(
+    params.get("mode") === "signup" ? "signup" : (params.get("mode") === "forgot" ? "forgot" : "signin"),
   );
   
   // Multi-step signup flow states
@@ -63,6 +63,15 @@ const Auth = () => {
   const [accountType, setAccountType] = useState<"individual" | "organization">("individual");
   const [busy, setBusy] = useState(false);
   const [registered, setRegistered] = useState(false);
+
+  // Forgot password flow states
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [generatedOtp, setGeneratedOtp] = useState("");
+  const [showOtpModal, setShowOtpModal] = useState(false);
 
   // Form states to preserve inputs when navigating back/forth
   const [fullName, setFullName] = useState("");
@@ -87,14 +96,20 @@ const Auth = () => {
 
   // Sync mode state when URL param changes (e.g. browser back/forward)
   useEffect(() => {
-    const urlMode = params.get("mode") === "signup" ? "signup" : "signin";
-    setMode(urlMode);
+    const urlMode = params.get("mode");
+    if (urlMode === "signup") setMode("signup");
+    else if (urlMode === "forgot") setMode("forgot");
+    else setMode("signin");
   }, [params]);
 
   // Switch mode and keep URL in sync so SiteNav reads the correct state
-  const switchMode = (newMode: "signin" | "signup") => {
+  const switchMode = (newMode: "signin" | "signup" | "forgot") => {
     setMode(newMode);
-    navigate(newMode === "signup" ? "/auth?mode=signup" : "/auth", { replace: true });
+    if (newMode === "forgot") {
+      navigate("/auth?mode=forgot", { replace: true });
+    } else {
+      navigate(newMode === "signup" ? "/auth?mode=signup" : "/auth", { replace: true });
+    }
   };
 
   const handleNextStep = () => {
@@ -114,6 +129,55 @@ const Auth = () => {
     }
     
     setStep(2);
+  };
+
+  const handleSendForgotPasswordOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotEmail.trim()) {
+      return toast({ title: "Email is required", variant: "destructive" });
+    }
+    setBusy(true);
+    // Simulate sending OTP
+    setTimeout(() => {
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      setGeneratedOtp(otp);
+      setOtpSent(true);
+      setShowOtpModal(true);
+      setBusy(false);
+      toast({ title: "Simulated OTP code generated!" });
+    }, 800);
+  };
+
+  const handleVerifyForgotPasswordOtp = () => {
+    if (otpCode.trim() === generatedOtp) {
+      setOtpVerified(true);
+      setShowOtpModal(false);
+      toast({ title: "OTP verified!", description: "Please enter your new password." });
+    } else {
+      toast({ title: "Invalid OTP code", description: "Please check the code and try again.", variant: "destructive" });
+    }
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 8) {
+      return toast({ title: "Password must be at least 8 characters long", variant: "destructive" });
+    }
+    setBusy(true);
+    
+    // Simulate password reset
+    setTimeout(() => {
+      setBusy(false);
+      toast({ title: "Password reset successful", description: "You can now log in with your new password." });
+      setMode("signin");
+      // reset states
+      setForgotEmail("");
+      setOtpSent(false);
+      setOtpCode("");
+      setOtpVerified(false);
+      setNewPassword("");
+      setGeneratedOtp("");
+    }, 1000);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -257,15 +321,33 @@ const Auth = () => {
                   A verification link has been sent to your email address (<strong>{email}</strong>). Please check your email inbox and click the link to confirm your email address, then log in.
                 </p>
               </div>
-              <button
-                onClick={() => {
-                  setRegistered(false);
-                  switchMode("signin");
-                }}
-                className="pill-cta w-full py-2.5 text-sm font-semibold"
-              >
-                Go to Sign In
-              </button>
+              <div className="pt-2 space-y-3">
+                <button
+                  onClick={async () => {
+                    const { error } = await supabase.auth.resend({
+                      type: 'signup',
+                      email: email,
+                    });
+                    if (error) {
+                      toast({ title: "Failed to resend", description: error.message, variant: "destructive" });
+                    } else {
+                      toast({ title: "Verification link sent!", description: "Please check your inbox again." });
+                    }
+                  }}
+                  className="w-full rounded-full border border-border px-5 py-2.5 text-sm font-semibold hover:bg-secondary transition"
+                >
+                  Resend confirmation link
+                </button>
+                <button
+                  onClick={() => {
+                    setRegistered(false);
+                    switchMode("signin");
+                  }}
+                  className="pill-cta w-full py-2.5 text-sm font-semibold"
+                >
+                  Go to Sign In
+                </button>
+              </div>
             </div>
           ) : (
             <>
@@ -294,12 +376,12 @@ const Auth = () => {
               <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
                 {mode === "signup" 
                   ? (step === 1 ? "Create your account" : "Tell us about your organization") 
-                  : "Welcome back"}
+                  : (mode === "forgot" ? "Reset password" : "Welcome back")}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
                 {mode === "signup" 
                   ? (step === 1 ? "Start auditing in minutes." : "Required for determining your custom pricing tier.")
-                  : "Sign in to your ISO AUDIT PORT workspace."}
+                  : (mode === "forgot" ? "Retrieve access to your ISO AUDIT PORT workspace." : "Sign in to your ISO AUDIT PORT workspace.")}
               </p>
 
               {/* Account Type Selector - Only visible in Step 1 of Sign Up */}
@@ -322,166 +404,232 @@ const Auth = () => {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-                
-                {/* ── STEP 1 (SIGNUP) / SIGNIN FIELDS ── */}
-                {step === 1 && (
-                  <>
-                    {mode === "signup" && (
+              {mode === "forgot" ? (
+                <form onSubmit={otpVerified ? handleResetPasswordSubmit : handleSendForgotPasswordOtp} className="mt-6 space-y-4 animate-in fade-in duration-350">
+                  {!otpVerified ? (
+                    <>
                       <Field 
-                        label={accountType === "organization" ? "Organization name" : "Full name"} 
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        icon={User}
-                        placeholder={accountType === "organization" ? "e.g. Acme Corp" : "e.g. Adaeze Okonkwo"} 
+                        label="Account Email Address" 
+                        type="email" 
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        icon={Mail}
+                        placeholder="you@company.com" 
                         required 
                       />
-                    )}
-                    <Field 
-                      label="Email" 
-                      type="email" 
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      icon={Mail}
-                      placeholder="you@company.com" 
-                      required 
-                    />
-                    <PasswordField
-                      label="Password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      required
-                    />
-                  </>
-                )}
-
-                {/* ── STEP 2 (ORGANIZATION DETAILS) ── */}
-                {mode === "signup" && step === 2 && accountType === "organization" && (
-                  <div className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-300">
-                    <Field 
-                      label="Organization name" 
-                      value={orgName}
-                      onChange={(e) => setOrgName(e.target.value)}
-                      icon={Building2}
-                      placeholder="e.g. Lagos Port Authority" 
-                      required 
-                    />
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <SelectField 
-                        label="Industry" 
-                        value={industry}
-                        onChange={(e) => setIndustry(e.target.value)}
-                        icon={Building2}
-                        required
+                      <button 
+                        type="submit" 
+                        disabled={busy} 
+                        className="pill-cta w-full h-11 text-sm font-semibold flex items-center justify-center gap-1.5 transition duration-200 disabled:opacity-60 mt-2"
                       >
-                        <option value="">Select industry…</option>
-                        {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
-                      </SelectField>
-
-                      <SelectField 
-                        label="Company size" 
-                        value={size}
-                        onChange={(e) => setSize(e.target.value)}
-                        icon={Hash}
-                        required
-                      >
-                        <option value="">Select size…</option>
-                        <option value="1-10">1-10 employees</option>
-                        <option value="11-50">11-50 employees</option>
-                        <option value="51-200">51-200 employees</option>
-                        <option value="201-500">201-500 employees</option>
-                        <option value="500+">500+ employees</option>
-                      </SelectField>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Field 
-                        label="Company website" 
-                        value={website}
-                        onChange={(e) => setWebsite(e.target.value)}
-                        icon={Globe}
-                        placeholder="e.g. oak-global.com.ng" 
-                        required 
-                      />
-
-                      <Field 
-                        label="Contact phone number" 
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        icon={Phone}
-                        placeholder="e.g. +234 800 000 0000" 
-                        required 
-                      />
-                    </div>
-
-                    <TextareaField 
-                      label="Brief description" 
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      icon={TextQuote}
-                      placeholder="Describe your organization's business and audit needs..."
-                      rows={2}
-                      required 
-                    />
-
-                    <TextareaField 
-                      label="Office address" 
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      icon={MapPin}
-                      placeholder="Physical office address" 
-                      rows={2}
-                      required 
-                    />
-                  </div>
-                )}
-
-                {/* ── ACTION CONTROLS ── */}
-                <div className="pt-2 flex gap-3">
-                  {/* Back button (Only visible in step 2 of Organization signup) */}
-                  {mode === "signup" && step === 2 && accountType === "organization" && (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => setStep(1)}
-                      className="rounded-full px-5 h-11 border border-border bg-background text-sm font-semibold hover:bg-secondary flex items-center justify-center gap-1.5 transition duration-200 disabled:opacity-60"
-                    >
-                      <ArrowLeft className="h-4 w-4" />
-                      Back
-                    </button>
-                  )}
-
-                  {/* Submit / Next Button */}
-                  {mode === "signup" && step === 1 && accountType === "organization" ? (
-                    <button
-                      type="button"
-                      onClick={handleNextStep}
-                      className="pill-cta flex-1 h-11 text-sm font-semibold flex items-center justify-center gap-1.5 transition duration-200"
-                    >
-                      Continue to company profile
-                      <ArrowRight className="h-4 w-4" />
-                    </button>
+                        {busy ? "Sending Verification OTP..." : "Send Reset OTP"}
+                      </button>
+                    </>
                   ) : (
-                    <button 
-                      type="submit" 
-                      disabled={busy} 
-                      className="pill-cta flex-1 h-11 text-sm font-semibold flex items-center justify-center gap-1.5 transition duration-200 disabled:opacity-60"
-                    >
-                      {busy ? "Please wait…" : (
-                        mode === "signup" ? (
-                          <>
-                            Create account
-                            <CheckCircle2 className="h-4 w-4" />
-                          </>
-                        ) : "Sign in"
-                      )}
-                    </button>
+                    <>
+                      <div className="rounded-xl border border-success/35 bg-success/5 p-4 text-xs text-success leading-relaxed mb-4">
+                        ✓ OTP Verified. Please enter your new password below.
+                      </div>
+                      <PasswordField
+                        label="New Password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="••••••••"
+                        required
+                      />
+                      <button 
+                        type="submit" 
+                        disabled={busy} 
+                        className="pill-cta w-full h-11 text-sm font-semibold flex items-center justify-center gap-1.5 transition duration-200 disabled:opacity-60 mt-2"
+                      >
+                        {busy ? "Updating Password..." : "Update Password & Sign In"}
+                      </button>
+                    </>
                   )}
-                </div>
+                  
+                  <div className="mt-6 text-center text-sm text-muted-foreground">
+                    <button 
+                      type="button" 
+                      onClick={() => switchMode("signin")} 
+                      className="font-semibold text-foreground hover:underline transition"
+                    >
+                      Back to Sign In
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                  
+                  {/* ── STEP 1 (SIGNUP) / SIGNIN FIELDS ── */}
+                  {step === 1 && (
+                    <>
+                      {mode === "signup" && (
+                        <Field 
+                          label={accountType === "organization" ? "Organization name" : "Full name"} 
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          icon={User}
+                          placeholder={accountType === "organization" ? "e.g. Acme Corp" : "e.g. Adaeze Okonkwo"} 
+                          required 
+                        />
+                      )}
+                      <Field 
+                        label="Email" 
+                        type="email" 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        icon={Mail}
+                        placeholder="you@company.com" 
+                        required 
+                      />
+                      <PasswordField
+                        label="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        required
+                      />
+                      {mode === "signin" && (
+                        <div className="flex justify-end -mt-2">
+                          <button
+                            type="button"
+                            onClick={() => switchMode("forgot")}
+                            className="text-xs text-primary font-semibold hover:underline"
+                          >
+                            Forgot password?
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
 
-              </form>
+                  {/* ── STEP 2 (ORGANIZATION DETAILS) ── */}
+                  {mode === "signup" && step === 2 && accountType === "organization" && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-3 duration-300">
+                      <Field 
+                        label="Organization name" 
+                        value={orgName}
+                        onChange={(e) => setOrgName(e.target.value)}
+                        icon={Building2}
+                        placeholder="e.g. Lagos Port Authority" 
+                        required 
+                      />
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <SelectField 
+                          label="Industry" 
+                          value={industry}
+                          onChange={(e) => setIndustry(e.target.value)}
+                          icon={Building2}
+                          required
+                        >
+                          <option value="">Select industry…</option>
+                          {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
+                        </SelectField>
+
+                        <SelectField 
+                          label="Company size" 
+                          value={size}
+                          onChange={(e) => setSize(e.target.value)}
+                          icon={Hash}
+                          required
+                        >
+                          <option value="">Select size…</option>
+                          <option value="1-10">1-10 employees</option>
+                          <option value="11-50">11-50 employees</option>
+                          <option value="51-200">51-200 employees</option>
+                          <option value="201-500">201-500 employees</option>
+                          <option value="500+">500+ employees</option>
+                        </SelectField>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Field 
+                          label="Company website" 
+                          value={website}
+                          onChange={(e) => setWebsite(e.target.value)}
+                          icon={Globe}
+                          placeholder="e.g. oak-global.com.ng" 
+                          required 
+                        />
+
+                        <Field 
+                          label="Contact phone number" 
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          icon={Phone}
+                          placeholder="e.g. +234 800 000 0000" 
+                          required 
+                        />
+                      </div>
+
+                      <TextareaField 
+                        label="Brief description" 
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        icon={TextQuote}
+                        placeholder="Describe your organization's business and audit needs..."
+                        rows={2}
+                        required 
+                      />
+
+                      <TextareaField 
+                        label="Office address" 
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        icon={MapPin}
+                        placeholder="Physical office address" 
+                        rows={2}
+                        required 
+                      />
+                    </div>
+                  )}
+
+                  {/* ── ACTION CONTROLS ── */}
+                  <div className="pt-2 flex gap-3">
+                    {/* Back button (Only visible in step 2 of Organization signup) */}
+                    {mode === "signup" && step === 2 && accountType === "organization" && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setStep(1)}
+                        className="rounded-full px-5 h-11 border border-border bg-background text-sm font-semibold hover:bg-secondary flex items-center justify-center gap-1.5 transition duration-200 disabled:opacity-60"
+                      >
+                        <ArrowLeft className="h-4 w-4" />
+                        Back
+                      </button>
+                    )}
+
+                    {/* Submit / Next Button */}
+                    {mode === "signup" && step === 1 && accountType === "organization" ? (
+                      <button
+                        type="button"
+                        onClick={handleNextStep}
+                        className="pill-cta flex-1 h-11 text-sm font-semibold flex items-center justify-center gap-1.5 transition duration-200"
+                      >
+                        Continue to company profile
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <button 
+                        type="submit" 
+                        disabled={busy} 
+                        className="pill-cta flex-1 h-11 text-sm font-semibold flex items-center justify-center gap-1.5 transition duration-200 disabled:opacity-60"
+                      >
+                        {busy ? "Please wait…" : (
+                          mode === "signup" ? (
+                            <>
+                              Create account
+                              <CheckCircle2 className="h-4 w-4" />
+                            </>
+                          ) : "Sign in"
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                </form>
+              )}
 
               {/* Switch mode links */}
               <div className="mt-6 text-center text-sm text-muted-foreground">
@@ -502,6 +650,55 @@ const Auth = () => {
           ← Back to home
         </Link>
       </main>
+
+      {showOtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="w-full max-w-sm rounded-[24px] border border-border bg-card p-6 shadow-elevated animate-scale-up space-y-4">
+            <div className="text-center">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Simulated OTP Delivery</span>
+              <h3 className="font-display text-lg font-bold text-foreground mt-1">Check Your Phone/Inbox</h3>
+              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                An verification OTP code has been simulated for your workspace email account.
+              </p>
+              <div className="my-4 p-3 bg-secondary/80 rounded-xl border border-border font-mono text-2xl font-extrabold tracking-widest text-primary animate-pulse">
+                {generatedOtp}
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Enter 6-Digit OTP</label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="e.g. 123456"
+                  className="input w-full text-center font-mono font-bold text-lg tracking-widest h-11"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                />
+              </div>
+              
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowOtpModal(false)}
+                  className="pill-secondary flex-grow justify-center"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleVerifyForgotPasswordOtp}
+                  disabled={otpCode.length !== 6}
+                  className="pill-cta flex-grow justify-center disabled:opacity-50"
+                >
+                  Verify Code
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

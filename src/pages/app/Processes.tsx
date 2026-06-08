@@ -3,13 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { AppShell } from "@/components/app/AppShell";
 import { Header } from "./Team";
-import { seedStandardProcesses } from "@/lib/seedProcesses";
 import { useToast } from "@/hooks/use-toast";
+import { getQuestionsFor } from "@/data/standards";
 import { PROCESSES } from "@/data/processAudit";
 import { PROCESSES_14001 } from "@/data/processAudit14001";
 import { PROCESSES_45001 } from "@/data/processAudit45001";
 import { HSE_PROCESSES } from "@/data/standardsHse";
-import { Plus, X } from "lucide-react";
+import { Plus, X, ArrowLeft, Check, ClipboardCopy, HelpCircle } from "lucide-react";
 
 const ALL_STANDARD_PROCESSES = [
   ...PROCESSES,
@@ -32,100 +32,365 @@ export default function Processes() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [processToDelete, setProcessToDelete] = useState<Proc | null>(null);
 
+  // Selection states for standard processes
+  const [isEditingStandards, setIsEditingStandards] = useState(false);
+  const [selectedStandardKeys, setSelectedStandardKeys] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  // Custom Process Question Setup Modal states
+  const [showCustomSetupModal, setShowCustomSetupModal] = useState(false);
+  const [createdCustomProcessKey, setCreatedCustomProcessKey] = useState("");
+  const [createdCustomProcessName, setCreatedCustomProcessName] = useState("");
+  
+  // Custom Question Form
+  const [importFromKey, setImportFromKey] = useState("");
+  const [importing, setImporting] = useState(false);
+  
+  const [customQuestion, setCustomQuestion] = useState({
+    standard: "9001",
+    clause: "4.1",
+    text: "",
+    evidence: "",
+  });
+  const [addingQuestion, setAddingQuestion] = useState(false);
+
   const load = async () => {
     if (!currentOrg) return;
-    const { data } = await supabase.from("org_processes").select("*").eq("org_id", currentOrg.id).order("is_custom").order("name");
-    setList((data ?? []) as Proc[]);
+    const { data } = await supabase
+      .from("org_processes")
+      .select("*")
+      .eq("org_id", currentOrg.id)
+      .order("is_custom")
+      .order("name");
+    
+    const processesList = (data ?? []) as Proc[];
+    setList(processesList);
+    
+    // Pre-fill selection keys with currently selected standard processes
+    setSelectedStandardKeys(processesList.filter(p => !p.is_custom).map(p => p.key));
   };
+
   useEffect(() => { load(); }, [currentOrg]);
 
-  const seed = async () => {
+  const saveStandardSelection = async () => {
     if (!currentOrg) return;
-    await seedStandardProcesses(currentOrg.id);
-    toast({ title: "Standard processes added" });
-    load();
+    setSaving(true);
+    try {
+      // Clear existing non-custom processes from org_processes
+      await supabase.from("org_processes").delete().eq("org_id", currentOrg.id).eq("is_custom", false);
+      
+      // Insert selected ones
+      const toInsert = UNIQUE_STANDARD_PROCESSES.filter(sp => selectedStandardKeys.includes(sp.key)).map(sp => ({
+        org_id: currentOrg.id,
+        key: sp.key,
+        name: sp.name,
+        scope: sp.scope || "",
+        is_custom: false
+      }));
+
+      if (toInsert.length > 0) {
+        const { error } = await supabase.from("org_processes").insert(toInsert);
+        if (error) throw error;
+      }
+
+      toast({ title: "Processes list updated successfully!" });
+      setIsEditingStandards(false);
+      load();
+    } catch (err: any) {
+      toast({ title: "Failed to update standard processes", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const add = async () => {
     if (!currentOrg || !form.name.trim()) return;
-    const key = "custom_" + form.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 40);
+
+    const cleanName = form.name.trim();
+    const cleanNameLower = cleanName.toLowerCase();
+    const matchingStandard = UNIQUE_STANDARD_PROCESSES.find(
+      sp => sp.name.toLowerCase() === cleanNameLower || sp.key === cleanNameLower
+    );
+
+    let key = "";
+    let isCustom = true;
+    
+    if (matchingStandard) {
+      key = matchingStandard.key;
+      isCustom = false;
+    } else {
+      key = "custom_" + cleanNameLower.replace(/[^a-z0-9]+/g, "_").slice(0, 40);
+      isCustom = true;
+    }
+
     const { error } = await supabase.from("org_processes").insert({
-      org_id: currentOrg.id, key, name: form.name, scope: form.scope, is_custom: true,
+      org_id: currentOrg.id,
+      key,
+      name: cleanName,
+      scope: form.scope,
+      is_custom: isCustom,
     });
+
     if (error) return toast({ title: error.message, variant: "destructive" });
+
     setForm({ name: "", scope: "" });
-    load();
+    setIsModalOpen(false);
+    await load();
+
+    if (isCustom) {
+      setCreatedCustomProcessKey(key);
+      setCreatedCustomProcessName(cleanName);
+      setImportFromKey("");
+      setShowCustomSetupModal(true);
+    } else {
+      toast({ title: "Standard process added successfully." });
+    }
   };
 
-  const remove = async (id: string) => { await supabase.from("org_processes").delete().eq("id", id); load(); };
+  const remove = async (id: string) => { 
+    await supabase.from("org_processes").delete().eq("id", id); 
+    load(); 
+  };
 
-  const isIndividual = currentOrg?.type === "individual";
+  // Import standard questions for a custom process key
+  const handleImportQuestions = async () => {
+    if (!currentOrg || !createdCustomProcessKey || !importFromKey) return;
+    setImporting(true);
+    try {
+      const standardsList: ("9001" | "14001" | "45001")[] = ["9001", "14001", "45001"];
+      const insertRows: any[] = [];
+      const userUuid = (await supabase.auth.getUser()).data.user?.id || currentOrg.id;
+
+      for (const std of standardsList) {
+        const qSets = getQuestionsFor(std, importFromKey as any);
+        if (qSets && qSets.length > 0) {
+          qSets.forEach((qs) => {
+            (qs.specific ?? []).forEach((qText) => {
+              insertRows.push({
+                org_id: currentOrg.id,
+                standard: std,
+                process_key: createdCustomProcessKey,
+                clause: qs.clause,
+                kind: "specific",
+                text: qText,
+                evidence: qs.evidence ? qs.evidence.join(", ") : null,
+                created_by: userUuid,
+                active: true
+              });
+            });
+          });
+        }
+      }
+
+      if (insertRows.length > 0) {
+        const { error } = await supabase.from("custom_questions").insert(insertRows);
+        if (error) throw error;
+        toast({ title: "Questions imported successfully", description: `${insertRows.length} questions copied.` });
+        setShowCustomSetupModal(false);
+      } else {
+        toast({ title: "No questions found to import for selected standard process." });
+      }
+    } catch (err: any) {
+      toast({ title: "Import failed", description: err.message, variant: "destructive" });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // Add individual custom question
+  const handleAddCustomQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentOrg || !createdCustomProcessKey || !customQuestion.text.trim()) return;
+    setAddingQuestion(true);
+    try {
+      const userUuid = (await supabase.auth.getUser()).data.user?.id || currentOrg.id;
+      const { error } = await supabase.from("custom_questions").insert({
+        org_id: currentOrg.id,
+        standard: customQuestion.standard,
+        process_key: createdCustomProcessKey,
+        clause: customQuestion.clause,
+        kind: "specific",
+        text: customQuestion.text.trim(),
+        evidence: customQuestion.evidence.trim() || null,
+        created_by: userUuid,
+        active: true
+      });
+
+      if (error) throw error;
+      toast({ title: "Custom question added successfully" });
+      setCustomQuestion({ ...customQuestion, text: "", evidence: "" });
+    } catch (err: any) {
+      toast({ title: "Failed to add question", description: err.message, variant: "destructive" });
+    } finally {
+      setAddingQuestion(false);
+    }
+  };
+
+  const showSelectionGrid = list.length === 0 || isEditingStandards;
 
   return (
     <AppShell>
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <Header title="Processes" subtitle="Manage and define your organizational processes." />
+        <Header 
+          title="Processes" 
+          subtitle={showSelectionGrid ? "Select the standard processes operating in your organization." : "Manage and define your organizational processes."} 
+        />
         <div className="flex items-center gap-3">
-          {!isIndividual && (
-            <button onClick={seed} className="rounded-full border border-border bg-card px-4 py-2 text-sm transition hover:bg-secondary">
-              Add 18 standard processes
+          {!showSelectionGrid && (
+            <button 
+              onClick={() => setIsEditingStandards(true)} 
+              className="rounded-full border border-border bg-card px-4 py-2 text-sm transition hover:bg-secondary font-semibold"
+            >
+              Configure Standard Processes
             </button>
           )}
-          <button onClick={() => setIsModalOpen(true)} className="pill-cta px-4 py-2 text-sm font-semibold flex items-center gap-1.5">
-            <Plus className="h-4 w-4" />
-            Add Process
-          </button>
+          {!showSelectionGrid && (
+            <button onClick={() => setIsModalOpen(true)} className="pill-cta px-4 py-2 text-sm font-semibold flex items-center gap-1.5">
+              <Plus className="h-4 w-4" />
+              Add Process
+            </button>
+          )}
         </div>
       </div>
 
+      {showSelectionGrid ? (
+        <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-card space-y-6 animate-fade-in-up">
+          <div className="flex justify-between items-center pb-4 border-b border-border">
+            <div>
+              <h3 className="font-display text-lg font-bold">Standard Processes Checklist</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Check all the processes that apply. You must choose at least one standard process to run audits.</p>
+            </div>
+            {list.length > 0 && (
+              <button 
+                onClick={() => setIsEditingStandards(false)} 
+                className="text-xs font-bold text-muted-foreground hover:text-foreground flex items-center gap-1"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                Cancel
+              </button>
+            )}
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 max-h-[400px] overflow-y-auto pr-1">
+            {UNIQUE_STANDARD_PROCESSES.map((sp) => {
+              const checked = selectedStandardKeys.includes(sp.key);
+              return (
+                <label 
+                  key={sp.key} 
+                  className={`flex items-start gap-3 rounded-2xl border p-4 text-sm transition cursor-pointer select-none ${
+                    checked ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-muted-foreground/30 bg-background/50"
+                  }`}
+                >
+                  <input 
+                    type="checkbox" 
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary mt-0.5"
+                    checked={checked} 
+                    onChange={() =>
+                      setSelectedStandardKeys(
+                        checked 
+                          ? selectedStandardKeys.filter((k) => k !== sp.key) 
+                          : [...selectedStandardKeys, sp.key]
+                      )
+                    } 
+                  />
+                  <div>
+                    <strong className="block text-foreground">{sp.name}</strong>
+                    <span className="text-xs text-muted-foreground mt-1 block leading-normal">{sp.scope}</span>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-border">
+            {list.length > 0 && (
+              <button 
+                disabled={saving}
+                onClick={() => setIsEditingStandards(false)} 
+                className="rounded-full border border-border px-5 py-2 text-sm font-semibold hover:bg-secondary transition"
+              >
+                Cancel
+              </button>
+            )}
+            <button 
+              onClick={saveStandardSelection}
+              disabled={saving || selectedStandardKeys.length === 0}
+              className="pill-cta px-6 py-2 text-sm font-semibold disabled:opacity-50"
+            >
+              {saving ? "Saving Changes..." : "Save Selected Processes"}
+            </button>
+          </div>
+        </section>
+      ) : (
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          {list.map((p) => (
+            <div key={p.id} className="rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:shadow-card hover:border-muted-foreground/20 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-display text-base font-bold text-foreground">{p.name}</h3>
+                  <button onClick={() => setProcessToDelete(p)} className="text-xs text-destructive hover:underline font-semibold">Remove</button>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{p.scope || "No description mapped."}</p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between">
+                <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                  p.is_custom ? "bg-accent/20 text-accent" : "bg-primary/20 text-primary"
+                }`}>
+                  {p.is_custom ? "Custom" : "Standard"}
+                </span>
+                <span className="font-mono text-[10px] text-slate-500">{p.key}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Custom Process Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-elevated animate-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-elevated animate-in zoom-in-95 duration-200">
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition"
+              className="absolute top-5 right-5 rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition"
             >
               <X className="h-4 w-4" />
             </button>
-            <div className="mb-4">
-              <h3 className="font-display text-lg font-semibold text-foreground">Add New Process</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Type in the name and scope of the process to add to your scope.</p>
+            <div className="mb-5">
+              <h3 className="font-display text-xl font-bold text-foreground">Add Custom Process</h3>
+              <p className="text-xs text-muted-foreground mt-1">Define your own customized corporate workflow to audit.</p>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Process Name</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Process Name</label>
                 <input
                   type="text"
-                  placeholder="e.g. Sales, Procurement, Maintenance..."
+                  placeholder="e.g. Fleet Logistics"
                   className="input w-full h-11"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Scope / Description</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Scope / Description</label>
                 <input
                   type="text"
-                  placeholder="e.g. Managing supplier relations and purchasing operations..."
+                  placeholder="e.g. Managing supplier shipments, truck maintenance..."
                   className="input w-full h-11"
                   value={form.scope}
                   onChange={(e) => setForm({ ...form, scope: e.target.value })}
                 />
               </div>
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-end gap-3 pt-3">
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-secondary transition"
+                  className="rounded-xl border border-border bg-card px-5 py-2 text-sm font-semibold hover:bg-secondary transition"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={async () => {
-                    await add();
-                    setIsModalOpen(false);
-                  }}
+                  onClick={add}
                   disabled={!form.name.trim()}
-                  className="pill-cta px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                  className="pill-cta px-5 py-2 text-sm font-semibold disabled:opacity-50"
                 >
                   Add Process
                 </button>
@@ -135,11 +400,12 @@ export default function Processes() {
         </div>
       )}
 
+      {/* Remove Process Warning Modal */}
       {processToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="relative w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-elevated animate-in zoom-in-95 duration-200">
-            <h3 className="font-display text-lg font-semibold text-foreground">Remove Process</h3>
-            <p className="text-sm text-muted-foreground mt-2">
+            <h3 className="font-display text-lg font-bold text-foreground">Remove Process</h3>
+            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
               Are you sure you want to remove the process <strong>{processToDelete.name}</strong>? This action cannot be undone.
             </p>
             <div className="flex justify-end gap-3 pt-4">
@@ -147,14 +413,14 @@ export default function Processes() {
                 onClick={() => setProcessToDelete(null)}
                 className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-secondary transition"
               >
-                No, Keep
+                Cancel
               </button>
               <button
                 onClick={async () => {
                   await remove(processToDelete.id);
                   setProcessToDelete(null);
                 }}
-                className="rounded-xl bg-destructive text-destructive-foreground px-4 py-2 text-sm font-semibold hover:bg-destructive/90 transition"
+                className="rounded-xl bg-destructive text-white px-4 py-2 text-sm font-semibold hover:bg-destructive/90 transition"
               >
                 Yes, Remove
               </button>
@@ -163,21 +429,138 @@ export default function Processes() {
         </div>
       )}
 
-      <div className="mt-6 grid gap-3 md:grid-cols-2">
-        {list.map((p) => (
-          <div key={p.id} className="rounded-2xl border border-border bg-card p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-display text-base font-semibold">{p.name}</h3>
-              <button onClick={() => setProcessToDelete(p)} className="text-xs text-destructive hover:underline">Remove</button>
+      {/* Custom Process Setup Helper Popup Modal */}
+      {showCustomSetupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-xl rounded-[32px] border border-border bg-card p-8 shadow-elevated animate-in zoom-in-95 duration-200 space-y-6 max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowCustomSetupModal(false)}
+              className="absolute top-6 right-6 rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Custom Process Question Setup</span>
+              <h3 className="font-display text-2xl font-extrabold text-foreground mt-1">Configure {createdCustomProcessName} Checklist</h3>
+              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                By default, this custom process contains standard QMS clause generic questions. You can copy the question bank of another standard process or write your own custom questions now.
+              </p>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">{p.scope}</p>
-            <span className="mt-3 inline-block rounded-full bg-secondary px-2 py-0.5 text-[10px] uppercase tracking-wider">
-              {p.is_custom ? "Custom" : "Standard"} · {p.key}
-            </span>
+
+            {/* Option 1: Import questions */}
+            <div className="border border-border/80 rounded-2xl p-5 bg-secondary/30 space-y-4">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground">
+                <ClipboardCopy className="h-4 w-4 text-primary" />
+                Import Questions from Standard Process
+              </div>
+              
+              <div className="flex flex-wrap gap-3 items-end">
+                <div className="flex-1 min-w-[200px]">
+                  <label className="block text-[10px] text-muted-foreground font-semibold uppercase mb-1">Standard Process Template</label>
+                  <select
+                    className="input w-full font-sans text-xs font-semibold"
+                    value={importFromKey}
+                    onChange={(e) => setImportFromKey(e.target.value)}
+                  >
+                    <option value="">— Select Template Process —</option>
+                    {UNIQUE_STANDARD_PROCESSES.map((sp) => (
+                      <option key={sp.key} value={sp.key}>{sp.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={handleImportQuestions}
+                  disabled={importing || !importFromKey}
+                  className="pill-cta h-11 shrink-0 font-semibold px-4"
+                >
+                  {importing ? "Importing..." : "Copy Question Bank"}
+                </button>
+              </div>
+            </div>
+
+            {/* Option 2: Add single custom question */}
+            <form onSubmit={handleAddCustomQuestion} className="border border-border/80 rounded-2xl p-5 bg-secondary/30 space-y-4">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground">
+                <HelpCircle className="h-4 w-4 text-primary" />
+                Add Individual Custom Question
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label className="block text-[10px] text-muted-foreground font-semibold uppercase mb-1">Standard</label>
+                  <select
+                    className="input w-full font-sans text-xs font-semibold"
+                    value={customQuestion.standard}
+                    onChange={(e) => setCustomQuestion({ ...customQuestion, standard: e.target.value })}
+                  >
+                    <option value="9001">ISO 9001 (Quality)</option>
+                    <option value="14001">ISO 14001 (Env)</option>
+                    <option value="45001">ISO 45001 (OH&S)</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-[10px] text-muted-foreground font-semibold uppercase mb-1">Clause</label>
+                  <input
+                    type="text"
+                    className="input w-full font-sans text-xs font-semibold"
+                    placeholder="e.g. 4.1 or 8.2"
+                    value={customQuestion.clause}
+                    onChange={(e) => setCustomQuestion({ ...customQuestion, clause: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="block text-[10px] text-muted-foreground font-semibold uppercase mb-1">Question Text</label>
+                  <textarea
+                    rows={2}
+                    className="input w-full font-sans text-xs leading-normal py-2"
+                    placeholder="Type the specific query/check the auditor should verify..."
+                    value={customQuestion.text}
+                    onChange={(e) => setCustomQuestion({ ...customQuestion, text: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="block text-[10px] text-muted-foreground font-semibold uppercase mb-1">Expected Evidence (Optional)</label>
+                  <input
+                    type="text"
+                    className="input w-full font-sans text-xs"
+                    placeholder="e.g. Logistics invoices, dispatch logs..."
+                    value={customQuestion.evidence}
+                    onChange={(e) => setCustomQuestion({ ...customQuestion, evidence: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={addingQuestion || !customQuestion.text.trim()}
+                  className="pill-cta h-10 px-5 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+                >
+                  {addingQuestion ? "Adding..." : "Add Question"}
+                </button>
+              </div>
+            </form>
+
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => setShowCustomSetupModal(false)}
+                className="pill-secondary px-8 py-2 font-bold uppercase tracking-wider"
+              >
+                Close & Finish Setup
+              </button>
+            </div>
           </div>
-        ))}
-        {list.length === 0 && <div className="text-sm text-muted-foreground">No processes yet. Select a process from the list above or onboard standard ones.</div>}
-      </div>
+        </div>
+      )}
     </AppShell>
   );
 }
