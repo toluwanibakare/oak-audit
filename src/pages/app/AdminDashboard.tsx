@@ -61,6 +61,33 @@ export default function AdminDashboard() {
   const [saving, setSaving] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
+  const [workspaceAuditors, setWorkspaceAuditors] = useState<{ id: string; name: string; email: string; role: string; user_id: string | null }[]>([]);
+  const [loadingAuditors, setLoadingAuditors] = useState(false);
+
+  useEffect(() => {
+    if (!selectedWorkspace || selectedWorkspace.type !== "organization") {
+      setWorkspaceAuditors([]);
+      return;
+    }
+    (async () => {
+      setLoadingAuditors(true);
+      try {
+        const { data, error } = await supabase
+          .from("auditors")
+          .select("id,name,email,role,user_id")
+          .eq("org_id", selectedWorkspace.id);
+        if (data) {
+          setWorkspaceAuditors(data as any);
+        }
+      } catch (err) {
+        console.error("Failed to load auditors", err);
+      } finally {
+        setLoadingAuditors(false);
+      }
+    })();
+  }, [selectedWorkspace]);
+
+
   // Support Tickets State
   const [activeTab, setActiveTab] = useState<"workspaces" | "tickets">("workspaces");
   const [tickets, setTickets] = useState<any[]>([]);
@@ -598,6 +625,39 @@ export default function AdminDashboard() {
                         <p><span className="text-slate-500 block">{isCompany ? "Corporate Overview / Scope:" : "Professional Bio / Scope:"}</span> <strong className="text-slate-100 block mt-0.5 text-slate-300 italic">{addrData?.description || "Not provided"}</strong></p>
                       </div>
                     </div>
+
+                    {isCompany && (
+                      <div className="rounded-2xl bg-slate-950 border border-slate-800 p-4 space-y-3">
+                        <div className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 pb-2 border-b border-slate-850">
+                          <Users className="h-4 w-4 text-primary" />
+                          <span>Certified Auditor Team ({workspaceAuditors.length})</span>
+                        </div>
+                        {loadingAuditors ? (
+                          <div className="text-xs text-slate-500 py-3 animate-pulse">Loading auditor roster...</div>
+                        ) : workspaceAuditors.length === 0 ? (
+                          <div className="text-xs text-slate-500 py-3">No certified auditors registered in this organization.</div>
+                        ) : (
+                          <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+                            {workspaceAuditors.map((auditor) => (
+                              <div key={auditor.id} className="flex items-center justify-between gap-4 text-xs p-2.5 rounded-xl bg-slate-900/40 border border-slate-850/60">
+                                <div className="space-y-0.5 min-w-0">
+                                  <strong className="text-slate-200 block truncate">{auditor.name}</strong>
+                                  <span className="block font-mono text-[10px] text-slate-400 truncate">{auditor.email || "No email"}</span>
+                                </div>
+                                <span className={`rounded-full px-2 py-0.5 text-[9px] font-semibold border shrink-0 ${
+                                  auditor.role === "Lead Auditor" || auditor.role === "lead_auditor"
+                                    ? "bg-primary/10 border-primary/20 text-primary"
+                                    : "bg-slate-800 border-slate-700 text-slate-300"
+                                }`}>
+                                  {auditor.role === "lead_auditor" ? "Lead Auditor" : auditor.role}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
 
                     <div className="space-y-4">
                       <div className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between gap-2 pb-1 border-b border-slate-800/40">
