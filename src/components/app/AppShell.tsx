@@ -33,8 +33,8 @@ const ORG_NAV = [
   { to: "/app/licenses", label: "Audit Packs", icon: Receipt },
   { to: "/app/processes", label: "Processes", icon: Workflow },
   { to: "/app/team", label: "My Team", icon: Users },
-  { to: "/app/audits", label: "My Audits", icon: ClipboardCheck },
   { to: "/app/question-bank", label: "Question Banks", icon: BookOpen },
+  { to: "/app/audits", label: "My Audits", icon: ClipboardCheck },
   { to: "/app/findings", label: "Findings", icon: AlertTriangle },
   { to: "/app/mrm", label: "Management Review", icon: FileText },
   { to: "/contact", label: "Help & Support", icon: LifeBuoy },
@@ -44,8 +44,8 @@ const INDIVIDUAL_NAV = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/app/licenses", label: "Audit Packs", icon: Receipt },
   { to: "/app/processes", label: "Processes", icon: Workflow },
-  { to: "/app/audits", label: "My Audits", icon: ClipboardCheck },
   { to: "/app/question-bank", label: "Question Banks", icon: BookOpen },
+  { to: "/app/audits", label: "My Audits", icon: ClipboardCheck },
   { to: "/app/findings", label: "Findings", icon: AlertTriangle },
   { to: "/contact", label: "Help & Support", icon: LifeBuoy },
 ];
@@ -212,7 +212,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
                     e.preventDefault();
                     toast({
                       title: "Workspace under review",
-                      description: "Your organization workspace is currently being reviewed by OAK Global administrators. Access to this section will be unlocked once approved.",
+                      description: "Your organization workspace is currently being reviewed by compliance administrators. Access to this section will be unlocked once approved.",
                     });
                     return;
                   }
@@ -295,7 +295,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
           <Settings className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-300 group-hover:rotate-45 group-hover:text-foreground" />
         </Link>
         <div className="pt-2 text-[10px] text-center text-muted-foreground/60 select-none font-medium">
-          © {new Date().getFullYear()} OAK Global. All rights reserved.
+          © {new Date().getFullYear()} ISO AUDIT PORT. All rights reserved.
         </div>
       </div>
     </div>
@@ -319,8 +319,8 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
             </h2>
             <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
               {isIndividual 
-                ? "OAK Global's compliance administrators are reviewing your auditor profile details to activate your account and configure your pricing allocation."
-                : "OAK Global International's compliance administrators are reviewing your company profile details to assess organizational size and activate tailored pricing structures for your audit runs."}
+                ? "Platform compliance administrators are reviewing your auditor profile details to activate your account and configure your pricing allocation."
+                : "Platform compliance administrators are reviewing your company profile details to assess organizational size and activate tailored pricing structures for your audit runs."}
             </p>
           </div>
 
@@ -454,7 +454,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
             
             <div className="flex items-center gap-1.5 min-w-0">
               <span className="font-display text-sm font-bold text-foreground tracking-tight whitespace-nowrap truncate max-w-[100px] sm:max-w-none">
-                OAK Global
+                ISO AUDIT PORT
               </span>
               {orgs.length > 1 ? (
                 <div className="flex items-center gap-1 min-w-0">

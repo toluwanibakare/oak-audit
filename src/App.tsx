@@ -89,7 +89,7 @@ const App = () => {
     
     console.log("%cSTOP! Proprietary Software Notice", warningStyle);
     console.log(
-      "%cThis platform and all its source files, database schemas, question checklists, and design systems are the highly confidential, proprietary intellectual property of OAK Global International.\n\nUnauthorized inspection, duplication, decompilation, scraping, or usage is strictly prohibited under international copyright law and subject to immediate civil and criminal prosecution.",
+      "%cThis platform and all its source files, database schemas, question checklists, and design systems are the highly confidential, proprietary intellectual property of ISO AUDIT PORT.\n\nUnauthorized inspection, duplication, decompilation, scraping, or usage is strictly prohibited under international copyright law and subject to immediate civil and criminal prosecution.",
       "font-size: 1.1em; color: #cbd5e1; line-height: 1.4; margin-bottom: 12px; font-weight: 500;"
     );
     console.log("%cFor licensing inquiries: o.kolawole@oak-global.com.ng", infoStyle);

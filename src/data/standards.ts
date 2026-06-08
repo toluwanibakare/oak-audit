@@ -18,6 +18,11 @@ import {
   getQuestionsForHseProcess,
   type HseProcessKey,
 } from "./standardsHse";
+import {
+  IMS_PROCESSES,
+  getQuestionsForImsProcess,
+  type ImsProcessKey,
+} from "./standardsIms";
 
 export type StandardKey = "9001" | "45001" | "14001" | "ims" | "hse";
 
@@ -37,7 +42,7 @@ export const STANDARDS: StandardMeta[] = [
   { key: "hse",   code: "HSE Site Inspection", name: "HSE Site Inspection", tagline: "Health, Safety & Environment Site Inspection", storageKey: "conformia-process-audit-hse-v1" },
 ];
 
-export type AnyProcessKey = ProcessKey | HseProcessKey;
+export type AnyProcessKey = ProcessKey | HseProcessKey | ImsProcessKey;
 
 export function getStandard(key: StandardKey): StandardMeta {
   return STANDARDS.find((s) => s.key === key) ?? STANDARDS[0];
@@ -47,14 +52,15 @@ export function getProcessesFor(std: StandardKey) {
   if (std === "45001") return PROCESSES_45001;
   if (std === "14001") return PROCESSES_14001;
   if (std === "hse") return HSE_PROCESSES;
+  if (std === "ims") return IMS_PROCESSES;
   return PROCESSES;
 }
 
 export function getQuestionsFor(std: StandardKey, proc: AnyProcessKey): ClauseQuestionSet[] {
   if (std === "45001") return getQuestionsForProcess45001(proc as never) as unknown as ClauseQuestionSet[];
   if (std === "14001") return getQuestionsForProcess14001(proc as never) as unknown as ClauseQuestionSet[];
-  if (std === "hse") return getQuestionsForHseProcess(proc);
-  if (std === "ims") return getQuestionsForIms(proc as ProcessKey);
+  if (std === "hse") return getQuestionsForHseProcess(proc as HseProcessKey);
+  if (std === "ims") return getQuestionsForImsProcess(proc as ImsProcessKey);
   return getQuestionsForProcess(proc as ProcessKey);
 }
 

@@ -76,8 +76,15 @@ export default function RunAudit() {
 
       const std = currentAudit.standard;
       if (std === "hse") {
-        const { HSE_PROCESSES } = await import("@/data/standardsHse");
+        const { HSE_PROCESSES } = await import("../../data/standardsHse");
         toInsert = HSE_PROCESSES.filter((p) => !existingKeys.has(p.key)).map((p) => ({
+          org_id: currentOrg.id,
+          key: p.key,
+          name: p.name,
+        }));
+      } else if (std === "ims") {
+        const { IMS_PROCESSES } = await import("../../data/standardsIms");
+        toInsert = IMS_PROCESSES.filter((p) => !existingKeys.has(p.key)).map((p) => ({
           org_id: currentOrg.id,
           key: p.key,
           name: p.name,
@@ -97,7 +104,7 @@ export default function RunAudit() {
           name: p.name,
         }));
       } else {
-        // 9001 or ims
+        // 9001
         const { PROCESSES } = await import("@/data/processAudit");
         toInsert = PROCESSES.filter((p) => !existingKeys.has(p.key)).map((p) => ({
           org_id: currentOrg.id,
@@ -115,7 +122,10 @@ export default function RunAudit() {
       // 3. Filter procs by standard to match the active scope
       const visibleProcs = finalProcs.filter((p) => {
         const isHseProc = p.key && p.key.startsWith("hse_");
-        return std === "hse" ? isHseProc : !isHseProc;
+        const isImsProc = p.key && p.key.startsWith("ims_");
+        if (std === "hse") return isHseProc;
+        if (std === "ims") return isImsProc;
+        return !isHseProc && !isImsProc;
       });
 
       // 4. Fetch audit processes
@@ -460,6 +470,24 @@ export default function RunAudit() {
     setAudit(audit ? { ...audit, status: "generating", closed_at: new Date().toISOString() } : null);
   };
 
+  const closeAudit = async () => {
+    if (!id) return;
+    setIsSubmitting(true);
+    const { error } = await supabase
+      .from("audits")
+      .update({ status: "closed", closed_at: new Date().toISOString() })
+      .eq("id", id);
+      
+    setIsSubmitting(false);
+    if (error) {
+      toast({ title: "Failed to close audit", description: error.message, variant: "destructive" });
+      return;
+    }
+    
+    toast({ title: "Audit Closed Successfully", description: "This audit has been closed and archived." });
+    setAudit(audit ? { ...audit, status: "closed", closed_at: new Date().toISOString() } : null);
+  };
+
   if (audit.status === "generating") {
     return (
       <AppShell>
@@ -473,7 +501,7 @@ export default function RunAudit() {
           <div className="space-y-3">
             <h2 className="font-display text-2xl font-extrabold tracking-tight">Generating ISO Compliance Report</h2>
             <p className="text-sm text-muted-foreground leading-relaxed font-sans">
-              OAK Global's compliance engine is currently compiling your audit checklists, calculating standard conformity scores, cross-mapping nonconformities, and preparing your formal regulatory audit reports.
+              ISO AUDIT PORT's compliance engine is currently compiling your audit checklists, calculating standard conformity scores, cross-mapping nonconformities, and preparing your formal regulatory audit reports.
             </p>
             <div className="py-2.5 px-4 bg-secondary/50 rounded-2xl text-xs text-muted-foreground inline-flex items-center gap-2">
               <Clock className="h-4 w-4 text-primary" />
@@ -530,7 +558,7 @@ export default function RunAudit() {
               This compliance audit has been formally <strong>signed off, locked, and securely archived</strong>.
             </p>
             <p>
-              In accordance with international ISO standards (ISO 19011) and OAK Global's proprietary data protection policy, <strong>all checklists, answer logs, and evidence links are permanently frozen</strong> to maintain regulatory integrity, compliance traceability, and prevent post-audit tampering.
+              In accordance with international ISO standards (ISO 19011) and ISO AUDIT PORT's proprietary data protection policy, <strong>all checklists, answer logs, and evidence links are permanently frozen</strong> to maintain regulatory integrity, compliance traceability, and prevent post-audit tampering.
             </p>
             <div className="grid gap-3 sm:grid-cols-2 pt-2">
               <div className="bg-secondary/40 border border-border/50 p-4 rounded-2xl">
@@ -581,14 +609,24 @@ export default function RunAudit() {
                 Submit Audit ({pendingCount} pending)
               </button>
             ) : (
-              <button
-                onClick={submitAudit}
-                disabled={isSubmitting}
-                className="pill-cta animate-pulse flex items-center gap-1.5"
-              >
-                <Unlock className="h-3.5 w-3.5" />
-                {isSubmitting ? "Submitting..." : "Submit & Generate Report"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={closeAudit}
+                  disabled={isSubmitting}
+                  className="pill-secondary flex items-center gap-1.5 border-destructive text-destructive hover:bg-destructive/10"
+                >
+                  <Lock className="h-3.5 w-3.5" />
+                  {isSubmitting ? "Closing..." : "Close Audit"}
+                </button>
+                <button
+                  onClick={submitAudit}
+                  disabled={isSubmitting}
+                  className="pill-cta animate-pulse flex items-center gap-1.5"
+                >
+                  <Unlock className="h-3.5 w-3.5" />
+                  {isSubmitting ? "Submitting..." : "Submit & Generate Report"}
+                </button>
+              </div>
             )
           )}
         </div>

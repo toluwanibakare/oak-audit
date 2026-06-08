@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { type ProcessKey } from "@/data/processAudit";
 import {
   STANDARDS,
   getStandard,
   getProcessesFor,
   getQuestionsFor,
   type StandardKey,
+  type AnyProcessKey,
 } from "@/data/standards";
 
 type FieldKey = "note" | "status" | "severity" | "auditor" | "auditee";
@@ -28,7 +28,7 @@ const ProcessAudit = () => {
   const processes = useMemo(() => getProcessesFor(standard.key), [standard.key]);
   const STORAGE_KEY = standard.storageKey;
 
-  const [active, setActive] = useState<ProcessKey>("top_management");
+  const [active, setActive] = useState<AnyProcessKey>("top_management");
   const [entries, setEntries] = useState<Entries>(() => {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}") as Entries;
@@ -139,7 +139,7 @@ const ProcessAudit = () => {
                   return (
                     <button
                       key={p.key}
-                      onClick={() => setActive(p.key as ProcessKey)}
+                      onClick={() => setActive(p.key as AnyProcessKey)}
                       className={`flex w-full items-start justify-between gap-2 px-4 py-3 text-left transition ${
                         isActive ? "bg-foreground/[0.04]" : "hover:bg-secondary"
                       }`}

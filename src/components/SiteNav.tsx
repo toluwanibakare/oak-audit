@@ -20,9 +20,10 @@ export const SiteNav = ({ onSwitchToSignIn, onSwitchToSignUp }: SiteNavProps = {
     <header className="relative z-20">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-10">
         <Link to="/" className="flex items-center gap-2">
-          <img src={logo} alt="OAK Logo" className="h-9 w-auto" />
-          <span className="font-display text-base font-semibold tracking-tight">
-            OAK Global<span className="ml-1 text-muted-foreground">ISO Audit</span>
+          <img src={logo} alt="Logo" className="h-9 w-auto" />
+          <span className="font-display">
+            <span className="block text-base font-semibold tracking-tight leading-none">ISO AUDIT PORT</span>
+            <span className="block text-[10px] text-muted-foreground font-normal tracking-wide mt-0.5">powered by Oak Global</span>
           </span>
         </Link>
         <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
