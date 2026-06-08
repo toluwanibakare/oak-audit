@@ -188,12 +188,21 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl border border-border bg-secondary/60 px-3 py-2.5">
-              <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Current workspace</div>
-              <div className="mt-0.5 truncate text-sm font-semibold text-foreground">
-                {currentOrg?.name ?? "Loading..."}
+            <div className="rounded-2xl border border-border bg-secondary/60 px-3 py-2.5 flex items-center gap-3">
+              {currentOrg?.logo_url ? (
+                <img src={currentOrg.logo_url} alt="Workspace Logo" className="h-9 w-9 rounded-xl object-cover shrink-0 border border-border bg-background" />
+              ) : (
+                <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <Users className="h-4.5 w-4.5" />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Current workspace</div>
+                <div className="mt-0.5 truncate text-sm font-bold text-foreground">
+                  {currentOrg?.name ?? "Loading..."}
+                </div>
+                <div className="text-[11px] text-muted-foreground font-medium">Team audit command</div>
               </div>
-              <div className="text-[11px] text-muted-foreground">Team audit command</div>
             </div>
           )}
         </div>
@@ -285,9 +294,13 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
           onClick={() => setIsMobileOpen(false)}
           className="flex w-full items-center gap-3 rounded-2xl border border-border bg-background/70 px-3.5 py-2.5 text-left transition duration-200 hover:bg-secondary group"
         >
-          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary transition-colors duration-200 group-hover:bg-primary group-hover:text-primary-foreground">
-            <User className="h-4 w-4" />
-          </div>
+          {!isIndividual && currentOrg?.logo_url ? (
+            <img src={currentOrg.logo_url} alt="Company Logo" className="h-8 w-8 rounded-full object-cover shrink-0 border border-border" />
+          ) : (
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary transition-colors duration-200 group-hover:bg-primary group-hover:text-primary-foreground">
+              <User className="h-4 w-4" />
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-semibold text-foreground group-hover:text-primary transition-colors duration-150">{displayName}</div>
             <div className="truncate text-[11px] text-muted-foreground">{displayEmail}</div>

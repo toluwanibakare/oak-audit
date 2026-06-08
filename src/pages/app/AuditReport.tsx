@@ -144,7 +144,7 @@ const AuditReport = () => {
         status: finding.status,
         dueDate: finding.due_date,
       })),
-      logoUrl: logo,
+      logoUrl: currentOrg?.logo_url || undefined,
     });
   };
 
