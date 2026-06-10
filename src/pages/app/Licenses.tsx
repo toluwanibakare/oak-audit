@@ -274,13 +274,23 @@ export default function Licenses() {
       return;
     }
 
-    // 4. Seed audit processes and assign them to the selected auditor
+    // 4. Seed audit processes and assign them to their default mapped auditors first, falling back to the lead auditor
+    const { data: assignmentsData } = await supabase
+      .from("process_assignments")
+      .select("process_id, auditor_id")
+      .eq("org_id", currentOrg.id);
 
+    const assignmentMap = new Map<string, string>();
+    if (assignmentsData) {
+      assignmentsData.forEach((a) => {
+        assignmentMap.set(a.process_id, a.auditor_id);
+      });
+    }
 
     const rows = visibleProcs.map((p) => ({
       audit_id: newAudit.id,
       process_id: p.id,
-      auditor_id: auditorId,
+      auditor_id: assignmentMap.get(p.id) || auditorId,
     }));
 
     if (rows.length > 0) {

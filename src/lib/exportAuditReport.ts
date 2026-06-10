@@ -9,6 +9,8 @@ type ExportAuditMeta = {
   startedAt?: string | null;
   closedAt?: string | null;
   generatedAt?: string;
+  orgType?: "individual" | "organization";
+  auditorName?: string;
 };
 
 type ExportAuditAnswer = {
@@ -491,7 +493,10 @@ export function exportAuditReport({
     <div class="subtitle">${escape(meta.organization)} · Certified Standard ${escape(meta.standard)} Audit Report</div>
     
     <table class="meta-table" style="margin-top: 20px; box-shadow: none;">
-      <tr><td>Client Organization</td><td>${escape(meta.organization)}</td></tr>
+      ${meta.orgType === "individual"
+        ? `<tr><td>Full Name</td><td>${escape(meta.auditorName || meta.organization)}</td></tr>`
+        : `<tr><td>Client Organization</td><td>${escape(meta.organization)}</td></tr>`
+      }
       <tr><td>Audit Title</td><td>${escape(meta.auditTitle)}</td></tr>
       <tr><td>Standard Reference</td><td>${escape(meta.standard)}</td></tr>
       <tr><td>Audit Scope</td><td>${escape(meta.scope || "Entire Management System scope mapped across operational units.")}</td></tr>
@@ -505,7 +510,7 @@ export function exportAuditReport({
 
   <h2>1. Executive Summary</h2>
   <p style="font-size:13.5px; color:#334155;">
-    This comprehensive audit report details findings and evaluations recorded during the formal review of <strong>${escape(meta.organization)}</strong>. 
+    This comprehensive audit report details findings and evaluations recorded during the formal review of <strong>${escape(meta.orgType === "individual" ? (meta.auditorName || meta.organization) : meta.organization)}</strong>. 
     A total of <strong>${total}</strong> response items were assessed by the audit team to determine systemic alignment with requirements. 
     Critical gaps, procedural exceptions, and opportunities for improvement are recorded under findings and action plans below.
   </p>

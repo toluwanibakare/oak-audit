@@ -4,7 +4,7 @@ import { useOrg } from "@/hooks/useOrg";
 import { useToast } from "@/hooks/use-toast";
 import { AppShell } from "@/components/app/AppShell";
 
-type Auditor = { id: string; name: string; email: string | null; role: string | null; certifications: string | null };
+type Auditor = { id: string; name: string; email: string | null; role: string | null; certifications: string | null; user_id: string | null };
 
 export default function Team() {
   const { currentOrg } = useOrg();
@@ -62,6 +62,21 @@ export default function Team() {
         throw new Error("Failed to retrieve user identifier.");
       }
 
+      // Add auditor to organization members and assign roles
+      const { error: memberError } = await supabase.from("organization_members").insert({
+        org_id: currentOrg.id,
+        user_id: userUuid,
+        status: "active",
+      });
+      if (memberError) throw memberError;
+
+      const { error: roleError } = await supabase.from("user_roles").insert({
+        user_id: userUuid,
+        org_id: currentOrg.id,
+        role: form.role,
+      });
+      if (roleError) throw roleError;
+
       const { error } = await supabase.from("auditors").insert({
         org_id: currentOrg.id,
         name: form.name.trim(),
@@ -84,6 +99,18 @@ export default function Team() {
   };
 
   const remove = async (id: string) => {
+    // Fetch user_id first to clean up workspace access
+    const { data: auditorData } = await supabase
+      .from("auditors")
+      .select("user_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (auditorData?.user_id && currentOrg) {
+      await supabase.from("user_roles").delete().eq("user_id", auditorData.user_id).eq("org_id", currentOrg.id);
+      await supabase.from("organization_members").delete().eq("user_id", auditorData.user_id).eq("org_id", currentOrg.id);
+    }
+
     await supabase.from("auditors").delete().eq("id", id);
     load();
   };

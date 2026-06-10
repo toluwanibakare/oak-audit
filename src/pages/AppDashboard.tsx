@@ -242,8 +242,14 @@ const AppDashboard = () => {
         <Link to="/app/onboarding" className="mt-6 block rounded-2xl border border-gold bg-gold/5 p-5 transition hover:shadow-elevated">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <strong className="font-display text-base">Finish setting up your organization -&gt;</strong>
-              <p className="mt-1 text-sm text-muted-foreground">Add your audit team, processes, and assignment matrix before you scale up more audits.</p>
+              <strong className="font-display text-base">
+                {currentOrg?.type === "individual" ? "Finish setting up your account ->" : "Finish setting up your organization ->"}
+              </strong>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {currentOrg?.type === "individual" 
+                  ? "Define your processes and checklists before you scale up more audits."
+                  : "Add your audit team, processes, and assignment matrix before you scale up more audits."}
+              </p>
             </div>
             <span className="rounded-full bg-gold/20 px-3 py-1 text-xs font-medium uppercase text-gold">Onboard</span>
           </div>

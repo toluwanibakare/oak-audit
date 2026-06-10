@@ -64,6 +64,57 @@ export default function Processes() {
   const [addingQuestion, setAddingQuestion] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Loaded custom questions for management
+  const [customQuestions, setCustomQuestions] = useState<{ id: string; standard: string; clause: string; text: string; evidence: string | null }[]>([]);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
+
+  const loadCustomQuestionsForProcess = async (processKey: string) => {
+    if (!currentOrg) return;
+    setLoadingQuestions(true);
+    try {
+      const { data, error } = await supabase
+        .from("custom_questions")
+        .select("id,standard,clause,text,evidence")
+        .eq("org_id", currentOrg.id)
+        .eq("process_key", processKey)
+        .eq("active", true)
+        .order("standard")
+        .order("clause");
+      if (error) throw error;
+      setCustomQuestions(data ?? []);
+    } catch (err: any) {
+      console.error("Failed to load custom questions:", err);
+    } finally {
+      setLoadingQuestions(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showCustomSetupModal && createdCustomProcessKey) {
+      loadCustomQuestionsForProcess(createdCustomProcessKey);
+    } else {
+      setCustomQuestions([]);
+    }
+  }, [showCustomSetupModal, createdCustomProcessKey]);
+
+  const handleDeleteCustomQuestion = async (qId: string) => {
+    if (!window.confirm("Are you sure you want to delete this custom question?")) return;
+    try {
+      const { error } = await supabase
+        .from("custom_questions")
+        .update({ active: false })
+        .eq("id", qId);
+
+      if (error) throw error;
+      toast({ title: "Question deleted successfully" });
+      if (createdCustomProcessKey) {
+        loadCustomQuestionsForProcess(createdCustomProcessKey);
+      }
+    } catch (err: any) {
+      toast({ title: "Failed to delete question", description: err.message, variant: "destructive" });
+    }
+  };
+
   const load = async () => {
     if (!currentOrg) return;
     try {
@@ -209,7 +260,9 @@ export default function Processes() {
         const { error } = await supabase.from("custom_questions").insert(insertRows);
         if (error) throw error;
         toast({ title: "Questions imported successfully", description: `${insertRows.length} questions copied.` });
-        setShowCustomSetupModal(false);
+        if (createdCustomProcessKey) {
+          loadCustomQuestionsForProcess(createdCustomProcessKey);
+        }
       } else {
         toast({ title: "No questions found to import for selected standard process." });
       }
@@ -242,6 +295,9 @@ export default function Processes() {
       if (error) throw error;
       toast({ title: "Custom question added successfully" });
       setCustomQuestion({ ...customQuestion, text: "", evidence: "" });
+      if (createdCustomProcessKey) {
+        loadCustomQuestionsForProcess(createdCustomProcessKey);
+      }
     } catch (err: any) {
       toast({ title: "Failed to add question", description: err.message, variant: "destructive" });
     } finally {
@@ -390,11 +446,26 @@ export default function Processes() {
                 <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{p.scope || "No description mapped."}</p>
               </div>
               <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between">
-                <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                  p.is_custom ? "bg-accent/20 text-accent" : "bg-primary/20 text-primary"
-                }`}>
-                  {p.is_custom ? "Custom" : "Standard"}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                    p.is_custom ? "bg-accent/20 text-accent" : "bg-primary/20 text-primary"
+                  }`}>
+                    {p.is_custom ? "Custom" : "Standard"}
+                  </span>
+                  {p.is_custom && (
+                    <button
+                      onClick={() => {
+                        setCreatedCustomProcessKey(p.key);
+                        setCreatedCustomProcessName(p.name);
+                        setImportFromKey("");
+                        setShowCustomSetupModal(true);
+                      }}
+                      className="text-xs font-semibold text-primary hover:underline"
+                    >
+                      Manage Questions
+                    </button>
+                  )}
+                </div>
                 <span className="font-mono text-[10px] text-slate-500">{p.key}</span>
               </div>
             </div>
@@ -503,6 +574,38 @@ export default function Processes() {
               <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
                 By default, this custom process contains standard QMS clause generic questions. You can copy the question bank of another standard process or write your own custom questions now.
               </p>
+            </div>
+
+            {/* List of current custom questions */}
+            <div className="border border-border/80 rounded-2xl p-5 bg-secondary/30 space-y-4">
+              <div className="text-xs font-bold uppercase tracking-wider text-foreground">
+                Current Checklist Questions ({customQuestions.length})
+              </div>
+              
+              {loadingQuestions ? (
+                <div className="text-xs text-muted-foreground py-2 animate-pulse">Loading questions...</div>
+              ) : customQuestions.length === 0 ? (
+                <div className="text-xs text-muted-foreground py-2">No custom questions added yet.</div>
+              ) : (
+                <div className="space-y-2.5 max-h-[200px] overflow-y-auto pr-1">
+                  {customQuestions.map((q) => (
+                    <div key={q.id} className="flex items-start justify-between gap-3 rounded-xl border border-border bg-card p-3 text-xs">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-muted-foreground uppercase mr-1.5">[ISO {q.standard} - Clause {q.clause}]</span>
+                        <p className="mt-1 text-foreground leading-relaxed font-medium">{q.text}</p>
+                        {q.evidence && <p className="mt-1 text-[10px] text-muted-foreground font-mono">Evidence: {q.evidence}</p>}
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => handleDeleteCustomQuestion(q.id)}
+                        className="text-xs text-destructive hover:underline font-semibold shrink-0"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Option 1: Import questions */}

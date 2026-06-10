@@ -122,6 +122,21 @@ export default function Onboarding() {
         throw new Error("Failed to retrieve user identifier from registration.");
       }
 
+      // Add auditor to organization members and assign roles
+      const { error: memberError } = await supabase.from("organization_members").insert({
+        org_id: currentOrg.id,
+        user_id: userUuid,
+        status: "active",
+      });
+      if (memberError) throw memberError;
+
+      const { error: roleError } = await supabase.from("user_roles").insert({
+        user_id: userUuid,
+        org_id: currentOrg.id,
+        role: newAuditor.role,
+      });
+      if (roleError) throw roleError;
+
       const { data, error } = await supabase.from("auditors").insert({
         org_id: currentOrg.id,
         name: newAuditor.name.trim(),
@@ -213,7 +228,7 @@ export default function Onboarding() {
         )}
 
         {step === 2 && (
-          <Section title="Step 2 · Pick your processes" subtitle="Confirm the processes that operate in your organization, or add your own custom ones.">
+          <Section title="Step 2 · Pick your processes" subtitle={`Confirm the processes that operate in your ${currentOrg?.type === "individual" ? "account" : "organization"}, or add your own custom ones.`}>
             <div className="grid gap-2 md:grid-cols-2 max-h-[400px] overflow-y-auto pr-1">
               {UNIQUE_STANDARD_PROCESSES.map((p) => {
                 const checked = selectedKeys.includes(p.key);

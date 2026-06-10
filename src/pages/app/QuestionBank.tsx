@@ -294,7 +294,6 @@ export default function QuestionBank() {
     }
   }, [copyDestStd, copyDestProcessesList]);
 
-  // Save rephrased question text
   const handleSaveRephrase = async (item: any) => {
     if (!selectedAudit || !selectedAuditProc) return;
     if (!editingText.trim()) return;
@@ -309,6 +308,16 @@ export default function QuestionBank() {
       if (error) {
         toast({ title: "Failed to update custom question", description: error.message, variant: "destructive" });
       } else {
+        // Also update audit_answers if there is an existing answer for it
+        await supabase
+          .from("audit_answers")
+          .update({ question_text: editingText })
+          .eq("audit_id", selectedAudit.id)
+          .eq("process_id", selectedAuditProc)
+          .eq("clause", item.clause)
+          .eq("kind", "custom")
+          .eq("q_ref", item.id);
+
         toast({ title: "Custom question updated successfully." });
         loadAuditQuestionsData();
       }
@@ -371,6 +380,7 @@ export default function QuestionBank() {
       text: newQuestion.text,
       evidence: newQuestion.evidence || null,
       reference: newQuestion.reference || null,
+      active: true,
     });
 
     if (error) {
@@ -422,6 +432,7 @@ export default function QuestionBank() {
               text: `[Imported from ${importSrcStd.toUpperCase()}/${importSrcProc}] ${question}`,
               evidence: clauseSet.evidence?.join(" · ") || null,
               reference: `Copied from standard bank ${importSrcStd}`,
+              active: true,
             })
           );
         }
@@ -441,6 +452,7 @@ export default function QuestionBank() {
               text: `[Imported from ${importSrcStd.toUpperCase()}/${importSrcProc}] ${question}`,
               evidence: clauseSet.evidence?.join(" · ") || null,
               reference: `Copied from standard bank ${importSrcStd}`,
+              active: true,
             })
           );
         }
@@ -474,6 +486,7 @@ export default function QuestionBank() {
       text: copyTargetQuestion.text,
       evidence: copyTargetQuestion.evidence || null,
       reference: `Copied from another standard/process`,
+      active: true,
     });
 
     if (error) {
@@ -722,17 +735,15 @@ export default function QuestionBank() {
                                   />
                                   <button
                                     onClick={() => handleSaveRephrase(item)}
-                                    className="rounded-lg bg-primary p-2 text-primary-foreground hover:bg-primary/95 transition shrink-0"
-                                    title="Save changes"
+                                    className="rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary/95 transition shrink-0 h-9"
                                   >
-                                    <Check className="h-3.5 w-3.5" />
+                                    Save Changes
                                   </button>
                                   <button
                                     onClick={() => setEditingQuestionKey(null)}
-                                    className="rounded-lg border border-border bg-card p-2 text-muted-foreground hover:bg-secondary transition shrink-0"
-                                    title="Cancel"
+                                    className="rounded-xl border border-border bg-card px-3 text-xs font-semibold text-muted-foreground hover:bg-secondary transition shrink-0 h-9"
                                   >
-                                    <X className="h-3.5 w-3.5" />
+                                    Cancel
                                   </button>
                                 </div>
                               ) : (

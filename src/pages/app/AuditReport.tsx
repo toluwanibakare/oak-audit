@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams, Link } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, Download, PieChart as PieChartIcon, Printer, Radar, Table } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Download, PieChart as PieChartIcon, Printer, Radar, Table, FileText, Mail } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app/AppShell";
 import { useOrg } from "@/hooks/useOrg";
+import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { parseAuditNote } from "@/lib/auditEvidence";
 import { exportAuditReport } from "@/lib/exportAuditReport";
+import { exportCarReport, generateCarReportHtml } from "@/lib/exportCarReport";
 import {
   AnalyticsAnswer,
   AnalyticsAudit,
@@ -62,12 +64,15 @@ function parseFindingMeta(rootCause: string | null) {
 const AuditReport = () => {
   const { id } = useParams();
   const { currentOrg } = useOrg();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"analytics" | "capa" | "responses">("analytics");
   const [audit, setAudit] = useState<AnalyticsAudit | null>(null);
   const [answers, setAnswers] = useState<ReportAnswer[]>([]);
   const [findings, setFindings] = useState<ReportFinding[]>([]);
   const [processes, setProcesses] = useState<AnalyticsProcess[]>([]);
+  const [auditeeEmail, setAuditeeEmail] = useState("");
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -126,6 +131,8 @@ const AuditReport = () => {
         status: audit.status,
         startedAt: audit.started_at,
         closedAt: audit.closed_at,
+        orgType: currentOrg?.type,
+        auditorName: user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Auditor",
       },
       answers: answers.map((answer) => ({
         process: processMap[answer.process_id] ?? "-",
@@ -146,6 +153,96 @@ const AuditReport = () => {
       })),
       logoUrl: currentOrg?.logo_url || undefined,
     });
+  };
+
+  const handleExportCar = () => {
+    if (!audit) return;
+    const auditorName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Auditor";
+    exportCarReport({
+      meta: {
+        organization: currentOrg?.name ?? "Organization",
+        auditTitle: audit.title,
+        standard: formatStandard(audit.standard),
+        scope: audit.scope,
+        status: audit.status,
+        startedAt: audit.started_at,
+        closedAt: audit.closed_at,
+        orgType: currentOrg?.type,
+        auditorName,
+      },
+      findings: findings.map((finding) => ({
+        id: finding.id,
+        clause: finding.clause,
+        type: finding.type,
+        description: finding.description,
+        capa: finding.capa,
+        owner: finding.owner,
+        due_date: finding.due_date,
+        status: finding.status,
+        root_cause: finding.root_cause,
+        created_at: finding.created_at,
+      })),
+      processMap,
+    });
+  };
+
+  const handleShareCar = async () => {
+    if (!auditeeEmail.trim()) {
+      alert("Please enter a valid auditee email address.");
+      return;
+    }
+    setSharing(true);
+    try {
+      const auditorName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Auditor";
+      const meta = {
+        organization: currentOrg?.name ?? "Organization",
+        auditTitle: audit?.title || "ISO Audit",
+        standard: formatStandard(audit?.standard || ""),
+        scope: audit?.scope,
+        status: audit?.status || "in_progress",
+        startedAt: audit?.started_at,
+        closedAt: audit?.closed_at,
+        orgType: currentOrg?.type,
+        auditorName,
+      };
+
+      const findingsForCar = findings.map(f => ({
+        id: f.id,
+        clause: f.clause,
+        type: f.type,
+        description: f.description,
+        capa: f.capa,
+        owner: f.owner,
+        due_date: f.due_date,
+        status: f.status,
+        root_cause: f.root_cause,
+        created_at: f.created_at,
+      }));
+
+      const htmlContent = generateCarReportHtml({
+        meta,
+        findings: findingsForCar,
+        processMap,
+      });
+
+      const { data, error } = await supabase.functions.invoke("send-email", {
+        body: {
+          to: auditeeEmail.trim(),
+          subject: `Corrective Action Report (CAR) - ${audit?.title}`,
+          html: htmlContent,
+        }
+      });
+
+      if (error) throw error;
+      alert(`CAR successfully shared to ${auditeeEmail}`);
+    } catch (err: any) {
+      console.error("Failed to share email via edge function:", err);
+      const mailtoLink = `mailto:${auditeeEmail.trim()}?subject=${encodeURIComponent(`Corrective Action Report (CAR) - ${audit?.title}`)}&body=${encodeURIComponent("Please find the Corrective Action Report (CAR) details in the attachment or print-out.")}`;
+      window.location.href = mailtoLink;
+      alert("Opening mail client client-side fallback...");
+    } finally {
+      setSharing(false);
+    }
   };
 
   if (loading || !audit) {
@@ -334,7 +431,7 @@ const AuditReport = () => {
         <div className="mt-8 flex border-b border-border print:hidden">
           {[
             { id: "analytics", label: "Visual Analytics", icon: <PieChartIcon className="h-4 w-4" /> },
-            { id: "capa", label: "ISO CAPA Report", icon: <Table className="h-4 w-4" /> },
+            { id: "capa", label: "CAR Report", icon: <FileText className="h-4 w-4" /> },
             { id: "responses", label: "Detailed Responses", icon: <Radar className="h-4 w-4" /> },
           ].map((tab) => (
             <button
@@ -538,138 +635,201 @@ const AuditReport = () => {
           </div>
         )}
 
-        {/* ISO CAPA Report Spreadsheet Tab */}
+        {/* Corrective Action Report (CAR) Tab */}
         {activeTab === "capa" && (
           <div className="mt-8 space-y-6 animate-fade-in">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-6 border-b border-border/60 pb-6">
               <div>
-                <h2 className="font-display text-xl font-bold text-foreground">Consolidated ISO CAPA Log</h2>
-                <p className="text-sm text-muted-foreground">Tracking compliance gaps, corrective action plans, root causes, and verification statuses.</p>
+                <h2 className="font-display text-xl font-bold text-foreground">Corrective Action Report (CAR)</h2>
+                <p className="text-sm text-muted-foreground">Issue, print, or share official Corrective Action Reports for compliance findings.</p>
               </div>
-              <button onClick={downloadCapaCsv} className="pill-cta bg-primary hover:bg-primary/90 flex items-center gap-2">
-                <Download className="h-4 w-4" />
-                Export CAPA Log (CSV)
-              </button>
+              
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="email"
+                    placeholder="Auditee's Email"
+                    value={auditeeEmail}
+                    onChange={(e) => setAuditeeEmail(e.target.value)}
+                    className="input h-10 w-60 text-xs font-semibold"
+                    disabled={findings.length === 0}
+                  />
+                  <button
+                    onClick={handleShareCar}
+                    disabled={sharing || findings.length === 0 || !auditeeEmail.trim()}
+                    className="pill-secondary h-10 px-4 text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <Mail className="h-4 w-4" />
+                    {sharing ? "Sharing..." : "Share via Email"}
+                  </button>
+                </div>
+                
+                <button
+                  onClick={handleExportCar}
+                  disabled={findings.length === 0}
+                  className="pill-cta h-10 px-5 text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Download className="h-4 w-4" />
+                  Download CAR Report (PDF)
+                </button>
+              </div>
             </div>
 
             {findings.length === 0 ? (
-              <EmptyBlock message="No findings or nonconformities found. Add nonconforming answers to populate the CAPA tracker." />
+              <EmptyBlock message="No findings or nonconformities found. Add nonconforming answers to populate the CAR tracker." />
             ) : (
-              <div className="overflow-x-auto rounded-2xl border border-border bg-background/80 shadow-md">
-                <table className="w-full min-w-[1400px] border-collapse text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-border bg-secondary/50 font-semibold text-muted-foreground uppercase tracking-wider">
-                      <th className="p-3 text-center w-12 border-r border-border">#</th>
-                      <th className="p-3 w-40 border-r border-border">Process</th>
-                      <th className="p-3 w-24 border-r border-border">Clause</th>
-                      <th className="p-3 w-28 border-r border-border">Type</th>
-                      <th className="p-3 w-24 border-r border-border">Severity</th>
-                      <th className="p-3 max-w-sm border-r border-border">Finding Statement</th>
-                      <th className="p-3 w-44 border-r border-border">Evidence File(s)</th>
-                      <th className="p-3 max-w-xs border-r border-border">Correction (Containment)</th>
-                      <th className="p-3 max-w-xs border-r border-border">Root Cause (RCA)</th>
-                      <th className="p-3 max-w-xs border-r border-border">Corrective Action (CAPA)</th>
-                      <th className="p-3 w-32 border-r border-border">Owner</th>
-                      <th className="p-3 w-28 border-r border-border">Due Date</th>
-                      <th className="p-3 w-28">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {findings.map((finding, idx) => {
-                      const meta = parseFindingMeta(finding.root_cause);
-                      const procName = meta?.processId ? (processMap[meta.processId] || "-") : "-";
-                      const clauseVal = finding.clause || meta?.qRef || "-";
+              <div className="space-y-8 max-w-4xl mx-auto">
+                {findings.map((finding, idx) => {
+                  const meta = parseFindingMeta(finding.root_cause);
+                  const procName = meta?.processId ? (processMap[meta.processId] || "-") : "-";
+                  const clauseVal = finding.clause || meta?.qRef || "-";
+                  const correction = meta?.correction || "-";
+                  const rootCauseText = meta?.rootCauseText || "-";
 
-                      let matchingAnswer = null;
-                      if (meta) {
-                        matchingAnswer = answers.find(
-                          (ans) =>
-                            ans.process_id === meta.processId &&
-                            ans.clause === finding.clause &&
-                            ans.kind === meta.kind &&
-                            ans.q_ref === meta.qRef
-                        );
-                      }
+                  return (
+                    <div key={finding.id} className="rounded-3xl border border-border bg-card p-6 md:p-8 shadow-card space-y-6">
+                      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
+                        <div>
+                          <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-primary font-bold">Collective Action Report (CAR)</span>
+                          <h3 className="font-display text-xl font-extrabold text-foreground mt-1">Finding No.: CAR-{String(idx + 1).padStart(3, "0")}</h3>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs text-muted-foreground font-semibold">Date Raised</span>
+                          <div className="text-xs font-mono font-bold mt-0.5">{new Date(finding.created_at).toLocaleDateString()}</div>
+                        </div>
+                      </div>
 
-                      const parsedNote = parseAuditNote(matchingAnswer?.note);
-                      const typeLabel = FINDING_TYPE_META[finding.type]?.label ?? finding.type;
-                      const severity = meta?.severity ?? (finding.type === "major" ? "High" : finding.type === "minor" ? "Medium" : "Low");
-                      const correction = meta?.correction || "-";
-                      const rootCauseText = meta?.rootCauseText || "-";
+                      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 rounded-2xl bg-secondary/20 p-4 border border-border/50 text-xs">
+                        <div>
+                          <span className="text-muted-foreground block font-medium">Audit Reference</span>
+                          <strong className="text-foreground mt-1 block">{audit?.title}</strong>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block font-medium">Auditor / Lead</span>
+                          <strong className="text-foreground mt-1 block">
+                            {currentOrg?.type === "individual"
+                              ? (user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Auditor")
+                              : currentOrg?.name
+                            }
+                          </strong>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block font-medium">Auditee / Department</span>
+                          <strong className="text-foreground mt-1 block">{procName}</strong>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block font-medium">Target Closure Date</span>
+                          <strong className="text-foreground mt-1 block">{finding.due_date ? new Date(finding.due_date).toLocaleDateString() : "-"}</strong>
+                        </div>
+                      </div>
 
-                      const typeColor =
-                        finding.type === "major"
-                          ? "bg-destructive/15 text-destructive border-destructive/20"
-                          : finding.type === "minor"
-                          ? "bg-warning/15 text-warning border-warning/20"
-                          : "bg-accent/15 text-accent border-accent/20";
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">1. Statement of Audit Finding</h4>
+                          <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed whitespace-pre-wrap">{finding.description}</div>
+                        </div>
 
-                      const severityColor =
-                        severity === "High"
-                          ? "bg-red-500/10 text-red-500 border-red-500/20"
-                          : severity === "Medium"
-                          ? "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
-                          : "bg-blue-500/10 text-blue-500 border-blue-500/20";
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">2. Applicable ISO Standard Clause</h4>
+                          <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed">
+                            Clause {clauseVal} of Standard {audit?.standard.toUpperCase()}
+                          </div>
+                        </div>
 
-                      const statusColor =
-                        finding.status === "closed"
-                          ? "bg-success/15 text-success border-success/20"
-                          : finding.status === "in_progress"
-                          ? "bg-info/15 text-info border-info/20"
-                          : "bg-muted-foreground/15 text-muted-foreground border-muted-foreground/20";
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">3. Finding Classification</h4>
+                          <div className="flex gap-4 items-center p-3 rounded-xl border border-border/30 bg-secondary/10 text-xs">
+                            <label className="flex items-center gap-2">
+                              <input type="checkbox" checked={finding.type === "major"} readOnly className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5" />
+                              <span className={finding.type === "major" ? "font-bold text-foreground" : "text-muted-foreground"}>Major Non-Conformity</span>
+                            </label>
+                            <label className="flex items-center gap-2">
+                              <input type="checkbox" checked={finding.type === "minor"} readOnly className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5" />
+                              <span className={finding.type === "minor" ? "font-bold text-foreground" : "text-muted-foreground"}>Minor Non-Conformity</span>
+                            </label>
+                            <label className="flex items-center gap-2">
+                              <input type="checkbox" checked={finding.type === "observation"} readOnly className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5" />
+                              <span className={finding.type === "observation" ? "font-bold text-foreground" : "text-muted-foreground"}>Observation / OFI</span>
+                            </label>
+                          </div>
+                        </div>
 
-                      return (
-                        <tr key={finding.id} className="border-b border-border hover:bg-secondary/20 transition-colors duration-150 align-top">
-                          <td className="p-3 text-center font-mono font-bold text-muted-foreground border-r border-border bg-secondary/10">{idx + 1}</td>
-                          <td className="p-3 font-medium text-foreground border-r border-border truncate">{procName}</td>
-                          <td className="p-3 font-mono border-r border-border">{clauseVal}</td>
-                          <td className="p-3 border-r border-border">
-                            <span className={`inline-block px-2.5 py-0.5 rounded-full border text-[10px] font-medium capitalize ${typeColor}`}>
-                              {typeLabel}
-                            </span>
-                          </td>
-                          <td className="p-3 border-r border-border">
-                            <span className={`inline-block px-2.5 py-0.5 rounded-full border text-[10px] font-medium capitalize ${severityColor}`}>
-                              {severity}
-                            </span>
-                          </td>
-                          <td className="p-3 border-r border-border max-w-sm whitespace-normal break-words text-foreground">{finding.description}</td>
-                          <td className="p-3 border-r border-border w-44">
-                            {parsedNote.evidence.length > 0 ? (
-                              <div className="flex flex-col gap-1.5">
-                                {parsedNote.evidence.map((item) => (
-                                  <a
-                                    key={item.url}
-                                    href={item.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1 text-[11px] text-accent hover:underline truncate"
-                                  >
-                                    <span className="truncate max-w-[120px]">{item.name}</span>
-                                  </a>
-                                ))}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground font-mono">-</span>
-                            )}
-                          </td>
-                          <td className="p-3 border-r border-border max-w-xs whitespace-normal break-words">{correction}</td>
-                          <td className="p-3 border-r border-border max-w-xs whitespace-normal break-words">{rootCauseText}</td>
-                          <td className="p-3 border-r border-border max-w-xs whitespace-normal break-words text-foreground font-medium">{finding.capa || "-"}</td>
-                          <td className="p-3 border-r border-border text-foreground truncate">{finding.owner || "-"}</td>
-                          <td className="p-3 border-r border-border font-mono">
-                            {finding.due_date ? new Date(finding.due_date).toLocaleDateString() : "-"}
-                          </td>
-                          <td className="p-3">
-                            <span className={`inline-block px-2.5 py-0.5 rounded-full border text-[10px] font-medium capitalize ${statusColor}`}>
-                              {finding.status.replace("_", " ")}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">4. Immediate Corrections (Containment Actions)</h4>
+                          <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed whitespace-pre-wrap">{correction}</div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">5. Root Cause Analysis</h4>
+                          <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed whitespace-pre-wrap">{rootCauseText}</div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">6. Corrective Actions</h4>
+                          <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed whitespace-pre-wrap">{finding.capa || "-"}</div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">7. Corrective Action Plan Details</h4>
+                          <div className="overflow-x-auto rounded-xl border border-border bg-background">
+                            <table className="w-full text-left text-xs border-collapse">
+                              <thead className="bg-secondary/40 font-semibold text-muted-foreground uppercase">
+                                <tr className="border-b border-border">
+                                  <th className="p-3">Corrective Action Item</th>
+                                  <th className="p-3 w-1/4">Responsible</th>
+                                  <th className="p-3 w-1/5">Target Date</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr>
+                                  <td className="p-3 border-r border-border font-medium text-foreground">{finding.capa || "-"}</td>
+                                  <td className="p-3 border-r border-border text-foreground">{finding.owner || "-"}</td>
+                                  <td className="p-3 font-mono">{finding.due_date ? new Date(finding.due_date).toLocaleDateString() : "-"}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">8. Evaluation of Effectiveness of Actions</h4>
+                          <div className="overflow-x-auto rounded-xl border border-border bg-background">
+                            <table className="w-full text-left text-xs border-collapse">
+                              <thead className="bg-secondary/40 font-semibold text-muted-foreground uppercase">
+                                <tr className="border-b border-border">
+                                  <th className="p-3">Evaluation Method</th>
+                                  <th className="p-3 w-1/5">Date Verified</th>
+                                  <th className="p-3 w-1/4">Result / Notes</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr>
+                                  <td className="p-3 border-r border-border text-muted-foreground">Verification completed by lead auditor prior to subsequent surveillance cycle.</td>
+                                  <td className="p-3 border-r border-border font-mono">{finding.status === "closed" ? new Date().toLocaleDateString() : "-"}</td>
+                                  <td className="p-3 capitalize font-bold text-foreground">Status: {finding.status.replace("_", " ")}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">9. Closure and Sign-Off</h4>
+                          <div className="grid gap-3 sm:grid-cols-2 rounded-xl border border-border bg-secondary/10 p-4 text-xs">
+                            <div>
+                              <span className="text-muted-foreground block font-medium">CAR Status</span>
+                              <strong className="text-foreground mt-1 block uppercase">{finding.status.replace("_", " ")}</strong>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground block font-medium">Closure Date</span>
+                              <strong className="text-foreground mt-1 block">{finding.status === "closed" ? new Date().toLocaleDateString() : "Open / Pending Verification"}</strong>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
