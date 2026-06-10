@@ -242,7 +242,8 @@ export default function RunAudit() {
   const clauseSets = useMemo(() => {
     if (!activeProcMeta) return [];
     try {
-      return getQuestionsFor(stdForBank, activeProcMeta.key as any) ?? [];
+      const allSets = getQuestionsFor(stdForBank, activeProcMeta.key as any) ?? [];
+      return allSets.filter(c => c.clause !== "Checklist");
     } catch {
       return [];
     }
@@ -443,6 +444,7 @@ export default function RunAudit() {
     procs.forEach((p) => {
       const clauses = getQuestionsFor(stdForBank, p.key as any) ?? [];
       clauses.forEach((c) => {
+        if (c.clause === "Checklist") return; // Skip inspection checklist items from audit questions
         (c.generic ?? []).forEach((q, idx) => {
           list.push({ processId: p.id, clause: c.clause, kind: "generic", qRef: idx.toString(), text: q });
         });
@@ -680,36 +682,25 @@ export default function RunAudit() {
             </button>
           )}
           <span className="text-sm text-muted-foreground">Conformity: <strong className="text-foreground">{conformity}%</strong></span>
-          <Link to={`/app/audits/${audit.id}/report`} className="pill-secondary">Report</Link>
           {audit.status === "in_progress" && (
             pendingCount > 0 ? (
               <button
                 disabled
                 className="pill-secondary cursor-not-allowed opacity-60 flex items-center gap-1.5"
-                title="All checklist questions must be completed first"
+                title="All process audit questions must be completed first"
               >
                 <Lock className="h-3.5 w-3.5" />
-                Submit Audit ({pendingCount} pending)
+                Submit & Generate Report ({pendingCount} pending)
               </button>
             ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={closeAudit}
-                  disabled={isSubmitting}
-                  className="pill-secondary flex items-center gap-1.5 border-destructive text-destructive hover:bg-destructive/10"
-                >
-                  <Lock className="h-3.5 w-3.5" />
-                  {isSubmitting ? "Closing..." : "Close Audit"}
-                </button>
-                <button
-                  onClick={submitAudit}
-                  disabled={isSubmitting}
-                  className="pill-cta animate-pulse flex items-center gap-1.5"
-                >
-                  <Unlock className="h-3.5 w-3.5" />
-                  {isSubmitting ? "Submitting..." : "Submit & Generate Report"}
-                </button>
-              </div>
+              <button
+                onClick={submitAudit}
+                disabled={isSubmitting}
+                className="pill-cta animate-pulse flex items-center gap-1.5"
+              >
+                <Unlock className="h-3.5 w-3.5" />
+                {isSubmitting ? "Submitting..." : "Submit & Generate Report"}
+              </button>
             )
           )}
         </div>

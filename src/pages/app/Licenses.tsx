@@ -34,6 +34,9 @@ export default function Licenses() {
   const [auditObject, setAuditObject] = useState("");
   const [selectedAuditorId, setSelectedAuditorId] = useState("");
   const [auditors, setAuditors] = useState<{ id: string; name: string }[]>([]);
+  const [modalProcs, setModalProcs] = useState<{ id: string; key: string; name: string }[]>([]);
+  const [assignmentType, setAssignmentType] = useState<"all" | "some">("all");
+  const [selectedProcIds, setSelectedProcIds] = useState<string[]>([]);
 
 
 
@@ -139,6 +142,28 @@ export default function Licenses() {
         }
       });
   }, [currentOrg, user]);
+
+  useEffect(() => {
+    if (!currentOrg || !configuringPack) {
+      setModalProcs([]);
+      setSelectedProcIds([]);
+      setAssignmentType("all");
+      return;
+    }
+    
+    (async () => {
+      const { data: orgProcs } = await supabase
+        .from("org_processes")
+        .select("id,key,name")
+        .eq("org_id", currentOrg.id);
+      
+      if (orgProcs) {
+        const visible = orgProcs.filter((p) => isProcessInStandard(configuringPack as any, p.key));
+        setModalProcs(visible);
+        setSelectedProcIds(visible.map(p => p.id));
+      }
+    })();
+  }, [configuringPack, currentOrg]);
 
   const handleUnlockAndLaunch = async () => {
     if (!currentOrg || !configuringPack || !user) return;
@@ -287,7 +312,13 @@ export default function Licenses() {
       });
     }
 
-    const rows = visibleProcs.map((p) => ({
+    // Filter processes to seed if they chose "some"
+    let procsToSeed = visibleProcs;
+    if (currentOrg.type !== "individual" && assignmentType === "some") {
+      procsToSeed = visibleProcs.filter(p => selectedProcIds.includes(p.id));
+    }
+
+    const rows = procsToSeed.map((p) => ({
       audit_id: newAudit.id,
       process_id: p.id,
       auditor_id: assignmentMap.get(p.id) || auditorId,
@@ -527,28 +558,86 @@ export default function Licenses() {
               </div>
 
               {currentOrg?.type !== "individual" && (
-                <div className="md:col-span-2">
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Auditor in Charge</label>
-                  <select
-                    className="input w-full font-sans text-sm font-semibold"
-                    value={selectedAuditorId}
-                    onChange={(e) => setSelectedAuditorId(e.target.value)}
-                  >
-                    <option value="">— Select Auditor —</option>
-                    {auditors.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
-                  </select>
-                  {auditors.length === 0 && (
-                    <p className="mt-2 text-xs text-warning leading-normal">
-                      ⚠️ No auditors registered. Please register at least one auditor in{" "}
-                      <Link to="/app/team" className="underline font-bold text-foreground hover:text-primary">
-                        My Team
-                      </Link>{" "}
-                      first.
-                    </p>
+                <div className="md:col-span-2 space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Auditor in Charge</label>
+                    <select
+                      className="input w-full font-sans text-sm font-semibold"
+                      value={selectedAuditorId}
+                      onChange={(e) => setSelectedAuditorId(e.target.value)}
+                    >
+                      <option value="">— Select Auditor —</option>
+                      {auditors.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
+                    </select>
+                    {auditors.length === 0 && (
+                      <p className="mt-2 text-xs text-warning leading-normal">
+                        ⚠️ No auditors registered. Please register at least one auditor in{" "}
+                        <Link to="/app/team" className="underline font-bold text-foreground hover:text-primary">
+                          My Team
+                        </Link>{" "}
+                        first.
+                      </p>
+                    )}
+                  </div>
+
+                  {selectedAuditorId && (
+                    <div className="space-y-3 rounded-2xl bg-secondary/20 p-4 border border-border/50">
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Assign Processes to Auditor</label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                          <input
+                            type="radio"
+                            name="assignmentType"
+                            checked={assignmentType === "all"}
+                            onChange={() => setAssignmentType("all")}
+                            className="radio"
+                          />
+                          All Processes
+                        </label>
+                        <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                          <input
+                            type="radio"
+                            name="assignmentType"
+                            checked={assignmentType === "some"}
+                            onChange={() => setAssignmentType("some")}
+                            className="radio"
+                          />
+                          Specific Processes
+                        </label>
+                      </div>
+
+                      {assignmentType === "some" && (
+                        <div className="mt-3 space-y-2 border-t border-border/30 pt-3 max-h-40 overflow-y-auto">
+                          {modalProcs.map((p) => {
+                            const isChecked = selectedProcIds.includes(p.id);
+                            return (
+                              <label key={p.id} className="flex items-center gap-2.5 text-xs font-medium cursor-pointer py-0.5 hover:text-foreground">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedProcIds([...selectedProcIds, p.id]);
+                                    } else {
+                                      setSelectedProcIds(selectedProcIds.filter(id => id !== p.id));
+                                    }
+                                  }}
+                                  className="checkbox rounded border-border"
+                                />
+                                {p.name}
+                              </label>
+                            );
+                          })}
+                          {modalProcs.length === 0 && (
+                            <p className="text-[11px] text-muted-foreground italic">No processes found for this standard pack.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -590,7 +679,7 @@ export default function Licenses() {
                     </button>
                     <button
                       onClick={handleUnlockAndLaunch}
-                      disabled={!auditTitle.trim() || (currentOrg?.type !== "individual" && !selectedAuditorId) || busy !== null || isInsufficient}
+                      disabled={!auditTitle.trim() || (currentOrg?.type !== "individual" && (!selectedAuditorId || (assignmentType === "some" && selectedProcIds.length === 0))) || busy !== null || isInsufficient}
                       className="pill-cta flex-1 justify-center disabled:opacity-50"
                     >
                       {busy ? "Activating..." : "Launch Audit →"}

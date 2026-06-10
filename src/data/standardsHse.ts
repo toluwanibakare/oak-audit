@@ -81,7 +81,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
     },
     {
       clause: "5.2",
-      title: 'Quality policy',
+      title: 'HSE policy',
       generic: ['[ISO 14001] Do staff in the process know the environmental policy commitments (protect environment incl. pollution prevention, fulfil compliance obligations, continual improvement)?', '[ISO 45001] Do workers in the process know the OH&S policy commitments (safe & healthy conditions, eliminate hazards, consultation, continual improvement, legal compliance)?'],
       specific: ['[ISO 14001] Has the environmental policy been established, signed, communicated, and reviewed by top management with all required commitments?', '[ISO 45001] Has the OH&S policy been established, signed, communicated, and reviewed by top management with all required commitments?'],
       evidence: ['Communication evidence', 'Signed OH&S policy', 'Signed environmental policy'],
@@ -109,7 +109,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
     },
     {
       clause: "6.2",
-      title: 'Quality objectives & planning',
+      title: 'HSE objectives & planning',
       generic: ['[ISO 14001] Are measurable environmental objectives set with action plans, indicators, and update cycles?', '[ISO 45001] Are measurable OH&S objectives set with action plans (what, resources, who, when, evaluation)?', '[ISO 45001] Are objectives tracked and deviations actioned?'],
       specific: ['[ISO 14001] Has top management approved environmental objectives aligned with the policy?', '[ISO 45001] Has top management approved OH&S objectives aligned with the policy?'],
       evidence: ['Approved OH&S objectives', 'Approved environmental objectives'],
@@ -225,7 +225,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
     },
     {
       clause: "5.2",
-      title: 'Quality policy',
+      title: 'HSE policy',
       generic: ['[ISO 14001] Do staff in the process know the environmental policy commitments (protect environment incl. pollution prevention, fulfil compliance obligations, continual improvement)?', '[ISO 45001] Do workers in the process know the OH&S policy commitments (safe & healthy conditions, eliminate hazards, consultation, continual improvement, legal compliance)?'],
       specific: ['[ISO 14001] Is the environmental policy controlled, communicated to all workers (incl. contractors), and externally available where required?', '[ISO 45001] Is the OH&S policy controlled, communicated to all workers (incl. contractors), and periodically reviewed?'],
       evidence: ['Comms log', 'Controlled policy'],
@@ -267,7 +267,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
     },
     {
       clause: "6.2",
-      title: 'Quality objectives & planning',
+      title: 'HSE objectives & planning',
       generic: ['[ISO 14001] Are measurable environmental objectives set with action plans, indicators, and update cycles?', '[ISO 45001] Are measurable OH&S objectives set with action plans (what, resources, who, when, evaluation)?', '[ISO 45001] Are objectives tracked and deviations actioned?'],
       specific: ['[ISO 14001] Are environmental objectives consolidated and reported EMS-wide?', '[ISO 45001] Are OH&S objectives consolidated and reported MS-wide?'],
       evidence: ['Objectives dashboard'],
@@ -367,7 +367,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
     },
     {
       clause: "6.2",
-      title: 'Quality objectives & planning',
+      title: 'HSE objectives & planning',
       generic: ['[ISO 45001] Are measurable OH&S objectives set with action plans (what, resources, who, when, evaluation)?', '[ISO 45001] Are objectives tracked and deviations actioned?'],
       specific: ['[ISO 45001] Are HR OH&S objectives (training completion, near-miss reporting rate, fitness-for-work) tracked?'],
       evidence: ['HR-OH&S KPIs'],
@@ -453,7 +453,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
     },
     {
       clause: "6.2",
-      title: 'Quality objectives & planning',
+      title: 'HSE objectives & planning',
       generic: ['[ISO 14001] Are measurable environmental objectives set with action plans, indicators, and update cycles?', '[ISO 45001] Are measurable OH&S objectives set with action plans (what, resources, who, when, evaluation)?', '[ISO 45001] Are objectives tracked and deviations actioned?'],
       specific: ['[ISO 14001] Are operational environmental objectives (energy intensity, water, waste-to-landfill) tracked?', '[ISO 45001] Are operational OH&S objectives (TRIR, LTIFR, near-miss closure) set and tracked?'],
       evidence: ['KPI dashboard'],
@@ -875,7 +875,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
     },
     {
       clause: "6.2",
-      title: 'Quality objectives & planning',
+      title: 'HSE objectives & planning',
       generic: ['[ISO 14001] Are measurable environmental objectives set with action plans, indicators, and update cycles?'],
       specific: ['[ISO 14001] Are ICT environmental objectives (PUE, paper reduction, e-waste recycling) set?'],
       evidence: ['ICT env KPIs'],
@@ -1012,7 +1012,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
     },
     {
       clause: "6.2",
-      title: 'Quality objectives & planning',
+      title: 'HSE objectives & planning',
       generic: ['[ISO 14001] Are measurable environmental objectives set with action plans, indicators, and update cycles?', '[ISO 45001] Are measurable OH&S objectives set with action plans (what, resources, who, when, evaluation)?', '[ISO 45001] Are objectives tracked and deviations actioned?'],
       specific: ['[ISO 14001] Are project environmental objectives defined?', '[ISO 45001] Are project HSE objectives (zero LTI, near-miss rate, audit closeout) defined?'],
       evidence: ['Project EMS plan KPIs', 'Project HSE plan KPIs'],
@@ -1128,7 +1128,7 @@ const HSE_QUESTIONS: Record<HseProcessKey, ClauseQuestionSet[]> = {
     },
     {
       clause: "6.2",
-      title: 'Quality objectives & planning',
+      title: 'HSE objectives & planning',
       generic: ['[ISO 14001] Are measurable environmental objectives set with action plans, indicators, and update cycles?', '[ISO 45001] Are measurable OH&S objectives set with action plans (what, resources, who, when, evaluation)?', '[ISO 45001] Are objectives tracked and deviations actioned?'],
       specific: ['[ISO 14001] Are production environmental objectives (energy/unit, water/unit, waste/unit, emissions) tracked?', '[ISO 45001] Are production OH&S objectives (TRIR, LOTO compliance, audit findings) tracked?'],
       evidence: ['Production OH&S KPIs', 'Production env KPIs'],

@@ -752,7 +752,7 @@ export function exportAuditReport({
     </tbody>
   </table>
 
-  <h2>6. Certification & Sign-off</h2>
+  <h2>6. Sign-off</h2>
   <table class="meta-table" style="margin-top: 20px; box-shadow: none;">
     <tr>
       <td style="width: 33%; background: #ffffff;"><strong>Prepared by (Lead Auditor)</strong></td>
