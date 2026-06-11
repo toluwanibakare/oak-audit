@@ -589,12 +589,14 @@ export default function RunAudit() {
             <button
               onClick={async () => {
                 setLoading(true);
-                setTimeout(async () => {
-                  await supabase.from("audits").update({ status: "closed" }).eq("id", id);
-                  setAudit(audit ? { ...audit, status: "closed" } : null);
-                  setLoading(false);
-                  toast({ title: "Compliance Report Compiled!", description: "You can now review your final reports." });
-                }, 1500);
+                const { error } = await supabase.from("audits").update({ status: "closed" }).eq("id", id);
+                setLoading(false);
+                if (error) {
+                  toast({ title: "Status Check Failed", description: error.message, variant: "destructive" });
+                  return;
+                }
+                setAudit(audit ? { ...audit, status: "closed" } : null);
+                toast({ title: "Compliance Report Compiled!", description: "You can now review your final reports." });
               }}
               disabled={loading}
               className="pill-cta px-6 py-2.5 font-bold flex items-center gap-2"
