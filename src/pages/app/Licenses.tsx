@@ -460,7 +460,7 @@ export default function Licenses() {
                   if (activeAuditForPack) {
                     return (
                       <button
-                        onClick={() => navigate(`/app/audit/${activeAuditForPack.id}`)}
+                        onClick={() => navigate(`/app/audits/${activeAuditForPack.id}`)}
                         className="pill-cta mt-6 w-full bg-primary hover:bg-primary/95 font-semibold text-white"
                       >
                         Go to Audit
