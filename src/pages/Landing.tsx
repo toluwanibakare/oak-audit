@@ -174,6 +174,7 @@ export default function Landing() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [pricingType, setPricingType] = useState<"individual" | "organization">("individual");
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -181,6 +182,11 @@ export default function Landing() {
 
   useEffect(() => {
     const handleScroll = () => {
+      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (totalHeight > 0) {
+        const progress = (window.scrollY / totalHeight) * 100;
+        setScrollProgress(progress);
+      }
       if (window.scrollY > 300) {
         setShowScrollTop(true);
       } else {
@@ -905,12 +911,35 @@ export default function Landing() {
       {/* Scroll to Top Button */}
       <button
         onClick={scrollToTop}
-        className={`fixed bottom-6 right-6 z-50 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-elevated transition-all duration-300 hover:scale-110 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 ${
-          showScrollTop ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+        className={`fixed bottom-6 right-6 z-50 group flex h-12 w-12 items-center justify-center rounded-full bg-background/80 hover:bg-background text-foreground shadow-elevated border border-border/80 backdrop-blur-md transition-all duration-500 hover:scale-110 active:scale-95 focus:outline-none ${
+          showScrollTop ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-75 translate-y-6 pointer-events-none"
         }`}
         aria-label="Scroll to Top"
       >
-        <ArrowUp className="h-5 w-5" />
+        <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 36 36">
+          <circle
+            className="text-muted-foreground/10"
+            strokeWidth="2.5"
+            stroke="currentColor"
+            fill="transparent"
+            r="16"
+            cx="18"
+            cy="18"
+          />
+          <circle
+            className="text-primary transition-all duration-150 ease-out"
+            strokeWidth="2.5"
+            strokeDasharray="100.53"
+            strokeDashoffset={100.53 - (scrollProgress / 100) * 100.53}
+            strokeLinecap="round"
+            stroke="currentColor"
+            fill="transparent"
+            r="16"
+            cx="18"
+            cy="18"
+          />
+        </svg>
+        <ArrowUp className="h-5 w-5 relative z-10 transition-transform duration-300 group-hover:-translate-y-1" />
       </button>
     </div>
   );
