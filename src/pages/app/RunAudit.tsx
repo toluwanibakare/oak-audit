@@ -52,6 +52,7 @@ export default function RunAudit() {
   const [activeProc, setActiveProc] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [custom, setCustom] = useState<Custom[]>([]);
+  const [allCustom, setAllCustom] = useState<any[]>([]);
   const [findingsMap, setFindingsMap] = useState<Record<string, FindingRow>>({});
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
   
@@ -230,7 +231,6 @@ export default function RunAudit() {
     })();
   }, [id, currentOrg, user]);
 
-
   useEffect(() => {
     if (!currentOrg || !audit || !activeProc) return;
     const proc = procs.find((process) => process.id === activeProc);
@@ -246,6 +246,18 @@ export default function RunAudit() {
       .order("created_at", { ascending: false })
       .then(({ data }) => setCustom((data ?? []) as Custom[]));
   }, [currentOrg, audit, activeProc, procs]);
+
+  useEffect(() => {
+    if (!currentOrg || !audit) return;
+    const applicableStds = getApplicableStandards(audit.standard);
+    supabase
+      .from("custom_questions")
+      .select("id,clause,text,process_key,created_at")
+      .eq("org_id", currentOrg.id)
+      .in("standard", applicableStds)
+      .eq("active", true)
+      .then(({ data }) => setAllCustom(data ?? []));
+  }, [currentOrg, audit]);
 
   const activeProcMeta = procs.find((process) => process.id === activeProc);
   const clauseSets = useMemo(() => {
@@ -451,19 +463,25 @@ export default function RunAudit() {
   const allAuditQuestions = useMemo(() => {
     let list: { processId: string; clause: string; kind: string; qRef: string; text: string }[] = [];
     procs.forEach((p) => {
+      // Add custom questions for this process
+      const procCustom = allCustom.filter((item) => item.process_key === p.key);
+      procCustom.forEach((item) => {
+        list.push({ processId: p.id, clause: item.clause, kind: "custom", qRef: item.id, text: item.text });
+      });
+
       const clauses = getQuestionsFor(stdForBank, p.key as any) ?? [];
       clauses.forEach((c) => {
         if (c.clause === "Checklist") return; // Skip inspection checklist items from audit questions
         (c.generic ?? []).forEach((q, idx) => {
-          list.push({ processId: p.id, clause: c.clause, kind: "generic", qRef: idx.toString(), text: q });
+          list.push({ processId: p.id, clause: c.clause, kind: "generic", qRef: `g${idx}`, text: q });
         });
         (c.specific ?? []).forEach((q, idx) => {
-          list.push({ processId: p.id, clause: c.clause, kind: "specific", qRef: idx.toString(), text: q });
+          list.push({ processId: p.id, clause: c.clause, kind: "specific", qRef: `s${idx}`, text: q });
         });
       });
     });
     return list;
-  }, [procs, stdForBank]);
+  }, [procs, stdForBank, allCustom]);
 
   const pendingCount = useMemo(() => {
     let pending = 0;
