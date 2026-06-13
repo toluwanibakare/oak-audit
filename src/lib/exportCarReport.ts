@@ -83,7 +83,7 @@ export function generateCarReportHtml({
         <div class="car-document">
           <div class="car-header">
             <div>
-              <div class="car-eyebrow">Collective Action Report (CAR)</div>
+              <div class="car-eyebrow">Corrective Action Report (CAR)</div>
               <h2 class="car-title">Finding No.: CAR-${String(index + 1).padStart(3, "0")}</h2>
             </div>
             <div class="car-date">Date Raised: ${toDate(finding.created_at)}</div>

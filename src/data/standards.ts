@@ -82,11 +82,15 @@ export function getQuestionsFor(std: StandardKey, proc: AnyProcessKey): ClauseQu
   if (std === "14001") return getQuestionsForProcess14001(normKey as never) as unknown as ClauseQuestionSet[];
   if (std === "hse") {
     const matchingHseProc = HSE_PROCESSES.find(p => normalizeProcessKey(p.key) === normKey);
-    return getQuestionsForHseProcess((matchingHseProc?.key ?? proc) as HseProcessKey);
+    const res = getQuestionsForHseProcess((matchingHseProc?.key ?? proc) as HseProcessKey);
+    if (res && res.length > 0) return res;
+    return getQuestionsForHse(proc);
   }
   if (std === "ims") {
     const matchingImsProc = IMS_PROCESSES.find(p => normalizeProcessKey(p.key) === normKey);
-    return getQuestionsForImsProcess((matchingImsProc?.key ?? proc) as ImsProcessKey);
+    const res = getQuestionsForImsProcess((matchingImsProc?.key ?? proc) as ImsProcessKey);
+    if (res && res.length > 0) return res;
+    return getQuestionsForIms(proc);
   }
   return getQuestionsForProcess(normKey as ProcessKey);
 }
@@ -124,6 +128,43 @@ function getQuestionsForIms(proc: AnyProcessKey): ClauseQuestionSet[] {
     }
   };
   add(q9, "9001");
+  add(q14, "14001");
+  add(q45, "45001");
+
+  const clauseSort = (a: string) => a.split(".").map((n) => parseInt(n, 10) || 0);
+  return Array.from(byClause.values()).sort((a, b) => {
+    const A = clauseSort(a.clause), B = clauseSort(b.clause);
+    for (let i = 0; i < Math.max(A.length, B.length); i++) {
+      const x = A[i] ?? 0, y = B[i] ?? 0;
+      if (x !== y) return x - y;
+    }
+    return 0;
+  });
+}
+
+function getQuestionsForHse(proc: AnyProcessKey): ClauseQuestionSet[] {
+  const q14 = (getQuestionsForProcess14001(proc as never) as unknown as ClauseQuestionSet[]) ?? [];
+  const q45 = (getQuestionsForProcess45001(proc as never) as unknown as ClauseQuestionSet[]) ?? [];
+
+  const byClause = new Map<string, ClauseQuestionSet>();
+  const add = (sets: ClauseQuestionSet[], std: "14001" | "45001") => {
+    for (const s of sets) {
+      const existing = byClause.get(s.clause);
+      if (!existing) {
+        byClause.set(s.clause, {
+          clause: s.clause,
+          title: s.title,
+          generic: tag(s.generic, std),
+          specific: tag(s.specific, std),
+          evidence: tag(s.evidence, std),
+        });
+      } else {
+        existing.generic = [...existing.generic, ...tag(s.generic, std)];
+        existing.specific = [...existing.specific, ...tag(s.specific, std)];
+        existing.evidence = [...existing.evidence, ...tag(s.evidence, std)];
+      }
+    }
+  };
   add(q14, "14001");
   add(q45, "45001");
 

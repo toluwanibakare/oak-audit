@@ -23,15 +23,17 @@ export const SiteNav = ({ onSwitchToSignIn, onSwitchToSignUp }: SiteNavProps = {
           <img src={logo} alt="Logo" className="h-9 w-auto" />
           <span className="font-display">
             <span className="block text-base font-semibold tracking-tight leading-none">ISO AUDIT MANAGEMENT PORT</span>
-            <span className="block text-[10px] text-muted-foreground font-normal tracking-wide mt-0.5">powered by Oak Global International</span>
+            <span className="block text-[10px] text-muted-foreground font-normal tracking-wide mt-0.5">Powered By Oak Global International</span>
 
           </span>
         </Link>
-        <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-          <a href="/#features" className="hover:text-foreground">Features</a>
-          <a href="/#pricing" className="hover:text-foreground">Pricing</a>
-          <a href="/#how" className="hover:text-foreground">How it works</a>
-        </nav>
+        {!isAuthPage && (
+          <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
+            <a href="/#features" className="hover:text-foreground">Features</a>
+            <a href="/#pricing" className="hover:text-foreground">Pricing</a>
+            <a href="/#how" className="hover:text-foreground">How It Works</a>
+          </nav>
+        )}
         <div className="flex items-center gap-3">
           {user ? (
             <>
@@ -40,7 +42,7 @@ export const SiteNav = ({ onSwitchToSignIn, onSwitchToSignUp }: SiteNavProps = {
                 onClick={async () => { await signOut(); navigate("/auth"); }}
                 className="rounded-full bg-secondary px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
               >
-                Sign out
+                Sign Out
               </button>
             </>
           ) : (
@@ -51,20 +53,20 @@ export const SiteNav = ({ onSwitchToSignIn, onSwitchToSignUp }: SiteNavProps = {
                     onClick={() => onSwitchToSignIn ? onSwitchToSignIn() : navigate("/auth")}
                     className="rounded-full bg-secondary px-5 py-2 text-sm font-medium text-foreground hover:bg-muted transition duration-200"
                   >
-                    Sign in
+                    Sign In
                   </button>
                 ) : (
                   <button
                     onClick={() => onSwitchToSignUp ? onSwitchToSignUp() : navigate("/auth?mode=signup")}
                     className="pill-cta px-5 py-2.5"
                   >
-                    Sign up
+                    Sign Up
                   </button>
                 )
               ) : (
                 <>
-                  <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">Sign in</Link>
-                  <Link to="/auth?mode=signup" className="pill-cta px-5 py-2.5">Sign up</Link>
+                  <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">Sign In</Link>
+                  <Link to="/auth?mode=signup" className="pill-cta px-5 py-2.5">Sign Up</Link>
                 </>
               )}
             </>

@@ -30,7 +30,7 @@ export default function Terms() {
             <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4">
               <FileText className="h-6 w-6" />
             </div>
-            <h1 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight">Terms of Service</h1>
+            <h1 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight">Terms Of Service</h1>
             <p className="mt-2 text-sm text-muted-foreground flex items-center gap-1.5">
               <Scale className="h-3.5 w-3.5" />
               Effective Date: May 23, 2026
@@ -96,7 +96,7 @@ export default function Terms() {
             </section>
 
             <section className="space-y-3 pt-4 border-t border-border">
-              <h3 className="font-display text-base font-bold text-foreground">Terms of Service Queries</h3>
+              <h3 className="font-display text-base font-bold text-foreground">Terms Of Service Queries</h3>
               <p>
                 For contract inquiries, institutional custom pricing review, or legal matters, please reach our board:
               </p>

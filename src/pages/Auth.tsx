@@ -336,7 +336,7 @@ const Auth = () => {
                   }}
                   className="w-full rounded-full border border-border px-5 py-2.5 text-sm font-semibold hover:bg-secondary transition"
                 >
-                  Resend confirmation link
+                  Resend Confirmation Link
                 </button>
                 <button
                   onClick={() => {
@@ -345,7 +345,7 @@ const Auth = () => {
                   }}
                   className="pill-cta w-full py-2.5 text-sm font-semibold"
                 >
-                  Go to Sign In
+                  Go To Sign In
                 </button>
               </div>
             </div>
@@ -375,13 +375,13 @@ const Auth = () => {
 
               <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
                 {mode === "signup" 
-                  ? (step === 1 ? "Create your account" : "Tell us about your organization") 
-                  : (mode === "forgot" ? "Reset password" : "Welcome back")}
+                  ? (step === 1 ? "Create Your Account" : "Tell Us About Your Organization") 
+                  : (mode === "forgot" ? "Reset Password" : "Welcome Back")}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
                 {mode === "signup" 
                   ? (step === 1 ? "Start auditing in minutes." : "Required for determining your custom pricing tier.")
-                  : (mode === "forgot" ? "Retrieve access to your ISO AUDIT MANAGEMENT PORT workspace." : "Sign in to your ISO AUDIT MANAGEMENT PORT workspace.")}
+                  : (mode === "forgot" ? "Retrieve Access To Your ISO AUDIT MANAGEMENT PORT Workspace." : "Sign In To Your ISO AUDIT MANAGEMENT PORT Workspace.")}
               </p>
 
               {/* Account Type Selector - Only visible in Step 1 of Sign Up */}
@@ -398,7 +398,7 @@ const Auth = () => {
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      {t === "individual" ? "Individual auditor" : "Organization"}
+                      {t === "individual" ? "Individual Auditor" : "Organization"}
                     </button>
                   ))}
                 </div>
@@ -453,7 +453,7 @@ const Auth = () => {
                       onClick={() => switchMode("signin")} 
                       className="font-semibold text-foreground hover:underline transition"
                     >
-                      Back to Sign In
+                      Back To Sign In
                     </button>
                   </div>
                 </form>
@@ -607,7 +607,7 @@ const Auth = () => {
                         onClick={handleNextStep}
                         className="pill-cta flex-1 h-11 text-sm font-semibold flex items-center justify-center gap-1.5 transition duration-200"
                       >
-                        Continue to company profile
+                        Continue To Company Profile
                         <ArrowRight className="h-4 w-4" />
                       </button>
                     ) : (
@@ -619,10 +619,10 @@ const Auth = () => {
                         {busy ? "Please wait…" : (
                           mode === "signup" ? (
                             <>
-                              Create account
+                              Create Account
                               <CheckCircle2 className="h-4 w-4" />
                             </>
-                          ) : "Sign in"
+                          ) : "Sign In"
                         )}
                       </button>
                     )}
@@ -635,11 +635,11 @@ const Auth = () => {
               <div className="mt-6 text-center text-sm text-muted-foreground">
                 {mode === "signup" ? (
                   <>Already have an account?{" "}
-                    <button onClick={() => switchMode("signin")} className="font-semibold text-foreground hover:underline transition">Sign in</button>
+                    <button onClick={() => switchMode("signin")} className="font-semibold text-foreground hover:underline transition">Sign In</button>
                   </>
                 ) : (
                   <>New to ISO AUDIT MANAGEMENT PORT?{" "}
-                    <button onClick={() => switchMode("signup")} className="font-semibold text-foreground hover:underline transition">Create an account</button>
+                    <button onClick={() => switchMode("signup")} className="font-semibold text-foreground hover:underline transition">Create An Account</button>
                   </>
                 )}
               </div>
@@ -647,7 +647,7 @@ const Auth = () => {
           )}
         
         <Link to="/" className="mx-auto mt-6 text-xs text-muted-foreground hover:text-foreground transition">
-          ← Back to home
+          ← Back To Home
         </Link>
       </main>
 

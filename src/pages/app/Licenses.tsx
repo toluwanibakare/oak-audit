@@ -21,6 +21,8 @@ export default function Licenses() {
   const [balance, setBalance] = useState(0);
   const [list, setList] = useState<License[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [hasOpenAudit, setHasOpenAudit] = useState(false);
+  const [openAudits, setOpenAudits] = useState<{ id: string; standard: string }[]>([]);
 
   const hasLicense = (packCode: string) => {
     return list.some((l) => l.pack === packCode && l.active && new Date(l.expires_at) > new Date());
@@ -81,6 +83,12 @@ export default function Licenses() {
       .then(({ data }) => setList((data ?? []) as License[]));
     supabase.from("credit_wallets").select("balance").eq("org_id", currentOrg.id).maybeSingle()
       .then(({ data }) => setBalance(data?.balance ?? 0));
+    supabase.from("audits").select("id, standard").eq("org_id", currentOrg.id).neq("status", "closed")
+      .then(({ data }) => {
+        const openList = (data ?? []) as { id: string; standard: string }[];
+        setOpenAudits(openList);
+        setHasOpenAudit(openList.length > 0);
+      });
   };
 
   useEffect(() => {
@@ -364,6 +372,22 @@ export default function Licenses() {
         </div>
       )}
 
+      {hasOpenAudit && (
+        <div className="mt-6 rounded-3xl border border-warning/35 bg-warning/5 p-6 shadow-card animate-fade-in-up">
+          <div className="flex flex-wrap items-center justify-between gap-5">
+            <div className="max-w-2xl">
+              <h3 className="font-display text-lg font-bold text-foreground">Active Audit In Progress</h3>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                You currently have an active audit in progress. OAK Global International's compliance rules require you to submit and generate your active audit's report before you can unlock or setup another audit run.
+              </p>
+            </div>
+            <Link to="/app/audits" className="pill-cta bg-warning hover:bg-warning/90 text-white shrink-0">
+              View Active Audits →
+            </Link>
+          </div>
+        </div>
+      )}
+
       <section className="mt-8 rounded-[28px] border border-border bg-card p-6 shadow-card">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -431,22 +455,37 @@ export default function Licenses() {
                   ))}
                 </div>
 
-                <button
-                  onClick={() => {
-                    if (isProfileComplete) {
-                      setConfiguringPack(p.code);
-                      setAuditTitle("");
-                      setAuditCriteria("");
-                      setAuditScope("");
-                      setAuditObject("");
-                      setSelectedAuditorId("");
-                    }
-                  }}
-                  disabled={busy !== null || (!active && balance < cost) || !isProfileComplete}
-                  className="pill-cta mt-6 w-full disabled:opacity-50"
-                >
-                  {busy === p.code ? "Unlocking..." : !isProfileComplete ? "Profile setup required" : active ? "Setup Audit (Licensed)" : balance < cost ? "Not enough credits" : `Unlock for ${cost} credit${cost === 1 ? "" : "s"}`}
-                </button>
+                {(() => {
+                  const activeAuditForPack = openAudits.find(a => a.standard === p.code);
+                  if (activeAuditForPack) {
+                    return (
+                      <button
+                        onClick={() => navigate(`/app/audit/${activeAuditForPack.id}`)}
+                        className="pill-cta mt-6 w-full bg-primary hover:bg-primary/95 font-semibold text-white"
+                      >
+                        Go to Audit
+                      </button>
+                    );
+                  }
+                  return (
+                    <button
+                      onClick={() => {
+                        if (isProfileComplete && !hasOpenAudit) {
+                          setConfiguringPack(p.code);
+                          setAuditTitle("");
+                          setAuditCriteria("");
+                          setAuditScope("");
+                          setAuditObject("");
+                          setSelectedAuditorId("");
+                        }
+                      }}
+                      disabled={busy !== null || (!active && balance < cost) || !isProfileComplete || hasOpenAudit}
+                      className="pill-cta mt-6 w-full disabled:opacity-50"
+                    >
+                      {busy === p.code ? "Unlocking..." : !isProfileComplete ? "Profile setup required" : hasOpenAudit ? "Active audit in progress" : active ? "Setup Audit (Licensed)" : balance < cost ? "Not enough credits" : `Unlock for ${cost} credit${cost === 1 ? "" : "s"}`}
+                    </button>
+                  );
+                })()}
 
                 {!affordable && !active && (
                   <Link to="/app/wallet" className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-foreground">

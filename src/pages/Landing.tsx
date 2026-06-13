@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   ArrowRight,
+  ArrowUp,
   BadgeCheck,
   BarChart3,
   CheckCircle2,
@@ -79,7 +80,7 @@ const individualPlans = [
       "Auto-generate professional reports & watermarks",
       "Personal auditor dashboard & compliance scoring",
     ],
-    cta: "Start auditing free",
+    cta: "Start Auditing Free",
     ctaStyle: "pill-secondary w-full justify-center",
   },
   {
@@ -95,7 +96,7 @@ const individualPlans = [
       "Action tracking & self-managed CAPA logs",
       "Custom report templates with photo attachments",
     ],
-    cta: "Start safety audit",
+    cta: "Start Safety Audit",
     ctaStyle: "pill-cta w-full justify-center",
   },
 ];
@@ -114,7 +115,7 @@ const organizationPlans = [
       "Real-time corporate compliance dashboards",
       "Traceable multi-site auditor records",
     ],
-    cta: "Configure workspace",
+    cta: "Configure Workspace",
     ctaStyle: "pill-secondary w-full justify-center",
   },
   {
@@ -148,7 +149,7 @@ const workflow = [
   },
   {
     step: "03",
-    title: "Execute with Evidence",
+    title: "Execute With Evidence",
     body: "Run audits clause-by-clause. Capture evidence, observations, and conformity status in real time.",
   },
   {
@@ -172,10 +173,30 @@ export default function Landing() {
   const [mounted, setMounted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [pricingType, setPricingType] = useState<"individual" | "organization">("individual");
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 300) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
 
   // Manual theme synchronization to documentElement to bypass next-themes issues
   useEffect(() => {
@@ -219,7 +240,7 @@ export default function Landing() {
                 ISO AUDIT MANAGEMENT PORT
               </span>
               <span className="font-display text-[9px] sm:text-[10.5px] text-muted-foreground font-normal leading-none mt-1 tracking-wide block">
-                powered by Oak Global International
+                Powered By Oak Global International
               </span>
 
             </div>
@@ -228,7 +249,7 @@ export default function Landing() {
           {/* Nav links */}
           <nav className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex">
             <a href="#features" className="transition hover:text-foreground">Features</a>
-            <a href="#how-it-works" className="transition hover:text-foreground">How it works</a>
+            <a href="#how-it-works" className="transition hover:text-foreground">How It Works</a>
             <a href="#pricing" className="transition hover:text-foreground">Pricing</a>
           </nav>
 
@@ -257,9 +278,9 @@ export default function Landing() {
                 </Link>
               ) : (
                 <>
-                  <Link to="/auth" className="pill-secondary text-xs px-3.5 py-2">Sign in</Link>
+                  <Link to="/auth" className="pill-secondary text-xs px-3.5 py-2">Sign In</Link>
                   <Link to="/auth?mode=signup" className="pill-cta text-xs px-4 py-2">
-                    <span>Get started</span>
+                    <span>Get Started</span>
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </>
@@ -321,7 +342,7 @@ export default function Landing() {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="rounded-xl px-4 py-3 hover:bg-secondary text-muted-foreground hover:text-foreground transition"
               >
-                How it works
+                How It Works
               </a>
               <a
                 href="#pricing"
@@ -337,10 +358,10 @@ export default function Landing() {
             {isLoggedIn ? (
               <Link
                 to="/app"
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={() => setIsMobileOpen(false)}
                 className="pill-cta w-full justify-center text-center text-xs py-3.5"
               >
-                <span>Go to Dashboard</span>
+                <span>Go To Dashboard</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             ) : (
@@ -350,14 +371,14 @@ export default function Landing() {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="pill-secondary w-full justify-center text-center text-xs py-3.5"
                 >
-                  Sign in
+                  Sign In
                 </Link>
                 <Link
                   to="/auth?mode=signup"
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="pill-cta w-full justify-center text-center text-xs py-3.5"
                 >
-                  <span>Get started</span>
+                  <span>Get Started</span>
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </>
@@ -381,7 +402,7 @@ export default function Landing() {
           <div className="hero-grid-pattern" />
 
           {/* Content — centered */}
-          <div className="relative z-10 mx-auto max-w-4xl px-6 py-16 sm:py-24 text-center text-white">
+          <div className="relative z-10 mx-auto max-w-4xl px-6 pt-10 pb-16 sm:pt-14 sm:pb-20 md:pt-16 md:pb-24 text-center text-white">
             <div className="animate-fade-in-up">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3.5 py-1.5 text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-white/90 backdrop-blur-sm shadow-sm">
                 <BadgeCheck className="h-3.5 w-3.5 text-accent shrink-0" />
@@ -389,26 +410,26 @@ export default function Landing() {
               </span>
             </div>
 
-            <h1 className="animate-fade-in-up-delay-1 mt-5 text-balance font-display text-3xl sm:text-5xl md:text-6xl lg:text-[4.5rem] font-extrabold leading-[1.1] tracking-tight text-white drop-shadow-sm">
+            <h1 className="animate-fade-in-up-delay-1 mt-4 text-balance font-display text-3xl sm:text-5xl md:text-6xl lg:text-[4.5rem] font-extrabold leading-[1.1] tracking-tight text-white drop-shadow-sm">
               Audit operations that feel{" "}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-200 via-sky-100 to-emerald-100 font-extrabold">modern, clear</span>
               <br className="hidden sm:block" /> and easy to run.
             </h1>
 
-            <p className="animate-fade-in-up-delay-2 mx-auto mt-5 max-w-2xl text-sm sm:text-base leading-6 sm:leading-7 text-white/85 md:text-lg">
+            <p className="animate-fade-in-up-delay-2 mx-auto mt-4 max-w-2xl text-sm sm:text-base leading-6 sm:leading-7 text-white/85 md:text-lg">
               ISO AUDIT MANAGEMENT PORT gives auditors one clean place to manage processes, run audits,
               collect evidence, track findings, and export polished reports — without the usual friction.
             </p>
 
-            <div className="animate-fade-in-up-delay-3 mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3.5 max-w-xs mx-auto sm:max-w-none">
+            <div className="animate-fade-in-up-delay-3 mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3.5 max-w-xs mx-auto sm:max-w-none">
               {isLoggedIn ? (
                 <Link to="/app" className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:scale-105 hover:bg-slate-50 duration-300">
-                  Go to Dashboard
+                  Go To Dashboard
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               ) : (
                 <Link to="/auth?mode=signup" className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:scale-105 hover:bg-slate-50 duration-300">
-                  Start auditing free
+                  Start Auditing Free
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               )}
@@ -420,23 +441,23 @@ export default function Landing() {
                 className="inline-flex items-center justify-center gap-2.5 rounded-full border border-white/30 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 hover:scale-105 duration-300"
               >
                 <Play className="h-3.5 w-3.5 fill-white text-white shrink-0" />
-                Watch demo
+                Watch Demo
               </button>
             </div>
 
             {/* Trust indicators */}
-            <div className="animate-fade-in-up-delay-3 mt-10 flex flex-wrap items-center justify-center gap-6 text-xs font-medium text-white/70">
+            <div className="animate-fade-in-up-delay-3 mt-8 flex flex-wrap items-center justify-center gap-6 text-xs font-medium text-white/70">
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                 ISO 9001 · 14001 · 45001 · 27001
               </span>
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                No credit card required
+                No Credit Card Required
               </span>
               <span className="flex items-center gap-1.5">
                 <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                Ready in under 5 minutes
+                Ready In Under 5 Minutes
               </span>
             </div>
           </div>
@@ -470,10 +491,10 @@ export default function Landing() {
           <div className="text-center relative z-10">
             <span className="eyebrow-chip-green">
               <LayoutGrid className="h-3.5 w-3.5" />
-              Platform features
+              Platform Features
             </span>
             <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight text-foreground">
-              Everything your audit team needs
+              Everything Your Audit Team Needs
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground leading-relaxed">
               Built specifically for compliance and audit professionals who need clarity, traceability, and speed —
@@ -506,10 +527,10 @@ export default function Landing() {
               <div>
                 <span className="eyebrow-chip">
                   <ShieldCheck className="h-3.5 w-3.5 text-primary" />
-                  Built for confidence
+                  Built For Confidence
                 </span>
                 <h2 className="mt-5 font-display text-4xl font-extrabold tracking-tight">
-                  Keep every audit decision traceable.
+                  Keep Every Audit Decision Traceable.
                 </h2>
                 <p className="mt-4 text-base leading-7 text-muted-foreground">
                   Evidence, findings, CAPA, and analytics are tied together so the report tells the same
@@ -529,7 +550,7 @@ export default function Landing() {
                 </ul>
                 <div className="mt-8 flex gap-3">
                   <Link to="/auth?mode=signup" className="pill-cta">
-                    Start auditing
+                    Start Auditing
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
@@ -561,10 +582,10 @@ export default function Landing() {
           <div className="text-center relative z-10">
             <span className="eyebrow-chip">
               <ClipboardList className="h-3.5 w-3.5 text-primary" />
-              How it works
+              How It Works
             </span>
             <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight">
-              A simpler order for real audit work
+              A Simpler Order For Real Audit Work
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground">
               The experience is built to match how audit teams naturally move — from process setup
@@ -700,10 +721,10 @@ export default function Landing() {
             <div className="text-center">
               <span className="eyebrow-chip-green">
                 <BadgeCheck className="h-3.5 w-3.5 text-accent" />
-                Simple pricing allocation
+                Simple Pricing Allocation
               </span>
               <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight text-foreground">
-                Flexible packs for every auditor
+                Flexible Packs For Every Auditor
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground leading-relaxed">
                 Activate audit packs only for the standard and auditor scope you need. Zero upfront subscription commitments.
@@ -724,7 +745,7 @@ export default function Landing() {
                       pricingType === "individual" ? "text-white animate-fade-in" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    Individual auditor
+                    Individual Auditor
                   </button>
                   <button
                     onClick={() => setPricingType("organization")}
@@ -802,7 +823,7 @@ export default function Landing() {
           
           <div className="relative z-10 mx-auto max-w-3xl px-6 text-center text-white">
             <h2 className="font-display text-4xl font-extrabold tracking-tight">
-              Ready to modernise your audit operations?
+              Ready To Modernise Your Audit Operations?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-base text-white/80 leading-relaxed">
               Join audit teams across Africa using ISO AUDIT MANAGEMENT PORT's platform to run ISO-ready audits faster
@@ -813,7 +834,7 @@ export default function Landing() {
                 to="/auth?mode=signup"
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:scale-105 duration-300"
               >
-                Get started free
+                Get Started Free
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <button
@@ -821,7 +842,7 @@ export default function Landing() {
                 className="inline-flex items-center justify-center gap-2.5 rounded-full border border-white/30 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 hover:scale-105 duration-300"
               >
                 <Play className="h-3.5 w-3.5 fill-white text-white shrink-0" />
-                Watch demo
+                Watch Demo
               </button>
             </div>
           </div>
@@ -837,7 +858,7 @@ export default function Landing() {
               <img src={logo} alt="Logo" className="h-9 w-auto shrink-0 object-contain" />
               <div>
                 <span className="font-display text-base font-bold text-foreground block">ISO AUDIT MANAGEMENT PORT</span>
-                <span className="text-[10px] text-muted-foreground uppercase tracking-widest block">powered by Oak Global International</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-widest block">Powered By Oak Global International</span>
 
               </div>
             </div>
@@ -854,7 +875,7 @@ export default function Landing() {
               <span className="text-muted-foreground/40 hidden sm:inline">•</span>
               <Link to="/privacy" className="hover:text-foreground transition">Privacy Policy</Link>
               <span className="text-muted-foreground/30 hidden sm:inline">•</span>
-              <Link to="/terms" className="hover:text-foreground transition">Terms of Service</Link>
+              <Link to="/terms" className="hover:text-foreground transition">Terms Of Service</Link>
               <span className="text-muted-foreground/30 hidden sm:inline">•</span>
               <Link to="/contact" className="hover:text-foreground transition">Contact Us</Link>
             </div>
@@ -880,6 +901,17 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* Scroll to Top Button */}
+      <button
+        onClick={scrollToTop}
+        className={`fixed bottom-6 right-6 z-50 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-elevated transition-all duration-300 hover:scale-110 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+          showScrollTop ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+        }`}
+        aria-label="Scroll to Top"
+      >
+        <ArrowUp className="h-5 w-5" />
+      </button>
     </div>
   );
 }

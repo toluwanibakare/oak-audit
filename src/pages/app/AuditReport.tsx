@@ -690,7 +690,7 @@ const AuditReport = () => {
                     <div key={finding.id} className="rounded-3xl border border-border bg-card p-6 md:p-8 shadow-card space-y-6">
                       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
                         <div>
-                          <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-primary font-bold">Collective Action Report (CAR)</span>
+                          <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-primary font-bold">Corrective Action Report (CAR)</span>
                           <h3 className="font-display text-xl font-extrabold text-foreground mt-1">Finding No.: CAR-{String(idx + 1).padStart(3, "0")}</h3>
                         </div>
                         <div className="text-right">

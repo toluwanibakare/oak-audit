@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { AlertTriangle, FileUp, Link2, Lock, Unlock, User, RefreshCw, CheckCircle2, Clock, X, Search, ClipboardCheck } from "lucide-react";
+import { AlertTriangle, FileUp, Link2, Lock, Unlock, User, RefreshCw, CheckCircle2, Clock, X, Search, ClipboardCheck, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app/AppShell";
 import { useOrg } from "@/hooks/useOrg";
@@ -33,6 +33,13 @@ type FindingRow = {
 const STATUSES = ["pending", "conform", "minor", "major", "observation", "na"];
 const NONCONFORMING = new Set(["major", "minor", "observation"]);
 const AUTO_FINDING_PREFIX = "AUTO_META:";
+
+const getApplicableStandards = (auditStd: string): string[] => {
+  if (auditStd === "ims") return ["9001", "14001", "45001", "ims"];
+  if (auditStd === "hse") return ["14001", "45001", "hse"];
+  if (auditStd === "27001") return ["9001", "27001"];
+  return [auditStd];
+};
 
 export default function RunAudit() {
   const { id } = useParams();
@@ -228,13 +235,15 @@ export default function RunAudit() {
     if (!currentOrg || !audit || !activeProc) return;
     const proc = procs.find((process) => process.id === activeProc);
     if (!proc) return;
+    const applicableStds = getApplicableStandards(audit.standard);
     supabase
       .from("custom_questions")
-      .select("id,clause,text")
+      .select("id,clause,text,created_at")
       .eq("org_id", currentOrg.id)
-      .eq("standard", audit.standard)
+      .in("standard", applicableStds)
       .eq("process_key", proc.key)
       .eq("active", true)
+      .order("created_at", { ascending: false })
       .then(({ data }) => setCustom((data ?? []) as Custom[]));
   }, [currentOrg, audit, activeProc, procs]);
 
@@ -710,7 +719,16 @@ export default function RunAudit() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start">
         <aside className="rounded-2xl border border-border bg-card p-3 lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto">
-          <h3 className="px-2 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Processes</h3>
+          <div className="flex items-center justify-between px-2 py-2 border-b border-border/40 mb-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Processes</h3>
+            <Link 
+              to="/app/processes" 
+              className="text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded hover:bg-secondary"
+              title="Manage Processes"
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </Link>
+          </div>
           <ul className="space-y-1">
             {procs.map((proc) => (
               <li key={proc.id}>
@@ -726,7 +744,21 @@ export default function RunAudit() {
         </aside>
 
         <div className="min-h-0 space-y-4 flex-1">
-          {!activeProc && <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">Pick a process on the left to begin.</div>}
+          {!activeProc && (
+            <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground flex flex-col items-center justify-center gap-3">
+              <span>Pick a process on the left to begin.</span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs">Or manage your organization's processes:</span>
+                <Link 
+                  to="/app/processes" 
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Manage Processes
+                </Link>
+              </div>
+            </div>
+          )}
 
           {activeProc && isUnassigned && (
             <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center max-w-xl mx-auto mt-6">
@@ -790,8 +822,39 @@ export default function RunAudit() {
                 <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">No questions found for this process under this standard.</div>
               )}
 
+              {custom.length > 0 && (
+                <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+                  <div className="flex items-center gap-3 border-b border-border pb-3">
+                    <span className="font-mono text-base font-bold text-primary">★</span>
+                    <h3 className="font-display text-base font-bold text-foreground">Added Custom Questions</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {custom.map((item, index) => (
+                      <Row
+                        key={item.id}
+                        index={index + 1}
+                        processId={activeProc}
+                        clause={item.clause}
+                        kind="custom"
+                        qRef={item.id}
+                        q={item.text}
+                        answers={answers}
+                        finding={findingsMap[buildAnswerKey(activeProc, item.clause, "custom", item.id)]}
+                        evidenceHints={[]}
+                        uploading={uploadingFor === buildAnswerKey(activeProc, item.clause, "custom", item.id)}
+                        onSave={saveAnswer}
+                        onSyncFinding={syncFinding}
+                        onUploadEvidence={uploadEvidence}
+                        badge="Custom"
+                        readOnly={!canEdit}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {(() => {
-                let questionIndex = 0;
+                let questionIndex = custom.length;
                 return clauseSets.map((clauseSet: any) => (
                   <div key={clauseSet.clause} className="rounded-2xl border border-border bg-card p-5">
                     <div className="flex items-baseline gap-3">
@@ -816,29 +879,6 @@ export default function RunAudit() {
                     )}
 
                     <div className="mt-4 space-y-3">
-                      {custom.filter((item) => item.clause === clauseSet.clause).map((item, index) => {
-                        questionIndex++;
-                        return (
-                          <Row
-                            key={item.id}
-                            index={questionIndex}
-                            processId={activeProc}
-                            clause={clauseSet.clause}
-                            kind="custom"
-                            qRef={item.id}
-                            q={item.text}
-                            answers={answers}
-                            finding={findingsMap[buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)]}
-                            evidenceHints={clauseSet.evidence ?? []}
-                            uploading={uploadingFor === buildAnswerKey(activeProc, clauseSet.clause, "custom", item.id)}
-                            onSave={saveAnswer}
-                            onSyncFinding={syncFinding}
-                            onUploadEvidence={uploadEvidence}
-                            badge="Custom"
-                            readOnly={!canEdit}
-                          />
-                        );
-                      })}
                       {(clauseSet.generic ?? []).map((question: string, index: number) => {
                         questionIndex++;
                         return (

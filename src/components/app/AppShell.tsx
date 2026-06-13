@@ -184,7 +184,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
               </div>
               <div className="min-w-0">
                 <div className="truncate text-sm font-bold text-foreground">{displayName}</div>
-                <div className="text-[11px] text-muted-foreground">Personal account</div>
+                <div className="text-[11px] text-muted-foreground">Personal Account</div>
               </div>
             </div>
           ) : (
@@ -197,11 +197,11 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Current workspace</div>
+                <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Current Workspace</div>
                 <div className="mt-0.5 truncate text-sm font-bold text-foreground">
                   {currentOrg?.name ?? "Loading..."}
                 </div>
-                <div className="text-[11px] text-muted-foreground font-medium">Team audit command</div>
+                <div className="text-[11px] text-muted-foreground font-medium">Team Audit Command</div>
               </div>
             </div>
           )}
@@ -469,7 +469,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
                 ISO AUDIT MANAGEMENT PORT
               </span>
               <span className="text-[8px] sm:text-[9px] text-muted-foreground font-normal tracking-wide mt-0.5 leading-none">
-                powered by Oak Global International
+                Powered By Oak Global International
               </span>
 
             </div>

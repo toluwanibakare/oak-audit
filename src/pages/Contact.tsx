@@ -259,7 +259,7 @@ export default function Contact() {
             <Ticket className="h-6 w-6" />
           </div>
           <div className="space-y-2 max-w-sm mx-auto">
-            <h3 className="font-display text-base font-bold text-foreground">Log in to track tickets</h3>
+            <h3 className="font-display text-base font-bold text-foreground">Log In To Track Tickets</h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
               Active ticket history registers are reserved for registered users. Log in to your secure workspace to view and track your resolutions.
             </p>
@@ -279,7 +279,7 @@ export default function Contact() {
             <MessageSquare className="h-5 w-5" />
           </div>
           <div className="space-y-1">
-            <h3 className="font-display text-base font-bold text-foreground">No support tickets found</h3>
+            <h3 className="font-display text-base font-bold text-foreground">No Support Tickets Found</h3>
             <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">
               You haven't submitted any ISO helpdesk tickets yet. If you have any inquiries, file a ticket in the submit panel.
             </p>
@@ -371,9 +371,9 @@ export default function Contact() {
           Submit Another
         </button>
         {user ? (
-          <Link to="/app" className="pill-cta">Go to Dashboard</Link>
+          <Link to="/app" className="pill-cta">Go To Dashboard</Link>
         ) : (
-          <Link to="/" className="pill-cta">Back to Home</Link>
+          <Link to="/" className="pill-cta">Back To Home</Link>
         )}
       </div>
     </div>

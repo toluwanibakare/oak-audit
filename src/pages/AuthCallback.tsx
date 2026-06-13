@@ -50,13 +50,13 @@ const AuthCallback = () => {
     return (
       <div className="grid min-h-screen place-items-center px-6 text-center">
         <div className="space-y-4">
-          <p className="text-2xl font-bold text-foreground">Verification failed</p>
+          <p className="text-2xl font-bold text-foreground">Verification Failed</p>
           <p className="text-sm text-muted-foreground max-w-sm">{error}</p>
           <button
             onClick={() => navigate("/auth")}
             className="pill-cta px-6 py-2 text-sm font-semibold"
           >
-            Back to sign in
+            Back To Sign In
           </button>
         </div>
       </div>

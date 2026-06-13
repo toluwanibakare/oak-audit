@@ -37,6 +37,13 @@ type Answer = {
   status: string;
 };
 
+const getApplicableStandards = (auditStd: string): string[] => {
+  if (auditStd === "ims") return ["9001", "14001", "45001", "ims"];
+  if (auditStd === "hse") return ["14001", "45001", "hse"];
+  if (auditStd === "27001") return ["9001", "27001"];
+  return [auditStd];
+};
+
 export default function QuestionBank() {
   const { currentOrg } = useOrg();
   const { user } = useAuth();
@@ -168,12 +175,14 @@ export default function QuestionBank() {
     setAnswers(amap);
 
     // Fetch custom questions
+    const applicableStds = getApplicableStandards(selectedAudit.standard);
     const { data: customData } = await supabase
       .from("custom_questions")
-      .select("id, clause, text, evidence, reference, active")
+      .select("id, clause, text, evidence, reference, active, created_at")
       .eq("org_id", currentOrg.id)
-      .eq("standard", selectedAudit.standard)
-      .eq("process_key", activeProc.key);
+      .in("standard", applicableStds)
+      .eq("process_key", activeProc.key)
+      .order("created_at", { ascending: false });
     
     setCustomQuestions((customData ?? []) as CustomQuestion[]);
   };
@@ -252,19 +261,23 @@ export default function QuestionBank() {
         isCustom: true,
         active: cq.active,
         answer: answer || null,
+        created_at: (cq as any).created_at,
       });
     });
 
     const clauseSort = (a: string) => a.split(".").map((n) => parseInt(n, 10) || 0);
 
     return list.sort((a, b) => {
+      if (a.isCustom !== b.isCustom) {
+        return a.isCustom ? -1 : 1;
+      }
+      if (a.isCustom && b.isCustom) {
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      }
       const A = clauseSort(a.clause), B = clauseSort(b.clause);
       for (let i = 0; i < Math.max(A.length, B.length); i++) {
         const x = A[i] ?? 0, y = B[i] ?? 0;
         if (x !== y) return x - y;
-      }
-      if (a.isCustom !== b.isCustom) {
-        return a.isCustom ? -1 : 1;
       }
       return 0;
     });

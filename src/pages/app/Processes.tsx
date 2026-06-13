@@ -40,9 +40,10 @@ export default function Processes() {
   const [form, setForm] = useState({ name: "", scope: "" });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [processToDelete, setProcessToDelete] = useState<Proc | null>(null);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedProcIdsMain, setSelectedProcIdsMain] = useState<string[]>([]);
 
   // Selection states for standard processes
-  const [isEditingStandards, setIsEditingStandards] = useState(false);
   const [selectedStandardKeys, setSelectedStandardKeys] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -78,8 +79,7 @@ export default function Processes() {
         .eq("org_id", currentOrg.id)
         .eq("process_key", processKey)
         .eq("active", true)
-        .order("standard")
-        .order("clause");
+        .order("created_at", { ascending: false });
       if (error) throw error;
       setCustomQuestions(data ?? []);
     } catch (err: any) {
@@ -168,7 +168,6 @@ export default function Processes() {
       }
 
       toast({ title: "Processes list updated successfully!" });
-      setIsEditingStandards(false);
       load();
     } catch (err: any) {
       toast({ title: "Failed to update standard processes", description: err.message, variant: "destructive" });
@@ -224,6 +223,35 @@ export default function Processes() {
   const remove = async (id: string) => { 
     await supabase.from("org_processes").delete().eq("id", id); 
     load(); 
+  };
+
+  const toggleSelectMode = () => {
+    setIsSelectMode(!isSelectMode);
+    setSelectedProcIdsMain([]);
+  };
+
+  const handleToggleSelectMain = (id: string) => {
+    setSelectedProcIdsMain(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedProcIdsMain.length === 0) return;
+    if (!window.confirm(`Are you sure you want to remove the ${selectedProcIdsMain.length} selected processes?`)) return;
+    try {
+      const { error } = await supabase
+        .from("org_processes")
+        .delete()
+        .in("id", selectedProcIdsMain);
+      if (error) throw error;
+      toast({ title: `${selectedProcIdsMain.length} processes removed successfully` });
+      setIsSelectMode(false);
+      setSelectedProcIdsMain([]);
+      await load();
+    } catch (err: any) {
+      toast({ title: "Failed to delete processes", description: err.message, variant: "destructive" });
+    }
   };
 
   // Import standard questions for a custom process key
@@ -305,7 +333,7 @@ export default function Processes() {
     }
   };
 
-  const showSelectionGrid = list.length === 0 || isEditingStandards;
+  const showSelectionGrid = list.length === 0;
 
   if (loading) {
     return (
@@ -351,13 +379,37 @@ export default function Processes() {
         <div className="flex items-center gap-3">
           {!showSelectionGrid && (
             <button 
-              onClick={() => setIsEditingStandards(true)} 
-              className="rounded-full border border-border bg-card px-4 py-2 text-sm transition hover:bg-secondary font-semibold"
+              onClick={toggleSelectMode} 
+              className={`rounded-full border px-4 py-2 text-sm transition font-semibold ${
+                isSelectMode ? "border-primary bg-primary/10 text-primary" : "border-border bg-card hover:bg-secondary"
+              }`}
             >
-              Configure Standard Processes
+              {isSelectMode ? "Cancel Selection" : "Select Multiple"}
             </button>
           )}
-          {!showSelectionGrid && (
+          {!showSelectionGrid && isSelectMode && (
+            <button 
+              onClick={() => {
+                if (selectedProcIdsMain.length === list.length) {
+                  setSelectedProcIdsMain([]);
+                } else {
+                  setSelectedProcIdsMain(list.map(p => p.id));
+                }
+              }}
+              className="rounded-full border border-border bg-card px-4 py-2 text-sm transition hover:bg-secondary font-semibold"
+            >
+              {selectedProcIdsMain.length === list.length ? "Deselect All" : "Select All"}
+            </button>
+          )}
+          {!showSelectionGrid && isSelectMode && selectedProcIdsMain.length > 0 && (
+            <button 
+              onClick={handleBulkDelete} 
+              className="pill-cta bg-destructive hover:bg-destructive/95 text-white px-4 py-2 text-sm font-semibold"
+            >
+              Remove Selected ({selectedProcIdsMain.length})
+            </button>
+          )}
+          {!showSelectionGrid && !isSelectMode && (
             <button onClick={() => setIsModalOpen(true)} className="pill-cta px-4 py-2 text-sm font-semibold flex items-center gap-1.5">
               <Plus className="h-4 w-4" />
               Add Process
@@ -371,17 +423,23 @@ export default function Processes() {
           <div className="flex justify-between items-center pb-4 border-b border-border">
             <div>
               <h3 className="font-display text-lg font-bold">Standard Processes Checklist</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Check all the processes that apply. You must choose at least one standard process to run audits.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Check all the processes that apply or add a custom process to get started.</p>
             </div>
-            {list.length > 0 && (
-              <button 
-                onClick={() => setIsEditingStandards(false)} 
-                className="text-xs font-bold text-muted-foreground hover:text-foreground flex items-center gap-1"
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedStandardKeys.length === UNIQUE_STANDARD_PROCESSES.length) {
+                    setSelectedStandardKeys([]);
+                  } else {
+                    setSelectedStandardKeys(UNIQUE_STANDARD_PROCESSES.map(sp => sp.key));
+                  }
+                }}
+                className="text-xs font-bold text-primary hover:underline"
               >
-                <ArrowLeft className="h-3 w-3" />
-                Cancel
+                {selectedStandardKeys.length === UNIQUE_STANDARD_PROCESSES.length ? "Deselect All" : "Select All"}
               </button>
-            )}
+            </div>
           </div>
 
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 max-h-[400px] overflow-y-auto pr-1">
@@ -416,15 +474,14 @@ export default function Processes() {
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-border">
-            {list.length > 0 && (
-              <button 
-                disabled={saving}
-                onClick={() => setIsEditingStandards(false)} 
-                className="rounded-full border border-border px-5 py-2 text-sm font-semibold hover:bg-secondary transition"
-              >
-                Cancel
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="rounded-full border border-border bg-card px-5 py-2 text-sm font-semibold hover:bg-secondary transition flex items-center gap-1.5"
+            >
+              <Plus className="h-4 w-4" />
+              Add Custom Process
+            </button>
             <button 
               onClick={saveStandardSelection}
               disabled={saving || selectedStandardKeys.length === 0}
@@ -436,40 +493,76 @@ export default function Processes() {
         </section>
       ) : (
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          {list.map((p) => (
-            <div key={p.id} className="rounded-2xl border border-border bg-card p-5 shadow-sm transition hover:shadow-card hover:border-muted-foreground/20 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between">
-                  <h3 className="font-display text-base font-bold text-foreground">{p.name}</h3>
-                  <button onClick={() => setProcessToDelete(p)} className="text-xs text-destructive hover:underline font-semibold">Remove</button>
+          {list.map((p) => {
+            const isChecked = selectedProcIdsMain.includes(p.id);
+            return (
+              <div 
+                key={p.id} 
+                onClick={() => {
+                  if (isSelectMode) {
+                    handleToggleSelectMain(p.id);
+                  }
+                }}
+                className={`rounded-2xl border bg-card p-5 shadow-sm transition flex flex-col justify-between ${
+                  isSelectMode ? "cursor-pointer select-none" : ""
+                } ${
+                  isChecked ? "border-primary ring-2 ring-primary/20 bg-primary/5" : "border-border hover:shadow-card hover:border-muted-foreground/20"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {isSelectMode && (
+                        <input
+                          type="checkbox"
+                          className="h-4.5 w-4.5 rounded border-border text-primary focus:ring-primary"
+                          checked={isChecked}
+                          onChange={() => {}} // handled by onClick of parent
+                        />
+                      )}
+                      <h3 className="font-display text-base font-bold text-foreground">{p.name}</h3>
+                    </div>
+                    {!isSelectMode && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setProcessToDelete(p);
+                        }} 
+                        className="text-xs text-destructive hover:underline font-semibold"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{p.scope || "No description mapped."}</p>
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{p.scope || "No description mapped."}</p>
-              </div>
-              <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                    p.is_custom ? "bg-accent/20 text-accent" : "bg-primary/20 text-primary"
-                  }`}>
-                    {p.is_custom ? "Custom" : "Standard"}
-                  </span>
-                  {p.is_custom && (
-                    <button
-                      onClick={() => {
-                        setCreatedCustomProcessKey(p.key);
-                        setCreatedCustomProcessName(p.name);
-                        setImportFromKey("");
-                        setShowCustomSetupModal(true);
-                      }}
-                      className="text-xs font-semibold text-primary hover:underline"
-                    >
-                      Manage Questions
-                    </button>
-                  )}
+                <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                      p.is_custom ? "bg-accent/20 text-accent" : "bg-primary/20 text-primary"
+                    }`}>
+                      {p.is_custom ? "Custom" : "Standard"}
+                    </span>
+                    {p.is_custom && !isSelectMode && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCreatedCustomProcessKey(p.key);
+                          setCreatedCustomProcessName(p.name);
+                          setImportFromKey("");
+                          setShowCustomSetupModal(true);
+                        }}
+                        className="text-xs font-semibold text-primary hover:underline"
+                      >
+                        Manage Questions
+                      </button>
+                    )}
+                  </div>
+                  <span className="font-mono text-[10px] text-slate-500">{p.key}</span>
                 </div>
-                <span className="font-mono text-[10px] text-slate-500">{p.key}</span>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
