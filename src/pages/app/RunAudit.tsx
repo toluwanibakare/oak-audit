@@ -542,7 +542,7 @@ export default function RunAudit() {
     setIsSubmitting(true);
     const { error } = await supabase
       .from("audits")
-      .update({ status: "generating", closed_at: new Date().toISOString() })
+      .update({ status: "closed", closed_at: new Date().toISOString() })
       .eq("id", id);
       
     setIsSubmitting(false);
@@ -551,8 +551,8 @@ export default function RunAudit() {
       return;
     }
     
-    toast({ title: "Audit Submitted Successfully", description: "Your ISO compliance report is being compiled." });
-    setAudit(audit ? { ...audit, status: "generating", closed_at: new Date().toISOString() } : null);
+    toast({ title: "Audit Submitted Successfully", description: "Your ISO compliance report has been generated." });
+    setAudit(audit ? { ...audit, status: "closed", closed_at: new Date().toISOString() } : null);
   };
 
   const closeAudit = async () => {
