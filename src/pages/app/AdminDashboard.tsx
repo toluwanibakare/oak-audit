@@ -312,6 +312,38 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleMarkAsResolved = async () => {
+    if (!selectedTicket) return;
+    setSendingResponse(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const adminUserId = userData?.user?.id || null;
+
+      const resolutionText = adminResponse.trim() || "Resolved by administrator.";
+
+      const { error } = await supabase.rpc("admin_respond_to_ticket", {
+        _ticket_id: selectedTicket.id,
+        _response: resolutionText,
+        _admin_user_id: adminUserId,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Ticket Resolved!",
+        description: `Ticket Ref TKT-${selectedTicket.id.slice(0, 8).toUpperCase()} has been marked as resolved.`,
+      });
+
+      setAdminResponse("");
+      setSelectedTicket(null);
+      loadTickets();
+    } catch (err: any) {
+      toast({ title: "Failed to resolve ticket", description: err.message, variant: "destructive" });
+    } finally {
+      setSendingResponse(false);
+    }
+  };
+
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4">
@@ -937,20 +969,30 @@ export default function AdminDashboard() {
                   </div>
 
                   {selectedTicket.status === "open" ? (
-                    <div className="flex gap-2">
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSelectedTicket(null)}
+                          className="flex-grow bg-slate-950 border border-slate-800 hover:bg-slate-900 rounded-xl py-2.5 text-xs font-semibold text-slate-400 text-center transition"
+                        >
+                          Cancel
+                        </button>
+                        
+                        <button
+                          onClick={handleRespondTicket}
+                          disabled={sendingResponse || !adminResponse.trim()}
+                          className="flex-grow bg-primary hover:bg-primary/95 text-white font-bold rounded-xl py-2.5 text-xs text-center transition tracking-wide uppercase disabled:opacity-50"
+                        >
+                          {sendingResponse ? "Submitting..." : "Submit Response"}
+                        </button>
+                      </div>
+
                       <button
-                        onClick={() => setSelectedTicket(null)}
-                        className="flex-1 bg-slate-950 border border-slate-800 hover:bg-slate-900 rounded-xl py-2 text-xs font-semibold text-slate-400 text-center transition"
+                        onClick={handleMarkAsResolved}
+                        disabled={sendingResponse}
+                        className="w-full bg-success/20 hover:bg-success/30 text-success border border-success/30 font-bold rounded-xl py-2.5 text-xs text-center transition tracking-wide uppercase"
                       >
-                        Cancel
-                      </button>
-                      
-                      <button
-                        onClick={handleRespondTicket}
-                        disabled={sendingResponse || !adminResponse.trim()}
-                        className="flex-grow flex-1 bg-primary hover:bg-primary/95 text-white font-bold rounded-xl py-2 text-xs text-center transition tracking-wide uppercase disabled:opacity-50"
-                      >
-                        {sendingResponse ? "Submitting..." : "Submit Response"}
+                        {sendingResponse ? "Resolving..." : "Mark as Resolved"}
                       </button>
                     </div>
                   ) : (
