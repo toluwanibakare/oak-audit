@@ -1259,6 +1259,57 @@ function Row({
     });
   };
 
+  const handleCancelFinding = async () => {
+    const nextStatus = "pending";
+    setStatus(nextStatus);
+    
+    // Clear all finding-related fields
+    setDescription(answer.question_text || q);
+    setCapa("");
+    setOwner("");
+    setDueDate("");
+    setCorrection("");
+    setRootCauseText("");
+    setSeverity("Medium");
+
+    const nextNote = note === "Finding automatically declared during audit." ? "" : note;
+    setNote(nextNote);
+
+    // Save answer as 'pending'
+    await onSave({
+      process_id: processId,
+      clause,
+      kind,
+      q_ref: qRef,
+      question_text: answer.question_text || q,
+      status: nextStatus,
+      note: nextNote,
+      evidence,
+    });
+
+    // Sync finding details, which deletes the finding from the DB since status is 'pending'
+    await onSyncFinding({
+      processId,
+      clause,
+      kind,
+      qRef,
+      questionText: answer.question_text || q,
+      answerStatus: nextStatus,
+      description: answer.question_text || q,
+      capa: "",
+      owner: "",
+      dueDate: "",
+      correction: "",
+      rootCauseText: "",
+      severity: "Medium",
+    });
+
+    toast({
+      title: "Finding cancelled",
+      description: "The non-conformity finding and its CAPA details have been removed.",
+    });
+  };
+
   return (
     <div className="rounded-xl border border-border p-4 bg-card/40 backdrop-blur-sm transition-all duration-300 hover:shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1281,6 +1332,16 @@ function Row({
             >
               <AlertTriangle className="h-3.5 w-3.5" />
               Auto-declare finding
+            </button>
+          )}
+          {NONCONFORMING.has(status) && !readOnly && (
+            <button
+              onClick={handleCancelFinding}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-secondary/50 px-3.5 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+              title="Cancel and remove this audit finding"
+            >
+              <X className="h-3.5 w-3.5" />
+              Cancel finding
             </button>
           )}
           <select
