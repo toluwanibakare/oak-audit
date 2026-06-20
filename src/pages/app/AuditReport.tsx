@@ -110,12 +110,12 @@ const AuditReport = () => {
 
   useEffect(() => {
     if (audit) {
-      setEmailSubject(`Collective Action Report (CAR) — ${audit.title}`);
+      setEmailSubject(`Corrective Action Report (CAR) — ${audit.title}`);
       setEmailBody(`Dear Team,
 
-Please find attached the Collective Action Report (CAR) for the audit "${audit.title}".
+Please find attached the Corrective Action Report (CAR) for the audit "${audit.title}".
 
-We have identified compliance findings that require collective action. Please review the attached document and ensure all actions are addressed by the target closure dates.
+We have identified compliance findings that require corrective action. Please review the attached document and ensure all actions are addressed by the target closure dates.
 
 Best regards,
 ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Auditor") : currentOrg?.name || "The Audit Team"}`);
@@ -245,7 +245,7 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
       const { data, error } = await supabase.functions.invoke("send-email", {
         body: {
           to: auditeeEmail.trim(),
-          subject: `Collective Action Report (CAR) - ${audit?.title}`,
+          subject: `Corrective Action Report (CAR) - ${audit?.title}`,
           html: htmlContent,
         }
       });
@@ -254,7 +254,7 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
       alert(`CAR successfully shared to ${auditeeEmail}`);
     } catch (err: any) {
       console.error("Failed to share email via edge function:", err);
-      const mailtoLink = `mailto:${auditeeEmail.trim()}?subject=${encodeURIComponent(`Collective Action Report (CAR) - ${audit?.title}`)}&body=${encodeURIComponent("Please find the Collective Action Report (CAR) details in the attachment or print-out.")}`;
+      const mailtoLink = `mailto:${auditeeEmail.trim()}?subject=${encodeURIComponent(`Corrective Action Report (CAR) - ${audit?.title}`)}&body=${encodeURIComponent("Please find the Corrective Action Report (CAR) details in the attachment or print-out.")}`;
       window.location.href = mailtoLink;
       alert("Opening mail client client-side fallback...");
     } finally {
@@ -662,13 +662,13 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
           </div>
         )}
 
-        {/* Collective Action Report (CAR) Tab */}
+        {/* Corrective Action Report (CAR) Tab */}
         {activeTab === "capa" && (
           <div className="mt-8 space-y-6 animate-fade-in">
             <div className="flex flex-wrap items-center justify-between gap-6 border-b border-border/60 pb-6">
               <div>
-                <h2 className="font-display text-xl font-bold text-foreground">Collective Action Report (CAR)</h2>
-                <p className="text-sm text-muted-foreground">Issue, print, or share official Collective Action Reports for compliance findings.</p>
+                <h2 className="font-display text-xl font-bold text-foreground">Corrective Action Report (CAR)</h2>
+                <p className="text-sm text-muted-foreground">Issue, print, or share official Corrective Action Reports for compliance findings.</p>
               </div>
               
               <div className="flex flex-wrap items-center gap-4">
@@ -699,7 +699,7 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
                       <div key={finding.id} className="rounded-3xl border border-border bg-card p-6 md:p-8 shadow-card space-y-6">
                         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
                           <div>
-                            <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-primary font-bold">Collective Action Report (CAR)</span>
+                            <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-primary font-bold">Corrective Action Report (CAR)</span>
                             <h3 className="font-display text-xl font-extrabold text-foreground mt-1">Finding No.: CAR-{String(idx + 1).padStart(3, "0")}</h3>
                           </div>
                           <div className="text-right">
@@ -774,17 +774,17 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
                           </div>
 
                           <div className="space-y-1">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">6. Collective Actions</h4>
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">6. Corrective Actions</h4>
                             <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed whitespace-pre-wrap">{finding.capa || "-"}</div>
                           </div>
 
                           <div className="space-y-1">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">7. Collective Action Plan Details</h4>
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">7. Corrective Action Plan Details</h4>
                             <div className="overflow-x-auto rounded-xl border border-border bg-background">
                               <table className="w-full text-left text-xs border-collapse">
                                 <thead className="bg-secondary/40 font-semibold text-muted-foreground uppercase">
                                   <tr className="border-b border-border">
-                                    <th className="p-3">Collective Action Item</th>
+                                    <th className="p-3">Corrective Action Item</th>
                                     <th className="p-3 w-1/4">Responsible</th>
                                     <th className="p-3 w-1/5">Target Date</th>
                                   </tr>
@@ -892,7 +892,7 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
 
                     <div className="flex items-center gap-2 rounded-xl bg-emerald-600/10 text-emerald-600 dark:text-emerald-500 border border-emerald-600/20 p-3 text-[11px]">
                       <Paperclip className="h-4 w-4 shrink-0" />
-                      <span><strong>Attachment:</strong> Collective_Action_Report.pdf</span>
+                      <span><strong>Attachment:</strong> Corrective_Action_Report.pdf</span>
                     </div>
 
                     <div className="flex gap-2">

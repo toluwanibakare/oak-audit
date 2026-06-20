@@ -1535,7 +1535,7 @@ function Row({
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Collective Action Plan (CAR)</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Corrective Action Plan (CAR)</label>
               <textarea value={capa} onChange={(e) => setCapa(e.target.value)} onBlur={() => persistFinding()} placeholder={readOnly ? "No CAR specified." : "Long-term actions to prevent recurrence..."} disabled={readOnly} className="input min-h-[76px] text-sm" />
             </div>
             
