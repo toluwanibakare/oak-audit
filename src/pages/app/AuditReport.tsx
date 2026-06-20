@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams, Link } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, Download, PieChart as PieChartIcon, Printer, Radar, Table, FileText, Mail } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Download, PieChart as PieChartIcon, Printer, Radar, Table, FileText, Mail, Paperclip, Send } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app/AppShell";
@@ -73,6 +73,9 @@ const AuditReport = () => {
   const [processes, setProcesses] = useState<AnalyticsProcess[]>([]);
   const [auditeeEmail, setAuditeeEmail] = useState("");
   const [sharing, setSharing] = useState(false);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [emailNotes, setEmailNotes] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -104,6 +107,20 @@ const AuditReport = () => {
       cancelled = true;
     };
   }, [id, currentOrg]);
+
+  useEffect(() => {
+    if (audit) {
+      setEmailSubject(`Collective Action Report (CAR) — ${audit.title}`);
+      setEmailBody(`Dear Team,
+
+Please find attached the Collective Action Report (CAR) for the audit "${audit.title}".
+
+We have identified compliance findings that require collective action. Please review the attached document and ensure all actions are addressed by the target closure dates.
+
+Best regards,
+${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Auditor") : currentOrg?.name || "The Audit Team"}`);
+    }
+  }, [audit, currentOrg, user]);
 
   const processMap = useMemo(() => Object.fromEntries(processes.map((process) => [process.id, process.name])), [processes]);
 
@@ -228,7 +245,7 @@ const AuditReport = () => {
       const { data, error } = await supabase.functions.invoke("send-email", {
         body: {
           to: auditeeEmail.trim(),
-          subject: `Corrective Action Report (CAR) - ${audit?.title}`,
+          subject: `Collective Action Report (CAR) - ${audit?.title}`,
           html: htmlContent,
         }
       });
@@ -237,12 +254,22 @@ const AuditReport = () => {
       alert(`CAR successfully shared to ${auditeeEmail}`);
     } catch (err: any) {
       console.error("Failed to share email via edge function:", err);
-      const mailtoLink = `mailto:${auditeeEmail.trim()}?subject=${encodeURIComponent(`Corrective Action Report (CAR) - ${audit?.title}`)}&body=${encodeURIComponent("Please find the Corrective Action Report (CAR) details in the attachment or print-out.")}`;
+      const mailtoLink = `mailto:${auditeeEmail.trim()}?subject=${encodeURIComponent(`Collective Action Report (CAR) - ${audit?.title}`)}&body=${encodeURIComponent("Please find the Collective Action Report (CAR) details in the attachment or print-out.")}`;
       window.location.href = mailtoLink;
       alert("Opening mail client client-side fallback...");
     } finally {
       setSharing(false);
     }
+  };
+
+  const handleSendEmail = () => {
+    if (!auditeeEmail.trim()) {
+      alert("Please enter a valid auditee email address.");
+      return;
+    }
+    const fullBody = `${emailBody}${emailNotes ? `\n\nAdditional Auditor Notes:\n${emailNotes}` : ""}`;
+    const mailto = `mailto:${auditeeEmail.trim()}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(fullBody)}`;
+    window.location.href = mailto;
   };
 
   if (loading || !audit) {
@@ -635,35 +662,16 @@ const AuditReport = () => {
           </div>
         )}
 
-        {/* Corrective Action Report (CAR) Tab */}
+        {/* Collective Action Report (CAR) Tab */}
         {activeTab === "capa" && (
           <div className="mt-8 space-y-6 animate-fade-in">
             <div className="flex flex-wrap items-center justify-between gap-6 border-b border-border/60 pb-6">
               <div>
-                <h2 className="font-display text-xl font-bold text-foreground">Corrective Action Report (CAR)</h2>
-                <p className="text-sm text-muted-foreground">Issue, print, or share official Corrective Action Reports for compliance findings.</p>
+                <h2 className="font-display text-xl font-bold text-foreground">Collective Action Report (CAR)</h2>
+                <p className="text-sm text-muted-foreground">Issue, print, or share official Collective Action Reports for compliance findings.</p>
               </div>
               
               <div className="flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="email"
-                    placeholder="Auditee's Email"
-                    value={auditeeEmail}
-                    onChange={(e) => setAuditeeEmail(e.target.value)}
-                    className="input h-10 w-60 text-xs font-semibold"
-                    disabled={findings.length === 0}
-                  />
-                  <button
-                    onClick={handleShareCar}
-                    disabled={sharing || findings.length === 0 || !auditeeEmail.trim()}
-                    className="pill-secondary h-10 px-4 text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    <Mail className="h-4 w-4" />
-                    {sharing ? "Sharing..." : "Share via Email"}
-                  </button>
-                </div>
-                
                 <button
                   onClick={handleExportCar}
                   disabled={findings.length === 0}
@@ -678,158 +686,236 @@ const AuditReport = () => {
             {findings.length === 0 ? (
               <EmptyBlock message="No findings or nonconformities found. Add nonconforming answers to populate the CAR tracker." />
             ) : (
-              <div className="space-y-8 max-w-4xl mx-auto">
-                {findings.map((finding, idx) => {
-                  const meta = parseFindingMeta(finding.root_cause);
-                  const procName = meta?.processId ? (processMap[meta.processId] || "-") : "-";
-                  const clauseVal = finding.clause || meta?.qRef || "-";
-                  const correction = meta?.correction || "-";
-                  const rootCauseText = meta?.rootCauseText || "-";
+              <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr] items-start">
+                <div className="space-y-8">
+                  {findings.map((finding, idx) => {
+                    const meta = parseFindingMeta(finding.root_cause);
+                    const procName = meta?.processId ? (processMap[meta.processId] || "-") : "-";
+                    const clauseVal = finding.clause || meta?.qRef || "-";
+                    const correction = meta?.correction || "-";
+                    const rootCauseText = meta?.rootCauseText || "-";
 
-                  return (
-                    <div key={finding.id} className="rounded-3xl border border-border bg-card p-6 md:p-8 shadow-card space-y-6">
-                      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
-                        <div>
-                          <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-primary font-bold">Corrective Action Report (CAR)</span>
-                          <h3 className="font-display text-xl font-extrabold text-foreground mt-1">Finding No.: CAR-{String(idx + 1).padStart(3, "0")}</h3>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-xs text-muted-foreground font-semibold">Date Raised</span>
-                          <div className="text-xs font-mono font-bold mt-0.5">{new Date(finding.created_at).toLocaleDateString()}</div>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 rounded-2xl bg-secondary/20 p-4 border border-border/50 text-xs">
-                        <div>
-                          <span className="text-muted-foreground block font-medium">Audit Reference</span>
-                          <strong className="text-foreground mt-1 block">{audit?.title}</strong>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block font-medium">Auditor / Lead</span>
-                          <strong className="text-foreground mt-1 block">
-                            {currentOrg?.type === "individual"
-                              ? (user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Auditor")
-                              : currentOrg?.name
-                            }
-                          </strong>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block font-medium">Auditee / Department</span>
-                          <strong className="text-foreground mt-1 block">{procName}</strong>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block font-medium">Target Closure Date</span>
-                          <strong className="text-foreground mt-1 block">{finding.due_date ? new Date(finding.due_date).toLocaleDateString() : "-"}</strong>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="space-y-1">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">1. Statement of Audit Finding</h4>
-                          <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed whitespace-pre-wrap">{finding.description}</div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">2. Applicable ISO Standard Clause</h4>
-                          <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed">
-                            Clause {clauseVal} of Standard {audit?.standard.toUpperCase()}
+                    return (
+                      <div key={finding.id} className="rounded-3xl border border-border bg-card p-6 md:p-8 shadow-card space-y-6">
+                        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
+                          <div>
+                            <span className="font-mono text-[10px] uppercase tracking-[0.15em] text-primary font-bold">Collective Action Report (CAR)</span>
+                            <h3 className="font-display text-xl font-extrabold text-foreground mt-1">Finding No.: CAR-{String(idx + 1).padStart(3, "0")}</h3>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-xs text-muted-foreground font-semibold">Date Raised</span>
+                            <div className="text-xs font-mono font-bold mt-0.5">{new Date(finding.created_at).toLocaleDateString()}</div>
                           </div>
                         </div>
 
-                        <div className="space-y-1">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">3. Finding Classification</h4>
-                          <div className="flex gap-4 items-center p-3 rounded-xl border border-border/30 bg-secondary/10 text-xs">
-                            <label className="flex items-center gap-2">
-                              <input type="checkbox" checked={finding.type === "major"} readOnly className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5" />
-                              <span className={finding.type === "major" ? "font-bold text-foreground" : "text-muted-foreground"}>Major Non-Conformity</span>
-                            </label>
-                            <label className="flex items-center gap-2">
-                              <input type="checkbox" checked={finding.type === "minor"} readOnly className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5" />
-                              <span className={finding.type === "minor" ? "font-bold text-foreground" : "text-muted-foreground"}>Minor Non-Conformity</span>
-                            </label>
-                            <label className="flex items-center gap-2">
-                              <input type="checkbox" checked={finding.type === "observation"} readOnly className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5" />
-                              <span className={finding.type === "observation" ? "font-bold text-foreground" : "text-muted-foreground"}>Observation / OFI</span>
-                            </label>
+                        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 rounded-2xl bg-secondary/20 p-4 border border-border/50 text-xs">
+                          <div>
+                            <span className="text-muted-foreground block font-medium">Audit Reference</span>
+                            <strong className="text-foreground mt-1 block">{audit?.title}</strong>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block font-medium">Auditor / Lead</span>
+                            <strong className="text-foreground mt-1 block">
+                              {currentOrg?.type === "individual"
+                                ? (user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Auditor")
+                                : currentOrg?.name
+                              }
+                            </strong>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block font-medium">Auditee / Department</span>
+                            <strong className="text-foreground mt-1 block">{procName}</strong>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground block font-medium">Target Closure Date</span>
+                            <strong className="text-foreground mt-1 block">{finding.due_date ? new Date(finding.due_date).toLocaleDateString() : "-"}</strong>
                           </div>
                         </div>
 
-                        <div className="space-y-1">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">4. Immediate Corrections (Containment Actions)</h4>
-                          <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed whitespace-pre-wrap">{correction}</div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">5. Root Cause Analysis</h4>
-                          <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed whitespace-pre-wrap">{rootCauseText}</div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">6. Corrective Actions</h4>
-                          <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed whitespace-pre-wrap">{finding.capa || "-"}</div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">7. Corrective Action Plan Details</h4>
-                          <div className="overflow-x-auto rounded-xl border border-border bg-background">
-                            <table className="w-full text-left text-xs border-collapse">
-                              <thead className="bg-secondary/40 font-semibold text-muted-foreground uppercase">
-                                <tr className="border-b border-border">
-                                  <th className="p-3">Corrective Action Item</th>
-                                  <th className="p-3 w-1/4">Responsible</th>
-                                  <th className="p-3 w-1/5">Target Date</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <tr>
-                                  <td className="p-3 border-r border-border font-medium text-foreground">{finding.capa || "-"}</td>
-                                  <td className="p-3 border-r border-border text-foreground">{finding.owner || "-"}</td>
-                                  <td className="p-3 font-mono">{finding.due_date ? new Date(finding.due_date).toLocaleDateString() : "-"}</td>
-                                </tr>
-                              </tbody>
-                            </table>
+                        <div className="space-y-4">
+                          <div className="space-y-1">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">1. Statement of Audit Finding</h4>
+                            <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed whitespace-pre-wrap">{finding.description}</div>
                           </div>
-                        </div>
 
-                        <div className="space-y-1">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">8. Evaluation of Effectiveness of Actions</h4>
-                          <div className="overflow-x-auto rounded-xl border border-border bg-background">
-                            <table className="w-full text-left text-xs border-collapse">
-                              <thead className="bg-secondary/40 font-semibold text-muted-foreground uppercase">
-                                <tr className="border-b border-border">
-                                  <th className="p-3">Evaluation Method</th>
-                                  <th className="p-3 w-1/5">Date Verified</th>
-                                  <th className="p-3 w-1/4">Result / Notes</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <tr>
-                                  <td className="p-3 border-r border-border text-muted-foreground">Verification completed by lead auditor prior to subsequent surveillance cycle.</td>
-                                  <td className="p-3 border-r border-border font-mono">{finding.status === "closed" ? new Date().toLocaleDateString() : "-"}</td>
-                                  <td className="p-3 capitalize font-bold text-foreground">Status: {finding.status.replace("_", " ")}</td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">9. Closure and Sign-Off</h4>
-                          <div className="grid gap-3 sm:grid-cols-2 rounded-xl border border-border bg-secondary/10 p-4 text-xs">
-                            <div>
-                              <span className="text-muted-foreground block font-medium">CAR Status</span>
-                              <strong className="text-foreground mt-1 block uppercase">{finding.status.replace("_", " ")}</strong>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground block font-medium">Closure Date</span>
-                              <strong className="text-foreground mt-1 block">{finding.status === "closed" ? new Date().toLocaleDateString() : "Open / Pending Verification"}</strong>
+                          <div className="space-y-1">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">2. Applicable ISO Standard Clause</h4>
+                            <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed">
+                              Clause {clauseVal} of Standard {audit?.standard.toUpperCase()}
                             </div>
                           </div>
+
+                          <div className="space-y-1">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">3. Finding Classification</h4>
+                            <div className="flex gap-4 items-center p-3 rounded-xl border border-border/30 bg-secondary/10 text-xs">
+                              <label className="flex items-center gap-2">
+                                <input type="checkbox" checked={finding.type === "major"} readOnly className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5" />
+                                <span className={finding.type === "major" ? "font-bold text-foreground" : "text-muted-foreground"}>Major Non-Conformity</span>
+                              </label>
+                              <label className="flex items-center gap-2">
+                                <input type="checkbox" checked={finding.type === "minor"} readOnly className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5" />
+                                <span className={finding.type === "minor" ? "font-bold text-foreground" : "text-muted-foreground"}>Minor Non-Conformity</span>
+                              </label>
+                              <label className="flex items-center gap-2">
+                                <input type="checkbox" checked={finding.type === "observation"} readOnly className="rounded border-border text-primary focus:ring-primary h-3.5 w-3.5" />
+                                <span className={finding.type === "observation" ? "font-bold text-foreground" : "text-muted-foreground"}>Observation / OFI</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">4. Immediate Corrections (Containment Actions)</h4>
+                            <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed whitespace-pre-wrap">{correction}</div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">5. Root Cause Analysis</h4>
+                            <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed whitespace-pre-wrap">{rootCauseText}</div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">6. Collective Actions</h4>
+                            <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed whitespace-pre-wrap">{finding.capa || "-"}</div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">7. Collective Action Plan Details</h4>
+                            <div className="overflow-x-auto rounded-xl border border-border bg-background">
+                              <table className="w-full text-left text-xs border-collapse">
+                                <thead className="bg-secondary/40 font-semibold text-muted-foreground uppercase">
+                                  <tr className="border-b border-border">
+                                    <th className="p-3">Collective Action Item</th>
+                                    <th className="p-3 w-1/4">Responsible</th>
+                                    <th className="p-3 w-1/5">Target Date</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td className="p-3 border-r border-border font-medium text-foreground">{finding.capa || "-"}</td>
+                                    <td className="p-3 border-r border-border text-foreground">{finding.owner || "-"}</td>
+                                    <td className="p-3 font-mono">{finding.due_date ? new Date(finding.due_date).toLocaleDateString() : "-"}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">8. Evaluation of Effectiveness of Actions</h4>
+                            <div className="overflow-x-auto rounded-xl border border-border bg-background">
+                              <table className="w-full text-left text-xs border-collapse">
+                                <thead className="bg-secondary/40 font-semibold text-muted-foreground uppercase">
+                                  <tr className="border-b border-border">
+                                    <th className="p-3">Evaluation Method</th>
+                                    <th className="p-3 w-1/5">Date Verified</th>
+                                    <th className="p-3 w-1/4">Result / Notes</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td className="p-3 border-r border-border text-muted-foreground">Verification completed by lead auditor prior to subsequent surveillance cycle.</td>
+                                    <td className="p-3 border-r border-border font-mono">{finding.status === "closed" ? new Date().toLocaleDateString() : "-"}</td>
+                                    <td className="p-3 capitalize font-bold text-foreground">Status: {finding.status.replace("_", " ")}</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">9. Closure and Sign-Off</h4>
+                            <div className="grid gap-3 sm:grid-cols-2 rounded-xl border border-border bg-secondary/10 p-4 text-xs">
+                              <div>
+                                <span className="text-muted-foreground block font-medium">CAR Status</span>
+                                <strong className="text-foreground mt-1 block uppercase">{finding.status.replace("_", " ")}</strong>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground block font-medium">Closure Date</span>
+                                <strong className="text-foreground mt-1 block">{finding.status === "closed" ? new Date().toLocaleDateString() : "Open / Pending Verification"}</strong>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
+                    );
+                  })}
+                </div>
+
+                {/* Sticky Email Compose Draft Card */}
+                <div className="sticky top-6 rounded-3xl border border-border bg-card p-6 shadow-card space-y-4">
+                  <div>
+                    <h3 className="font-display text-base font-bold text-foreground">Email Dispatch Panel</h3>
+                    <p className="text-xs text-muted-foreground">Draft and send this CAR via email directly to the auditee organization.</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">To (Auditee Email)</label>
+                      <input
+                        type="email"
+                        placeholder="recipient@company.com"
+                        value={auditeeEmail}
+                        onChange={(e) => setAuditeeEmail(e.target.value)}
+                        className="input w-full text-xs font-semibold"
+                      />
                     </div>
-                  );
-                })}
+
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Subject</label>
+                      <input
+                        type="text"
+                        value={emailSubject}
+                        onChange={(e) => setEmailSubject(e.target.value)}
+                        className="input w-full text-xs font-semibold bg-secondary/30"
+                        readOnly
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">General Draft Message</label>
+                      <textarea
+                        value={emailBody}
+                        onChange={(e) => setEmailBody(e.target.value)}
+                        className="input w-full min-h-[140px] text-xs leading-relaxed"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Additional Auditor Notes</label>
+                      <textarea
+                        value={emailNotes}
+                        onChange={(e) => setEmailNotes(e.target.value)}
+                        placeholder="Add specific notes to append to the draft..."
+                        className="input w-full min-h-[70px] text-xs font-sans"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2 rounded-xl bg-emerald-600/10 text-emerald-600 dark:text-emerald-500 border border-emerald-600/20 p-3 text-[11px]">
+                      <Paperclip className="h-4 w-4 shrink-0" />
+                      <span><strong>Attachment:</strong> Collective_Action_Report.pdf</span>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleSendEmail}
+                        disabled={!auditeeEmail.trim()}
+                        className="pill-cta flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        Send Client-Side
+                      </button>
+                      
+                      <button
+                        onClick={handleShareCar}
+                        disabled={sharing || !auditeeEmail.trim()}
+                        className="pill-secondary flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      >
+                        <Mail className="h-3.5 w-3.5" />
+                        {sharing ? "Sharing..." : "Share Server-Side"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

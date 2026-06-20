@@ -83,7 +83,7 @@ export function generateCarReportHtml({
         <div class="car-document">
           <div class="car-header">
             <div>
-              <div class="car-eyebrow">Corrective Action Report (CAR)</div>
+              <div class="car-eyebrow">Collective Action Report (CAR)</div>
               <h2 class="car-title">Finding No.: CAR-${String(index + 1).padStart(3, "0")}</h2>
             </div>
             <div class="car-date">Date Raised: ${toDate(finding.created_at)}</div>
@@ -142,18 +142,18 @@ export function generateCarReportHtml({
           </div>
 
           <div class="car-section">
-            <div class="sec-title">6. Corrective Actions</div>
+            <div class="sec-title">6. Collective Actions</div>
             <div class="sec-content">
               <p>${escape(finding.capa || "-")}</p>
             </div>
           </div>
 
           <div class="car-section">
-            <div class="sec-title">7. Corrective Action Plan Details</div>
+            <div class="sec-title">7. Collective Action Plan Details</div>
             <table class="car-grid">
               <thead>
                 <tr>
-                  <th>Corrective Action Item</th>
+                  <th>Collective Action Item</th>
                   <th style="width: 25%;">Responsible Person</th>
                   <th style="width: 20%;">Target Date</th>
                 </tr>
@@ -225,7 +225,7 @@ export function generateCarReportHtml({
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Corrective Action Report (CAR) - ${escape(meta.auditTitle)}</title>
+  <title>Collective Action Report (CAR) - ${escape(meta.auditTitle)}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap');
     

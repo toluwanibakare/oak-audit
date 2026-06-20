@@ -49,7 +49,7 @@ export default function Findings() {
 
   return (
     <AppShell>
-      <Header title="Findings & CAPA" subtitle="Non-conformities, observations, and corrective actions." />
+      <Header title="Findings & CAR" subtitle="Non-conformities, observations, and collective action reports." />
 
       <section className="mt-6 grid gap-4 md:grid-cols-3">
         <StatusCard label="Open" value={summary.open} hint="Awaiting action" icon={<AlertTriangle className="h-4 w-4" />} />
@@ -59,7 +59,7 @@ export default function Findings() {
 
       <section className="mt-6 rounded-[28px] border border-border bg-card p-5 shadow-card">
         <h2 className="font-display text-xl font-semibold">Add a finding</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Capture a new issue quickly and keep the CAPA register current.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Capture a new issue quickly and keep the CAR register current.</p>
         <div className="mt-5 grid gap-3 md:grid-cols-7">
           <select className="input md:col-span-2" value={form.audit_id} onChange={(e) => setForm({ ...form, audit_id: e.target.value })}>
             <option value="">Select audit...</option>
@@ -87,7 +87,7 @@ export default function Findings() {
                   <span className="text-xs text-muted-foreground">{finding.audits?.title} · clause {finding.clause || "-"}</span>
                 </div>
                 <p className="mt-3 text-sm leading-6">{finding.description}</p>
-                {finding.capa && <p className="mt-2 text-sm text-muted-foreground"><strong className="text-foreground">CAPA:</strong> {finding.capa}</p>}
+                {finding.capa && <p className="mt-2 text-sm text-muted-foreground"><strong className="text-foreground">CAR Plan:</strong> {finding.capa}</p>}
               </div>
               <select value={finding.status} onChange={(e) => setStatus(finding.id, e.target.value)} className="input w-40 text-xs">
                 <option value="open">Open</option>

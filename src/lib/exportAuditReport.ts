@@ -684,7 +684,7 @@ export function exportAuditReport({
             </table>
             
             <div class="grc-section">
-              <div class="grc-title">ISO Corrective & Preventive Action Plan (CAPA)</div>
+              <div class="grc-title">Collective Action Plan (CAR)</div>
               <table class="grc-table">
                 <tr>
                   <td class="lbl" style="width: 25%;">Assigned Action Owner</td>

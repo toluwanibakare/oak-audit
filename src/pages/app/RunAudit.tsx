@@ -64,55 +64,55 @@ export default function RunAudit() {
   const [pageLoading, setPageLoading] = useState(true);
 
   const [showHseChecklist, setShowHseChecklist] = useState(false);
-  const [checkedHseItems, setCheckedHseItems] = useState<Set<number>>(new Set());
-  const [checkedImsItems, setCheckedImsItems] = useState<Set<number>>(new Set());
   const [hseSearch, setHseSearch] = useState("");
+  const [checklistAnswers, setChecklistAnswers] = useState<Record<number, { status: string; note: string; evidence: EvidenceItem[] }>>({});
+  const [uploadingChecklistFor, setUploadingChecklistFor] = useState<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
-    const hseKey = `hse_checked_items_${id}`;
-    const hseSaved = localStorage.getItem(hseKey);
-    if (hseSaved) {
+    const ckKey = `checklist_answers_${id}`;
+    const ckSaved = localStorage.getItem(ckKey);
+    if (ckSaved) {
       try {
-        setCheckedHseItems(new Set(JSON.parse(hseSaved)));
+        setChecklistAnswers(JSON.parse(ckSaved));
       } catch (e) {
-        console.error("Error loading checked hse items", e);
-      }
-    }
-    const imsKey = `ims_checked_items_${id}`;
-    const imsSaved = localStorage.getItem(imsKey);
-    if (imsSaved) {
-      try {
-        setCheckedImsItems(new Set(JSON.parse(imsSaved)));
-      } catch (e) {
-        console.error("Error loading checked ims items", e);
+        console.error("Error loading checklist answers", e);
       }
     }
   }, [id]);
 
-  const toggleHseItem = (itemId: number) => {
-    const next = new Set(checkedHseItems);
-    if (next.has(itemId)) {
-      next.delete(itemId);
-    } else {
-      next.add(itemId);
-    }
-    setCheckedHseItems(next);
+  const saveChecklistAnswer = (itemId: number, status: string, note: string, evidence: EvidenceItem[]) => {
+    const updated = {
+      ...checklistAnswers,
+      [itemId]: { status, note, evidence }
+    };
+    setChecklistAnswers(updated);
     if (id) {
-      localStorage.setItem(`hse_checked_items_${id}`, JSON.stringify(Array.from(next)));
+      localStorage.setItem(`checklist_answers_${id}`, JSON.stringify(updated));
     }
   };
 
-  const toggleImsItem = (itemId: number) => {
-    const next = new Set(checkedImsItems);
-    if (next.has(itemId)) {
-      next.delete(itemId);
-    } else {
-      next.add(itemId);
-    }
-    setCheckedImsItems(next);
-    if (id) {
-      localStorage.setItem(`ims_checked_items_${id}`, JSON.stringify(Array.from(next)));
+  const uploadChecklistEvidence = async (itemId: number, files: FileList | null, currentNote: string, currentStatus: string) => {
+    if (!id || !currentOrg || !files?.length) return;
+    setUploadingChecklistFor(itemId);
+    try {
+      const existing = checklistAnswers[itemId]?.evidence ?? [];
+      const nextEvidence = [...existing];
+
+      for (const file of Array.from(files)) {
+        const path = `${currentOrg.id}/${id}/checklist/${itemId}/${Date.now()}-${safeEvidenceName(file.name)}`;
+        const { error } = await supabase.storage.from("audit-evidence").upload(path, file, { upsert: false });
+        if (error) throw error;
+        const { data } = supabase.storage.from("audit-evidence").getPublicUrl(path);
+        nextEvidence.push({ name: file.name, url: data.publicUrl, kind: file.type || "file" });
+      }
+
+      saveChecklistAnswer(itemId, currentStatus, currentNote, nextEvidence);
+      toast({ title: "Evidence uploaded", description: `${files.length} file(s) attached to checklist item.` });
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error?.message ?? "Could not upload evidence.", variant: "destructive" });
+    } finally {
+      setUploadingChecklistFor(null);
     }
   };
 
@@ -196,8 +196,35 @@ export default function RunAudit() {
       }
       setAuditProcesses(finalAuditProcs as any);
 
-      // Filter procs list to only show processes linked to this audit
-      const auditProcIds = new Set(finalAuditProcs.map((ap) => ap.process_id));
+      // 4.5. Check user's role to see if they are an auditor
+      let currentAuditorId = null;
+      if (user) {
+        const { data: userRole } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("org_id", currentOrg.id)
+          .maybeSingle();
+
+        if (userRole && (userRole.role === "auditor" || userRole.role === "lead_auditor")) {
+          const { data: auditorRow } = await supabase
+            .from("auditors")
+            .select("id")
+            .eq("org_id", currentOrg.id)
+            .eq("user_id", user.id)
+            .maybeSingle();
+          if (auditorRow) {
+            currentAuditorId = auditorRow.id;
+          }
+        }
+      }
+
+      // Filter procs list to only show processes linked to this audit and assigned to this auditor
+      const auditProcIds = new Set(
+        finalAuditProcs
+          .filter((ap) => !currentAuditorId || ap.auditor_id === currentAuditorId)
+          .map((ap) => ap.process_id)
+      );
       const activeAuditProcs = visibleProcs.filter((p) => auditProcIds.has(p.id));
       setProcs(activeAuditProcs);
       if (activeAuditProcs.length > 0) setActiveProc(activeAuditProcs[0].id);
@@ -955,13 +982,10 @@ export default function RunAudit() {
         const isIms = audit?.standard === "ims";
         const checklistData = isIms ? IMS_CHECKLIST_DATA : HSE_CHECKLIST_DATA;
         const totalItems = isIms ? 30 : 150;
-        const checkedItems = isIms ? checkedImsItems : checkedHseItems;
-        const setCheckedItems = isIms ? setCheckedImsItems : setCheckedHseItems;
-        const toggleItem = isIms ? toggleImsItem : toggleHseItem;
-        const storageKey = isIms ? `ims_checked_items_${id}` : `hse_checked_items_${id}`;
         const titleText = isIms ? "IMS Site Inspection Checklist" : "HSE Site Inspection Checklist";
         const subtitleText = isIms ? "IMS Site Inspection Reference Checklist (30 Items)" : "OIS HSE Site Inspection Reference Checklist (150 Items)";
         const searchPlaceholder = isIms ? "Search 30 checklist items..." : "Search 150 checklist items...";
+        const answeredItemsCount = Object.values(checklistAnswers).filter(a => a && a.status !== "pending").length;
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-md animate-fade-in">
@@ -1023,14 +1047,14 @@ export default function RunAudit() {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <span className="text-lg font-extrabold text-foreground">{checkedItems.size} <span className="text-xs text-muted-foreground">/ {totalItems}</span></span>
-                      <span className="block text-[9px] text-muted-foreground font-bold uppercase tracking-wider">Checked Items</span>
+                      <span className="text-lg font-extrabold text-foreground">{answeredItemsCount} <span className="text-xs text-muted-foreground">/ {totalItems}</span></span>
+                      <span className="block text-[9px] text-muted-foreground font-bold uppercase tracking-wider">Answered Items</span>
                     </div>
                     <button 
                       onClick={() => {
                         if (window.confirm("Are you sure you want to reset your checklist tour progress?")) {
-                          setCheckedItems(new Set());
-                          if (id) localStorage.removeItem(storageKey);
+                          setChecklistAnswers({});
+                          if (id) localStorage.removeItem(`checklist_answers_${id}`);
                         }
                       }}
                       className="text-xs text-destructive hover:underline font-semibold"
@@ -1055,37 +1079,95 @@ export default function RunAudit() {
                         <h3 className="font-display text-sm font-bold text-foreground border-b border-border pb-2 flex items-center justify-between">
                           <span>{cat.title}</span>
                           <span className="text-xs text-muted-foreground font-normal">
-                            {cat.items.filter(i => checkedItems.has(i.id)).length} / {cat.items.length} done
+                            {cat.items.filter(i => {
+                              const ans = checklistAnswers[i.id];
+                              return ans && ans.status !== "pending";
+                            }).length} / {cat.items.length} answered
                           </span>
                         </h3>
                         
                         <div className="grid gap-2.5">
                           {filteredItems.map((i) => {
-                            const isChecked = checkedItems.has(i.id);
+                            const ans = checklistAnswers[i.id] ?? { status: "pending", note: "", evidence: [] };
                             return (
-                              <div 
-                                key={i.id}
-                                onClick={() => toggleItem(i.id)}
-                                className={`flex items-start gap-3 rounded-xl p-3 border transition cursor-pointer select-none ${
-                                  isChecked 
-                                    ? "border-emerald-600/30 bg-emerald-600/5 text-foreground" 
-                                    : "border-border/60 hover:bg-secondary/40 text-foreground"
-                                }`}
-                              >
-                                <input 
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => {}}
-                                  className="mt-0.5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 h-4 w-4 shrink-0"
+                              <div key={i.id} className="rounded-xl border border-border p-4 bg-card space-y-3">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div className="flex-1 min-w-[280px]">
+                                    <p className="text-xs font-semibold leading-relaxed text-foreground">
+                                      <span className="font-bold text-muted-foreground mr-1.5">{i.id}.</span>
+                                      {i.item}
+                                    </p>
+                                    <p className="mt-1 text-[10px] text-muted-foreground">Suggested evidence: {i.evidence}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <select
+                                      value={ans.status}
+                                      onChange={(e) => {
+                                        saveChecklistAnswer(i.id, e.target.value, ans.note, ans.evidence);
+                                      }}
+                                      className="input w-32 text-xs py-1 h-8 animate-none"
+                                    >
+                                      <option value="pending">Pending</option>
+                                      <option value="done">Done / Conform</option>
+                                      <option value="not_done">Not Done</option>
+                                      <option value="partial">Partial</option>
+                                      <option value="na">N/A</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <textarea
+                                  value={ans.note}
+                                  onChange={(e) => {
+                                    saveChecklistAnswer(i.id, ans.status, e.target.value, ans.evidence);
+                                  }}
+                                  placeholder="Checklist notes/observations..."
+                                  className="input min-h-[50px] text-xs py-1.5 font-sans"
                                 />
-                                <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4">
-                                  <div className="text-xs font-medium leading-relaxed">
-                                    <span className="font-bold text-muted-foreground mr-1.5">{i.id}.</span>
-                                    {i.item}
+
+                                <div className="rounded-lg border border-dashed border-border bg-background/50 p-2.5">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                      <Link2 className="h-3 w-3" />
+                                      Evidence Uploads
+                                    </div>
+                                    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground">
+                                      <FileUp className="h-3 w-3" />
+                                      {uploadingChecklistFor === i.id ? "Uploading..." : "Upload File"}
+                                      <input
+                                        type="file"
+                                        multiple
+                                        className="hidden"
+                                        disabled={uploadingChecklistFor !== null}
+                                        onChange={(e) => {
+                                          if (e.target.files && e.target.files.length > 0) {
+                                            uploadChecklistEvidence(i.id, e.target.files, ans.note, ans.status);
+                                          }
+                                        }}
+                                      />
+                                    </label>
                                   </div>
-                                  <div className="text-[10px] text-muted-foreground font-mono shrink-0">
-                                    Evidence: {i.evidence}
-                                  </div>
+
+                                  {ans.evidence && ans.evidence.length > 0 && (
+                                    <div className="mt-2 flex flex-wrap gap-1.5">
+                                      {ans.evidence.map((file: any, fileIdx: number) => (
+                                        <div key={fileIdx} className="flex items-center gap-1.5 rounded-md border border-border bg-secondary/30 px-2 py-0.5 text-[10px] text-foreground">
+                                          <a href={file.url} target="_blank" rel="noopener noreferrer" className="max-w-[120px] truncate hover:underline" title={file.name}>
+                                            {file.name}
+                                          </a>
+                                          <button
+                                            onClick={() => {
+                                              const nextEv = ans.evidence.filter((_: any, idx: number) => idx !== fileIdx);
+                                              saveChecklistAnswer(i.id, ans.status, ans.note, nextEv);
+                                            }}
+                                            className="rounded-full p-0.5 hover:bg-secondary text-muted-foreground hover:text-foreground"
+                                          >
+                                            <X className="h-2.5 w-2.5" />
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -1273,7 +1355,7 @@ function Row({
 
     toast({
       title: "Finding declared automatically",
-      description: "Successfully registered as a minor non-conformity with a default CAPA plan, assigned owner, and 30-day due date.",
+      description: "Successfully registered as a minor non-conformity with a default CAR plan, assigned owner, and 30-day due date.",
     });
   };
 
@@ -1324,7 +1406,7 @@ function Row({
 
     toast({
       title: "Finding cancelled",
-      description: "The non-conformity finding and its CAPA details have been removed.",
+      description: "The non-conformity finding and its CAR details have been removed.",
     });
   };
 
@@ -1453,8 +1535,8 @@ function Row({
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Corrective & Preventive Action (CAPA)</label>
-              <textarea value={capa} onChange={(e) => setCapa(e.target.value)} onBlur={() => persistFinding()} placeholder={readOnly ? "No CAPA specified." : "Long-term actions to prevent recurrence..."} disabled={readOnly} className="input min-h-[76px] text-sm" />
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">Collective Action Plan (CAR)</label>
+              <textarea value={capa} onChange={(e) => setCapa(e.target.value)} onBlur={() => persistFinding()} placeholder={readOnly ? "No CAR specified." : "Long-term actions to prevent recurrence..."} disabled={readOnly} className="input min-h-[76px] text-sm" />
             </div>
             
             <div>
