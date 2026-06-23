@@ -67,7 +67,7 @@ const features = [
   },
 ];
 
-const individualPlans = [
+const allBundles = [
   {
     name: "ISO Standard Pack (Individual)",
     price: "Personal Auditor Access",
@@ -100,9 +100,6 @@ const individualPlans = [
     cta: "Start Safety Audit",
     ctaStyle: "pill-cta w-full justify-center",
   },
-];
-
-const organizationPlans = [
   {
     name: "ISO Multi-Standard Corporate",
     price: "Corporate Teams",
@@ -178,7 +175,6 @@ export default function Landing() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [pricingType, setPricingType] = useState<"individual" | "organization">("individual");
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
 
@@ -745,38 +741,10 @@ export default function Landing() {
               <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground leading-relaxed">
                 Activate audit packs matched to your standard scope and compliance needs. Fully self-managed via credit allocation.
               </p>
-
-              {/* Toggle Segment Selector */}
-              <div className="mt-8 flex justify-center">
-                <div className="pricing-pill-toggle w-85 relative flex items-center h-12 bg-background/60 border border-border/80 rounded-full p-1 shadow-sm">
-                  {/* sliding block */}
-                  <div 
-                    className={`absolute top-[4px] bottom-[4px] left-[4px] w-[calc(50%-4px)] rounded-full bg-primary shadow-md transition-transform duration-300 ease-out ${
-                      pricingType === "organization" ? "translate-x-full" : "translate-x-0"
-                    }`}
-                  />
-                  <button
-                    onClick={() => setPricingType("individual")}
-                    className={`relative flex flex-1 items-center justify-center py-2 text-xs font-bold transition-colors duration-300 z-10 ${
-                      pricingType === "individual" ? "text-white animate-fade-in" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Single Auditor Packs
-                  </button>
-                  <button
-                    onClick={() => setPricingType("organization")}
-                    className={`relative flex flex-1 items-center justify-center py-2 text-xs font-bold transition-colors duration-300 z-10 ${
-                      pricingType === "organization" ? "text-white animate-fade-in" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Multi-Auditor / Corporate
-                  </button>
-                </div>
-              </div>
             </div>
 
-            <div className="mt-14 grid gap-6 md:grid-cols-2 max-w-4xl mx-auto transition-all duration-500">
-              {(pricingType === "individual" ? individualPlans : organizationPlans).map((plan) => (
+            <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4 max-w-7xl mx-auto transition-all duration-500">
+              {allBundles.map((plan) => (
                 <div
                   key={plan.name}
                   className={`relative flex flex-col rounded-[28px] border bg-card/65 backdrop-blur-md p-8 shadow-card hover:shadow-elevated transition-all duration-500 premium-glass-card !overflow-visible ${plan.color}`}
@@ -791,7 +759,7 @@ export default function Landing() {
 
                   <div className="mt-2">
                     <div className="font-display text-lg font-bold text-foreground">{plan.name}</div>
-                    <p className="mt-1 text-xs text-muted-foreground leading-normal">{plan.tagline}</p>
+                    <p className="mt-1 text-xs text-muted-foreground leading-normal min-h-[36px]">{plan.tagline}</p>
                     <div className="mt-4 flex items-center gap-1.5">
                       <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Designed For:</span>
                       <span className="inline-flex items-center rounded-xl bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-bold text-primary">
