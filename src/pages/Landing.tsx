@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   ArrowRight,
   ArrowUp,
   ArrowDown,
+  ChevronLeft,
+  ChevronRight,
   BadgeCheck,
   BarChart3,
   CheckCircle2,
@@ -81,7 +83,7 @@ const allBundles = [
       "Auto-generate professional reports & watermarks",
       "Personal auditor dashboard & compliance scoring",
     ],
-    cta: "Start Auditing Free",
+    cta: "Start Auditing",
     ctaStyle: "pill-secondary w-full justify-center",
   },
   {
@@ -177,6 +179,19 @@ export default function Landing() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const sliderRef = useRef<HTMLDivElement>(null);
+
+  const scrollPrev = () => {
+    if (sliderRef.current) {
+      sliderRef.current.scrollBy({ left: -sliderRef.current.clientWidth / 2, behavior: "smooth" });
+    }
+  };
+
+  const scrollNext = () => {
+    if (sliderRef.current) {
+      sliderRef.current.scrollBy({ left: sliderRef.current.clientWidth / 2, behavior: "smooth" });
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -743,11 +758,34 @@ export default function Landing() {
               </p>
             </div>
 
-            <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4 max-w-7xl mx-auto transition-all duration-500">
+            <div className="flex justify-end gap-2.5 mt-8 mb-6">
+              <button 
+                onClick={scrollPrev} 
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background hover:bg-secondary text-foreground transition-all duration-300 shadow-sm hover:scale-105 active:scale-95"
+                title="Scroll Left"
+                aria-label="Scroll Left"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <button 
+                onClick={scrollNext} 
+                className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background hover:bg-secondary text-foreground transition-all duration-300 shadow-sm hover:scale-105 active:scale-95"
+                title="Scroll Right"
+                aria-label="Scroll Right"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div 
+              ref={sliderRef}
+              className="flex gap-6 overflow-x-auto snap-x snap-mandatory scrollbar-none scroll-smooth pb-6 px-1 transition-all duration-500"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
               {allBundles.map((plan) => (
                 <div
                   key={plan.name}
-                  className={`relative flex flex-col rounded-[28px] border bg-card/65 backdrop-blur-md p-8 shadow-card hover:shadow-elevated transition-all duration-500 premium-glass-card !overflow-visible ${plan.color}`}
+                  className={`relative flex flex-col md:flex-row md:items-stretch justify-between shrink-0 snap-center w-full md:w-[calc(50%-12px)] rounded-[28px] border bg-card/65 backdrop-blur-md p-6 sm:p-8 shadow-card hover:shadow-elevated transition-all duration-500 premium-glass-card !overflow-visible ${plan.color}`}
                 >
                   {plan.badge && (
                     <div className="absolute -top-3.5 left-8">
@@ -757,32 +795,40 @@ export default function Landing() {
                     </div>
                   )}
 
-                  <div className="mt-2">
-                    <div className="font-display text-lg font-bold text-foreground">{plan.name}</div>
-                    <p className="mt-1 text-xs text-muted-foreground leading-normal min-h-[36px]">{plan.tagline}</p>
-                    <div className="mt-4 flex items-center gap-1.5">
-                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Designed For:</span>
-                      <span className="inline-flex items-center rounded-xl bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-bold text-primary">
+                  {/* Left Column: Info */}
+                  <div className="w-full md:w-[45%] flex flex-col justify-between mb-6 md:mb-0 gap-4">
+                    <div>
+                      <div className="font-display text-lg sm:text-xl font-extrabold text-foreground">{plan.name}</div>
+                      <p className="mt-2 text-xs sm:text-sm text-muted-foreground leading-relaxed">{plan.tagline}</p>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Designed For:</span>
+                      <span className="inline-flex items-center w-fit rounded-xl bg-primary/10 border border-primary/20 px-3.5 py-1.5 text-xs font-bold text-primary uppercase">
                         {plan.price}
                       </span>
                     </div>
                   </div>
 
-                  <div className="mt-5 text-xs font-bold text-foreground/80 uppercase tracking-widest border-b border-border pb-2">Includes:</div>
-                  <ul className="mt-3 flex-1 space-y-3">
-                    {plan.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2.5 text-sm text-foreground">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent animate-pulse" />
-                        <span className="leading-relaxed text-muted-foreground group-hover:text-foreground transition-colors duration-300">{f}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {/* Right Column: Features and CTA */}
+                  <div className="w-full md:w-[50%] flex flex-col justify-between md:border-l md:border-border/60 md:pl-8 gap-5">
+                    <div>
+                      <div className="text-[10px] font-bold text-foreground/80 uppercase tracking-widest border-b border-border pb-2">Includes:</div>
+                      <ul className="mt-3.5 space-y-2.5">
+                        {plan.features.map((f) => (
+                          <li key={f} className="flex items-start gap-2 text-xs sm:text-sm text-foreground">
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent animate-pulse" />
+                            <span className="leading-relaxed text-muted-foreground transition-colors duration-300">{f}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
 
-                  <div className="mt-8">
-                    <Link to="/auth?mode=signup" className={plan.ctaStyle}>
-                      {plan.cta}
-                      <ArrowRight className="h-4 w-4 animate-bounce-right" />
-                    </Link>
+                    <div className="mt-4">
+                      <Link to="/auth?mode=signup" className={plan.ctaStyle}>
+                        {plan.cta}
+                        <ArrowRight className="h-4 w-4 animate-bounce-right" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
               ))}
