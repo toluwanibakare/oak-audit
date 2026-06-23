@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   ArrowRight,
   ArrowUp,
+  ArrowDown,
   BadgeCheck,
   BarChart3,
   CheckCircle2,
@@ -139,28 +140,33 @@ const organizationPlans = [
 const workflow = [
   {
     step: "01",
-    title: "Define Your Processes",
-    body: "Create or import your internal processes. Map them to the ISO standards you need to audit.",
+    title: "Create Account",
+    body: "Create your profile and submit your organization details for compliance review.",
   },
   {
     step: "02",
-    title: "Unlock Audit Packs",
-    body: "Use credits to activate the audit packs relevant to your team, site, or client scope.",
+    title: "Get Verified",
+    body: "Once details are approved, your active auditing profile is verified and unlocked.",
   },
   {
     step: "03",
-    title: "Execute With Evidence",
-    body: "Run audits clause-by-clause. Capture evidence, observations, and conformity status in real time.",
+    title: "Purchase Bundle",
+    body: "Acquire your preferred ISO audit bundle using credits via our secure wallet.",
   },
   {
     step: "04",
-    title: "Auto-Build Findings & CAPA",
-    body: "Nonconformities are automatically raised as findings. Assign corrective actions and track them to closure.",
+    title: "Setup & Processes",
+    body: "Define your internal processes and select standard clauses and target questions.",
   },
   {
     step: "05",
-    title: "Export Polished Reports",
-    body: "Generate management-ready PDF summaries and analytics reports in one click.",
+    title: "Take The Audit",
+    body: "Conduct clause-by-clause evaluation and upload compliance evidence in real time.",
+  },
+  {
+    step: "06",
+    title: "Analyze & Improve",
+    body: "Generate results, analyze metrics, and track corrective action plans (CAPA) to closure.",
   },
 ];
 
@@ -256,7 +262,7 @@ export default function Landing() {
           <nav className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex">
             <a href="#features" className="transition hover:text-foreground">Features</a>
             <a href="#how-it-works" className="transition hover:text-foreground">How It Works</a>
-            <a href="#pricing" className="transition hover:text-foreground">Pricing</a>
+            <a href="#bundles" className="transition hover:text-foreground">Audit Bundles</a>
           </nav>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -351,11 +357,11 @@ export default function Landing() {
                 How It Works
               </a>
               <a
-                href="#pricing"
+                href="#bundles"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="rounded-xl px-4 py-3 hover:bg-secondary text-muted-foreground hover:text-foreground transition"
               >
-                Pricing
+                Audit Bundles
               </a>
             </nav>
           </div>
@@ -594,31 +600,38 @@ export default function Landing() {
               A Simpler Order For Real Audit Work
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground">
-              The experience is built to match how audit teams naturally move — from process setup
-              through evidence, findings, and reporting.
+              The experience is built to match how audit teams naturally move — from account setup and verification
+              to bundle acquisition, scoping, auditing, and CAPA tracking.
             </p>
           </div>
 
-          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-5 relative z-10">
+          <div className="mt-14 grid gap-y-12 gap-x-6 sm:grid-cols-2 lg:grid-cols-6 relative z-10 items-stretch">
             {workflow.map(({ step, title, body }, index) => (
-              <div key={step} className="relative group">
-                {/* connector line */}
-                {index < workflow.length - 1 && (
-                  <div className="absolute left-[calc(50%+28px)] top-7 hidden h-0.5 w-[calc(100%-16px)] bg-gradient-to-r from-primary/30 to-accent/30 lg:block animate-pulse" />
-                )}
-                <div className="workflow-card">
-                  <div className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-primary to-accent text-sm font-bold text-white shadow-card transition-transform duration-500 group-hover:scale-110">
+              <div key={step} className="relative group flex flex-col h-full">
+                <div className="workflow-card flex flex-col h-full items-center justify-start p-6 text-center">
+                  <div className="mx-auto grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-primary to-accent text-sm font-bold text-white shadow-card transition-transform duration-500 group-hover:scale-110">
                     {step}
                   </div>
-                  <h3 className="mt-4 font-display text-base font-bold text-foreground">{title}</h3>
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">{body}</p>
+                  <h3 className="mt-4 font-display text-sm sm:text-base font-bold text-foreground min-h-[44px] flex items-center justify-center text-center">{title}</h3>
+                  <p className="mt-2 text-xs leading-5 text-muted-foreground flex-grow">{body}</p>
                 </div>
+                {index < workflow.length - 1 && (
+                  <>
+                    {/* Desktop/Laptop Arrow */}
+                    <div className="absolute top-1/2 -translate-y-1/2 -right-5.5 z-20 hidden lg:block text-accent transition-transform duration-300 group-hover:translate-x-1">
+                      <ArrowRight className="h-5 w-5" />
+                    </div>
+                    {/* Mobile/Tablet Arrow */}
+                    <div className="absolute left-1/2 -translate-x-1/2 -bottom-8.5 z-20 block lg:hidden text-accent transition-transform duration-300 group-hover:translate-y-1">
+                      <ArrowDown className="h-5 w-5" />
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
         </section>
 
-        {/* ── MSAT Assessment Tool Showcase ────────────────────── */}
         <section className="bg-gradient-to-br from-primary/5 to-accent/5 py-20 border-y border-border/80 relative overflow-hidden">
           <div className="glow-orb glow-orb-primary -top-40 -left-40 h-[400px] w-[400px]" />
           
@@ -666,7 +679,7 @@ export default function Landing() {
                     ))}
                   </div>
                   
-                  <div className="mt-6 flex flex-wrap items-center gap-4">
+                  <div className="mt-6">
                     <a
                       href="https://assessment.ibmssp.org.ng"
                       target="_blank"
@@ -676,9 +689,6 @@ export default function Landing() {
                       Explore MSAT Platform
                       <ArrowRight className="h-4 w-4" />
                     </a>
-                    <span className="text-xs text-muted-foreground">
-                      Visit: <a href="https://assessment.ibmssp.org.ng" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">assessment.ibmssp.org.ng</a>
-                    </span>
                   </div>
                 </div>
               </div>
@@ -687,7 +697,7 @@ export default function Landing() {
                 {/* Decorative gradients */}
                 <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl -z-10 animate-pulse" />
                 <div className="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-accent/10 blur-3xl -z-10 animate-pulse" />
-                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4 animate-bounce">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4 transition-transform duration-300 hover:scale-110">
                   <ShieldCheck className="h-6 w-6" />
                 </div>
                 <h3 className="font-display text-xl font-bold text-foreground">MSAT Assessment Tool</h3>
@@ -717,8 +727,8 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ── Pricing ──────────────────────────────────────────── */}
-        <section id="pricing" className="bg-secondary/40 py-24 relative overflow-hidden border-b border-border">
+        {/* ── Audit Bundles Section ──────────────────────────────── */}
+        <section id="bundles" className="bg-secondary/40 py-24 relative overflow-hidden border-b border-border">
           {/* Glow decoration */}
           <div className="glow-orb glow-orb-accent -bottom-40 -left-40 h-[380px] w-[380px]" />
           <div className="glow-orb glow-orb-primary -top-40 -right-40 h-[380px] w-[380px]" />
@@ -727,18 +737,18 @@ export default function Landing() {
             <div className="text-center">
               <span className="eyebrow-chip-green">
                 <BadgeCheck className="h-3.5 w-3.5 text-accent" />
-                Simple Pricing Allocation
+                Audit Access Bundles
               </span>
               <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight text-foreground">
-                Flexible Packs For Every Auditor
+                Select Your ISO Audit Bundles
               </h2>
               <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground leading-relaxed">
-                Activate audit packs only for the standard and auditor scope you need. Zero upfront subscription commitments.
+                Activate audit packs matched to your standard scope and compliance needs. Fully self-managed via credit allocation.
               </p>
 
-              {/* Pricing Type Toggle Segment Selector with Premium Sliding Effect */}
+              {/* Toggle Segment Selector */}
               <div className="mt-8 flex justify-center">
-                <div className="pricing-pill-toggle w-80 relative flex items-center h-12 bg-background/60 border border-border/80 rounded-full p-1 shadow-sm">
+                <div className="pricing-pill-toggle w-85 relative flex items-center h-12 bg-background/60 border border-border/80 rounded-full p-1 shadow-sm">
                   {/* sliding block */}
                   <div 
                     className={`absolute top-[4px] bottom-[4px] left-[4px] w-[calc(50%-4px)] rounded-full bg-primary shadow-md transition-transform duration-300 ease-out ${
@@ -751,7 +761,7 @@ export default function Landing() {
                       pricingType === "individual" ? "text-white animate-fade-in" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    Individual Auditor
+                    Single Auditor Packs
                   </button>
                   <button
                     onClick={() => setPricingType("organization")}
@@ -759,7 +769,7 @@ export default function Landing() {
                       pricingType === "organization" ? "text-white animate-fade-in" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    Organization
+                    Multi-Auditor / Corporate
                   </button>
                 </div>
               </div>
@@ -782,18 +792,20 @@ export default function Landing() {
                   <div className="mt-2">
                     <div className="font-display text-lg font-bold text-foreground">{plan.name}</div>
                     <p className="mt-1 text-xs text-muted-foreground leading-normal">{plan.tagline}</p>
-                    <div className="mt-4 flex items-center">
-                      <span className="inline-flex items-center rounded-xl bg-primary/10 border border-primary/20 px-3 py-1.5 text-xs font-bold text-primary uppercase tracking-wider">
+                    <div className="mt-4 flex items-center gap-1.5">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Designed For:</span>
+                      <span className="inline-flex items-center rounded-xl bg-primary/10 border border-primary/20 px-3 py-1 text-xs font-bold text-primary">
                         {plan.price}
                       </span>
                     </div>
                   </div>
 
-                  <ul className="mt-6 flex-1 space-y-3">
+                  <div className="mt-5 text-xs font-bold text-foreground/80 uppercase tracking-widest border-b border-border pb-2">Includes:</div>
+                  <ul className="mt-3 flex-1 space-y-3">
                     {plan.features.map((f) => (
                       <li key={f} className="flex items-start gap-2.5 text-sm text-foreground">
                         <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent animate-pulse" />
-                        <span className="leading-relaxed">{f}</span>
+                        <span className="leading-relaxed text-muted-foreground group-hover:text-foreground transition-colors duration-300">{f}</span>
                       </li>
                     ))}
                   </ul>

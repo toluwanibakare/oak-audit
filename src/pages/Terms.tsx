@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { ArrowLeft, FileText, AlertTriangle, Scale, ShieldAlert } from "lucide-react";
+import logo from "@/assets/logo.png";
 
 export default function Terms() {
   return (
@@ -11,10 +12,16 @@ export default function Terms() {
       {/* Guest top navigation bar */}
       <header className="border-b border-border bg-card/85 backdrop-blur py-4 px-6 relative z-10">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="font-display font-extrabold text-sm uppercase tracking-wider text-foreground">
-              OAK Global International
-            </span>
+          <Link to="/" className="flex items-center gap-2.5 min-w-0">
+            <img src={logo} alt="Logo" className="h-8 w-auto shrink-0 object-contain" />
+            <div className="flex flex-col min-w-0">
+              <span className="font-display text-[12px] sm:text-[13px] font-extrabold text-foreground leading-none truncate uppercase">
+                ISO AUDIT MANAGEMENT PORT
+              </span>
+              <span className="font-display text-[8.5px] sm:text-[9.5px] text-muted-foreground font-normal leading-none mt-0.5 tracking-wide block">
+                Powered By Oak Global International
+              </span>
+            </div>
           </Link>
           <Link to="/" className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground transition">
             <ArrowLeft className="h-4 w-4" />
@@ -111,8 +118,21 @@ export default function Terms() {
       </main>
 
       {/* Guest footer */}
-      <footer className="border-t border-border bg-card/80 py-5 text-center text-xs text-muted-foreground relative z-10">
-        © 2026 OAK Global International. All rights reserved.
+      <footer className="border-t border-border bg-card/80 py-5 relative z-10">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-muted-foreground">
+          <span>© {new Date().getFullYear()} ISO AUDIT MANAGEMENT PORT. All rights reserved.</span>
+          <span>
+            Built by{" "}
+            <a 
+              href="http://tmb.it.com" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="font-bold text-primary hover:underline transition"
+            >
+              TMB
+            </a>
+          </span>
+        </div>
       </footer>
     </div>
   );
