@@ -78,6 +78,37 @@ export default function QuestionBank() {
   const [importSrcProc, setImportSrcProc] = useState("");
   const [selectedImportKeys, setSelectedImportKeys] = useState<Set<string>>(new Set());
 
+  const filteredStandards = useMemo(() => {
+    if (!selectedAudit) return STANDARDS;
+    const allowed = getApplicableStandards(selectedAudit.standard);
+    return STANDARDS.filter((s) => allowed.includes(s.key));
+  }, [selectedAudit]);
+
+  const handleOpenImportModal = () => {
+    if (selectedAudit) {
+      const allowed = getApplicableStandards(selectedAudit.standard);
+      if (allowed.length > 0) {
+        setImportSrcStd(allowed[0] as StandardKey);
+      }
+      setImportSrcProc("");
+      setSelectedImportKeys(new Set());
+    }
+    setIsImportModalOpen(true);
+  };
+
+  const handleOpenCopyModal = (q: any) => {
+    if (selectedAudit) {
+      const allowed = getApplicableStandards(selectedAudit.standard);
+      if (allowed.length > 0) {
+        setCopyDestStd(allowed[0] as StandardKey);
+      }
+      setCopyDestProc("");
+      setCopyDestClause("");
+    }
+    setCopyTargetQuestion(q);
+    setIsCopyModalOpen(true);
+  };
+
   const importProcessesList = useMemo(() => getProcessesFor(importSrcStd), [importSrcStd]);
 
   // Copy-to-another modal state
@@ -711,7 +742,7 @@ export default function QuestionBank() {
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setIsImportModalOpen(true)}
+                        onClick={handleOpenImportModal}
                         className="rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold hover:bg-secondary transition flex items-center gap-1.5"
                       >
                         <Copy className="h-3.5 w-3.5" />
@@ -926,7 +957,7 @@ export default function QuestionBank() {
                     onChange={(e) => setCopyDestStd(e.target.value as StandardKey)}
                     className="input w-full h-10 text-xs"
                   >
-                    {STANDARDS.map((s) => (
+                    {filteredStandards.map((s) => (
                       <option key={s.key} value={s.key}>{s.code}</option>
                     ))}
                   </select>
@@ -1008,7 +1039,7 @@ export default function QuestionBank() {
                       onChange={(e) => setImportSrcStd(e.target.value as StandardKey)}
                       className="input w-full h-10 text-xs"
                     >
-                      {STANDARDS.map((s) => (
+                      {filteredStandards.map((s) => (
                         <option key={s.key} value={s.key}>{s.code}</option>
                       ))}
                     </select>

@@ -151,7 +151,11 @@ export default function Onboarding() {
       setNewAuditor({ name: "", email: "", role: "auditor", password: "" });
       toast({ title: "Auditor account created successfully" });
     } catch (err: any) {
-      toast({ title: "Failed to create auditor", description: err.message ?? "Try again", variant: "destructive" });
+      let msg = err.message ?? "Try again";
+      if (msg.toLowerCase().includes("foreign key") || msg.includes("organization_members_user_id_fkey") || msg.includes("user_roles_user_id_fkey")) {
+        msg = "This email address is already registered in the system. Please use a different email.";
+      }
+      toast({ title: "Failed to create auditor", description: msg, variant: "destructive" });
     } finally {
       setBusy(false);
     }
