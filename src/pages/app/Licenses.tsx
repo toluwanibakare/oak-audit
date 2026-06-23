@@ -257,6 +257,14 @@ export default function Licenses() {
           auditorId = created.id;
         }
       }
+    } else if (currentOrg.type !== "individual" && !auditorId) {
+      // Fallback for organizations: find the first assigned auditor from the processes list, or the first auditor in the team
+      const firstProcessAuditor = Object.values(processAuditorMap).find(id => !!id);
+      if (firstProcessAuditor) {
+        auditorId = firstProcessAuditor;
+      } else if (auditors.length > 0) {
+        auditorId = auditors[0].id;
+      }
     }
 
     if (!auditorId) {
