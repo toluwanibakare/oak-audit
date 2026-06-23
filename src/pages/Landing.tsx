@@ -779,25 +779,24 @@ export default function Landing() {
 
             <div 
               ref={sliderRef}
-              className="flex gap-6 overflow-x-auto snap-x snap-mandatory scrollbar-none scroll-smooth pb-6 px-1 transition-all duration-500"
+              className="flex gap-6 overflow-x-auto snap-x snap-mandatory scrollbar-none scroll-smooth py-8 px-2 transition-all duration-500"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {allBundles.map((plan) => (
                 <div
                   key={plan.name}
-                  className={`relative flex flex-col md:flex-row md:items-stretch justify-between shrink-0 snap-center w-full md:w-[calc(50%-12px)] rounded-[28px] border bg-card/65 backdrop-blur-md p-6 sm:p-8 shadow-card hover:shadow-elevated transition-all duration-500 premium-glass-card !overflow-visible ${plan.color}`}
+                  className={`relative flex flex-col md:flex-row md:items-stretch justify-between shrink-0 snap-center w-full md:w-[calc(50%-12px)] rounded-[28px] border bg-card/65 backdrop-blur-md p-6 sm:p-8 shadow-card hover:shadow-elevated transition-all duration-500 premium-glass-card ${plan.color}`}
                 >
-                  {plan.badge && (
-                    <div className="absolute -top-3.5 left-8">
-                      <span className="inline-flex items-center rounded-full bg-primary px-4 py-1 text-xs font-bold text-white shadow-card animate-pulse">
-                        {plan.badge}
-                      </span>
-                    </div>
-                  )}
-
                   {/* Left Column: Info */}
                   <div className="w-full md:w-[45%] flex flex-col justify-between mb-6 md:mb-0 gap-4">
                     <div>
+                      {plan.badge && (
+                        <div className="mb-3">
+                          <span className="inline-flex items-center rounded-full bg-primary px-3.5 py-1 text-[10px] font-bold text-white shadow-card uppercase tracking-wider animate-pulse">
+                            {plan.badge}
+                          </span>
+                        </div>
+                      )}
                       <div className="font-display text-lg sm:text-xl font-extrabold text-foreground">{plan.name}</div>
                       <p className="mt-2 text-xs sm:text-sm text-muted-foreground leading-relaxed">{plan.tagline}</p>
                     </div>
