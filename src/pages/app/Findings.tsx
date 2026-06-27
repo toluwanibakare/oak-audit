@@ -172,7 +172,6 @@ export default function Findings() {
               <th className="px-4 py-3 text-left">Owner</th>
               <th className="px-4 py-3 text-left">Due Date</th>
               <th className="px-4 py-3 text-left">Status</th>
-              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -225,14 +224,6 @@ export default function Findings() {
                       <option value="in_progress">In progress</option>
                       <option value="closed">Closed</option>
                     </select>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button 
-                      onClick={() => openCarModal(finding)}
-                      className="text-xs text-primary font-semibold hover:underline"
-                    >
-                      Manage CAR
-                    </button>
                   </td>
                 </tr>
               );
