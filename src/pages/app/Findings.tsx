@@ -5,6 +5,7 @@ import { useOrg } from "@/hooks/useOrg";
 import { AppShell } from "@/components/app/AppShell";
 import { Header } from "./Team";
 import { useToast } from "@/hooks/use-toast";
+import { getClauseRequirement } from "@/data/isoClauses";
 
 export default function Findings() {
   const { currentOrg } = useOrg();
@@ -70,6 +71,12 @@ export default function Findings() {
 
   const openCarModal = (finding: any) => {
     const meta = parseFindingMeta(finding.root_cause);
+    
+    // Look up clause requirement from the standard
+    const stdKey = finding.audits?.standard;
+    const clauseNum = finding.clause;
+    const matchedClause = getClauseRequirement(stdKey, clauseNum);
+    
     setSelectedFinding(finding);
     setCarForm({
       correction: meta?.correction ?? "",
@@ -77,7 +84,7 @@ export default function Findings() {
       capa: finding.capa ?? "",
       description: finding.description ?? "",
       nonConformityStatement: meta?.nonConformityStatement ?? "",
-      standardRequirement: meta?.standardRequirement ?? finding.description ?? "",
+      standardRequirement: meta?.standardRequirement || (matchedClause ? matchedClause.requirement : ""),
     });
   };
 
@@ -282,8 +289,9 @@ export default function Findings() {
                 <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Requirement/Statement of the Standard not met</label>
                 <textarea
                   value={carForm.standardRequirement}
-                  disabled
-                  className="input min-h-[50px] w-full opacity-65 cursor-not-allowed bg-secondary/30"
+                  onChange={(e) => setCarForm({ ...carForm, standardRequirement: e.target.value })}
+                  placeholder="Enter the requirement statement of the standard that was not met..."
+                  className="input min-h-[70px] w-full"
                 />
               </div>
 
