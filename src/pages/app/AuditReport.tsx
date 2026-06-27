@@ -114,14 +114,28 @@ const AuditReport = () => {
     };
   }, [id, currentOrg]);
 
+  const [originalData, setOriginalData] = useState({ title: "", criteria: "", object: "", conclusion: "" });
+
   useEffect(() => {
     if (audit) {
       setReportTitle(audit.title || "");
       setReportCriteria(audit.criteria || "");
       setReportObject(audit.object || "");
       setReportConclusion(audit.conclusion || "");
+      setOriginalData({
+        title: audit.title || "",
+        criteria: audit.criteria || "",
+        object: audit.object || "",
+        conclusion: audit.conclusion || ""
+      });
     }
   }, [audit]);
+
+  const hasChanges = 
+    reportTitle.trim() !== originalData.title ||
+    reportCriteria.trim() !== originalData.criteria ||
+    reportObject.trim() !== originalData.object ||
+    reportConclusion.trim() !== originalData.conclusion;
 
   const handleSaveChanges = async () => {
     if (!id) return;
@@ -141,6 +155,12 @@ const AuditReport = () => {
       toast({ title: "Failed to save changes", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Report details updated successfully." });
+      setOriginalData({
+        title: reportTitle.trim(),
+        criteria: reportCriteria.trim(),
+        object: reportObject.trim(),
+        conclusion: reportConclusion.trim()
+      });
       setAudit((prev: any) => prev ? { ...prev, title: reportTitle.trim(), criteria: reportCriteria.trim(), object: reportObject.trim(), conclusion: reportConclusion.trim() } : null);
     }
   };
@@ -189,6 +209,7 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
         auditorName: user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Auditor",
         criteria: reportCriteria,
         object: reportObject,
+        conclusion: reportConclusion,
       },
       answers: answers.map((answer) => ({
         process: processMap[answer.process_id] ?? "-",
@@ -577,8 +598,8 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
               <div className="flex justify-end pt-1">
                 <button
                   onClick={handleSaveChanges}
-                  disabled={saving}
-                  className="pill-cta text-xs px-5 py-1.5 flex items-center gap-1.5"
+                  disabled={saving || !hasChanges}
+                  className="pill-cta text-xs px-5 py-1.5 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? "Saving Changes..." : "Save Report Header & Conclusion"}
                 </button>

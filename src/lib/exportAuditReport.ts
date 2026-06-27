@@ -13,6 +13,7 @@ type ExportAuditMeta = {
   auditorName?: string;
   criteria?: string | null;
   object?: string | null;
+  conclusion?: string | null;
 };
 
 type ExportAuditAnswer = {
@@ -586,24 +587,7 @@ export function exportAuditReport({
     <div class="conformity-value">${conformity}%</div>
   </div>
 
-  <h2>2. Objectives, Scope and Methodology</h2>
-  
-  <h3>Audit Objectives</h3>
-  <div class="narrative-block">
-    <p>Verify that management practices and control activities conform fully to the specified guidelines of the standard; evaluate organizational readiness, trace audit logs, and establish the operational maturity of reviewed internal processes.</p>
-  </div>
-  
-  <h3>Scope of Audit</h3>
-  <div class="narrative-block">
-    <p>${escape(meta.scope || "Operational processes, documentation controls, evidence reviews, and system configurations within the declared operational boundaries.")}</p>
-  </div>
-  
-  <h3>Methodology and Execution</h3>
-  <div class="narrative-block">
-    <p>Audit execution involved document analysis, structured interviews with operational leads, walk-through audits of live systems, and random statistical sampling. Findings are categorized based on criteria: Major NC — systemic control gap; Minor NC — isolated procedural lapse; Observation — room for enhancement.</p>
-  </div>
-
-  <h2>3. Analytics Summary</h2>
+  <h2>2. Analytics Summary</h2>
   
   <div class="analytics-grid">
     <div class="analytics-card">
@@ -683,7 +667,7 @@ export function exportAuditReport({
     </div>
   </div>
 
-  <h2>4. Detailed Findings Register</h2>
+  <h2>3. Detailed Findings Register</h2>
   ${
     findings.length === 0
       ? `<div class="no-findings">No nonconformities or opportunities for improvement were raised during this audit.</div>`
@@ -748,7 +732,7 @@ export function exportAuditReport({
         }).join("")
   }
 
-  <h2>5. Detailed Audit Checklist Responses</h2>
+  <h2>4. Detailed Audit Checklist Responses</h2>
   <table class="report-table">
     <thead>
       <tr>
@@ -787,6 +771,13 @@ export function exportAuditReport({
       }
     </tbody>
   </table>
+
+  ${meta.conclusion ? `
+  <h2>5. Audit Conclusion</h2>
+  <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; font-size: 13px; color: #334155; line-height: 1.6; white-space: pre-wrap; margin-bottom: 24px;">
+    ${escape(meta.conclusion)}
+  </div>
+  ` : ""}
 
   <h2>6. Sign-off</h2>
   <table class="meta-table" style="margin-top: 20px; box-shadow: none;">

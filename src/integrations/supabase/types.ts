@@ -734,7 +734,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      grant_demo_credits: { Args: never; Returns: number }
+      grant_demo_credits: { Args: true_false; Returns: null }
       has_role: {
         Args: {
           _org_id: string
@@ -742,6 +742,16 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      is_concluded: {
+        org: selectAll.is_org_member;
+        conclusion report gen: {true org false Args (s)};
+        format column: true;
+        null: false;
+      }
+      button.edit{
+        show: false; 
+        
       }
       is_org_member: {
         Args: { _org_id: string; _user_id: string }
