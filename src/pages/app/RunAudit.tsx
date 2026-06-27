@@ -932,6 +932,7 @@ export default function RunAudit() {
                         auditors={auditors}
                         auditProcesses={auditProcesses}
                         currentUser={user}
+                        orgName={currentOrg?.name}
                       />
                     ))}
                   </div>
@@ -988,6 +989,7 @@ export default function RunAudit() {
                             auditors={auditors}
                             auditProcesses={auditProcesses}
                             currentUser={user}
+                            orgName={currentOrg?.name}
                           />
                         );
                       })}
@@ -1015,6 +1017,7 @@ export default function RunAudit() {
                             auditors={auditors}
                             auditProcesses={auditProcesses}
                             currentUser={user}
+                            orgName={currentOrg?.name}
                           />
                         );
                       })}
@@ -1257,6 +1260,7 @@ function Row({
   auditors = [],
   auditProcesses = [],
   currentUser,
+  orgName,
 }: any) {
   const { toast } = useToast();
   const key = buildAnswerKey(processId, clause, kind, qRef);
@@ -1285,10 +1289,8 @@ function Row({
   const [modalRootCauseText, setModalRootCauseText] = useState(meta?.rootCauseText ?? "");
   const [severity, setSeverity] = useState(meta?.severity ?? deriveSeverity(finding?.type ?? status));
 
-  // Resolved owner name
-  const assignment = auditProcesses?.find((ap: any) => ap.process_id === processId);
-  const assignedAuditor = auditors?.find((a: any) => a.id === assignment?.auditor_id);
-  const ownerName = assignedAuditor ? assignedAuditor.name : (currentUser?.user_metadata?.full_name || currentUser?.email || "Auditor");
+  // Resolved owner name as the auditee (the entity/person the audit is for)
+  const ownerName = orgName || currentUser?.user_metadata?.full_name || currentUser?.email || "Auditee";
 
   useEffect(() => {
     const latest = parseAuditNote(answer.note ?? "");
