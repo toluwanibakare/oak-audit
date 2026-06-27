@@ -69,6 +69,23 @@ export default function RunAudit() {
   const [checklistAnswers, setChecklistAnswers] = useState<Record<number, { status: string; note: string; evidence: EvidenceItem[] }>>({});
   const [uploadingChecklistFor, setUploadingChecklistFor] = useState<number | null>(null);
 
+  // Delegated modal states for configuring findings
+  const [editingFinding, setEditingFinding] = useState<any | null>(null);
+  const [modalProcessId, setModalProcessId] = useState("");
+  const [modalDueDate, setModalDueDate] = useState("");
+  const [modalDescription, setModalDescription] = useState("");
+  const [modalSeverity, setModalSeverity] = useState("Medium");
+
+  useEffect(() => {
+    if (editingFinding) {
+      setModalProcessId(editingFinding.processId);
+      setModalDueDate(editingFinding.finding?.due_date ?? "");
+      setModalDescription(editingFinding.finding?.description ?? "");
+      const meta = parseFindingMeta(editingFinding.finding?.root_cause ?? null);
+      setModalSeverity(meta?.severity ?? (editingFinding.finding?.type === "major" ? "High" : editingFinding.finding?.type === "minor" ? "Medium" : "Low"));
+    }
+  }, [editingFinding]);
+
   useEffect(() => {
     if (!id) return;
     const ckKey = `checklist_answers_${id}`;
@@ -927,13 +944,8 @@ export default function RunAudit() {
                         onUploadEvidence={uploadEvidence}
                         badge="Custom"
                         readOnly={!canEdit}
-                        auditTitle={audit.title}
-                        auditOwner={audit.owner}
-                        allProcs={procs}
-                        auditors={auditors}
-                        auditProcesses={auditProcesses}
-                        currentUser={user}
                         orgName={currentOrg?.name}
+                        onConfigureFinding={setEditingFinding}
                       />
                     ))}
                   </div>
@@ -985,13 +997,8 @@ export default function RunAudit() {
                             onSyncFinding={syncFinding}
                             onUploadEvidence={uploadEvidence}
                             readOnly={!canEdit}
-                            auditTitle={audit.title}
-                            auditOwner={audit.owner}
-                            allProcs={procs}
-                            auditors={auditors}
-                            auditProcesses={auditProcesses}
-                            currentUser={user}
                             orgName={currentOrg?.name}
+                            onConfigureFinding={setEditingFinding}
                           />
                         );
                       })}
@@ -1014,13 +1021,8 @@ export default function RunAudit() {
                             onSyncFinding={syncFinding}
                             onUploadEvidence={uploadEvidence}
                             readOnly={!canEdit}
-                            auditTitle={audit.title}
-                            auditOwner={audit.owner}
-                            allProcs={procs}
-                            auditors={auditors}
-                            auditProcesses={auditProcesses}
-                            currentUser={user}
                             orgName={currentOrg?.name}
+                            onConfigureFinding={setEditingFinding}
                           />
                         );
                       })}
@@ -1238,6 +1240,148 @@ export default function RunAudit() {
           </div>
         );
       })()}
+
+      {editingFinding && (
+        <div 
+          className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in cursor-pointer"
+          onClick={() => setEditingFinding(null)}
+        >
+          <div 
+            className="relative w-full max-w-2xl rounded-3xl border border-border bg-card p-6 shadow-elevated space-y-4 animate-scale-in max-h-[90vh] overflow-y-auto font-sans cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="font-display text-lg font-bold text-foreground">
+                Configure Audit Finding (Clause {editingFinding.clause})
+              </h3>
+              <button
+                onClick={() => setEditingFinding(null)}
+                className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground transition"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 text-xs">
+              <div>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Audit</label>
+                <input
+                  type="text"
+                  value={audit?.title ?? ""}
+                  disabled
+                  className="input opacity-65 cursor-not-allowed bg-secondary/30 w-full"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Owner</label>
+                <input
+                  type="text"
+                  value={audit?.owner ?? currentOrg?.name ?? "Auditee"}
+                  disabled
+                  className="input opacity-65 cursor-not-allowed bg-secondary/30 w-full"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Severity Rating</label>
+                <select
+                  value={modalSeverity}
+                  onChange={(e) => setModalSeverity(e.target.value)}
+                  className="input w-full"
+                >
+                  <option value="High">Major</option>
+                  <option value="Medium">Minor</option>
+                  <option value="Low">Observation</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Process</label>
+                <select
+                  value={modalProcessId}
+                  onChange={(e) => setModalProcessId(e.target.value)}
+                  className="input w-full"
+                >
+                  {procs.map((p: any) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Due Date</label>
+                <input
+                  type="date"
+                  value={modalDueDate}
+                  onChange={(e) => setModalDueDate(e.target.value)}
+                  className="input w-full md:w-1/2"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Finding Statement / Description</label>
+                <textarea
+                  value={modalDescription}
+                  onChange={(e) => setModalDescription(e.target.value)}
+                  className="input min-h-[80px] w-full"
+                  placeholder="Describe the discrepancy or compliance gap..."
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-border">
+              <button
+                onClick={() => setEditingFinding(null)}
+                className="pill-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const mappedStatus = modalSeverity === "High" ? "major" : modalSeverity === "Medium" ? "minor" : "observation";
+                  
+                  await saveAnswer({
+                    process_id: editingFinding.processId,
+                    clause: editingFinding.clause,
+                    kind: editingFinding.kind,
+                    q_ref: editingFinding.qRef,
+                    question_text: editingFinding.questionText,
+                    status: mappedStatus,
+                    note: "Finding details updated in modal.",
+                    evidence: [],
+                  });
+
+                  const meta = parseFindingMeta(editingFinding.finding?.root_cause ?? null);
+                  await syncFinding({
+                    processId: modalProcessId,
+                    clause: editingFinding.clause,
+                    kind: editingFinding.kind,
+                    qRef: editingFinding.qRef,
+                    questionText: editingFinding.questionText,
+                    answerStatus: mappedStatus,
+                    description: modalDescription,
+                    capa: editingFinding.finding?.capa ?? "",
+                    owner: audit?.owner || currentOrg?.name || "Auditee",
+                    dueDate: modalDueDate,
+                    correction: meta?.correction ?? "",
+                    rootCauseText: meta?.rootCauseText ?? "",
+                    severity: modalSeverity,
+                  });
+
+                  setEditingFinding(null);
+                  toast({ title: "Finding saved successfully." });
+                }}
+                className="pill-cta"
+              >
+                Save Finding
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
@@ -1255,14 +1399,10 @@ function Row({
   onSave,
   onSyncFinding,
   onUploadEvidence,
+  onConfigureFinding,
   badge,
   readOnly,
   index,
-  auditTitle,
-  auditOwner,
-  allProcs = [],
-  auditors = [],
-  auditProcesses = [],
   currentUser,
   orgName,
 }: any) {
@@ -1280,34 +1420,14 @@ function Row({
   const [status, setStatus] = useState(answer.status);
   const [note, setNote] = useState(parsed.text);
   const [evidence, setEvidence] = useState<EvidenceItem[]>(parsed.evidence);
-  
-  // Modal states
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalProcessId, setModalProcessId] = useState(processId);
-  const [modalDueDate, setModalDueDate] = useState(finding?.due_date ?? "");
-  const [modalDescription, setModalDescription] = useState(finding?.description ?? "");
 
-  const meta = parseFindingMeta(finding?.root_cause ?? null);
-  const [severity, setSeverity] = useState(meta?.severity ?? deriveSeverity(finding?.type ?? status));
-
-  // Resolved owner name as the auditee (the entity/person the audit is for)
-  const ownerName = auditOwner || orgName || "Auditee";
-
-  // Preserve existing CAR details (RCA, CAPA, containment) so they don't get overwritten
-  const existingCorrection = meta?.correction ?? "";
-  const existingRootCauseText = meta?.rootCauseText ?? "";
-  const existingCapa = finding?.capa ?? "";
+  const ownerName = orgName || "Auditee";
 
   useEffect(() => {
     const latest = parseAuditNote(answer.note ?? "");
-    const latestMeta = parseFindingMeta(finding?.root_cause ?? null);
     setStatus(answer.status);
     setNote(latest.text);
     setEvidence(latest.evidence);
-    setModalProcessId(processId);
-    setModalDueDate(finding?.due_date ?? "");
-    setModalDescription(finding?.description ?? "");
-    setSeverity(latestMeta?.severity ?? deriveSeverity(finding?.type ?? answer.status));
   }, [answer.id, answer.note, answer.status, finding?.id, q]);
 
   const persistAnswer = async (nextStatus: string, nextNote: string, nextEvidence = evidence) => {
@@ -1324,20 +1444,21 @@ function Row({
   };
 
   const persistFinding = async (nextStatus = status) => {
+    const meta = parseFindingMeta(finding?.root_cause ?? null);
     await onSyncFinding({
-      processId: modalProcessId,
+      processId,
       clause,
       kind,
       qRef,
       questionText: answer.question_text || q,
       answerStatus: nextStatus,
-      description: modalDescription,
-      capa: existingCapa,
+      description: finding?.description ?? "",
+      capa: finding?.capa ?? "",
       owner: ownerName,
-      dueDate: modalDueDate,
-      correction: existingCorrection,
-      rootCauseText: existingRootCauseText,
-      severity,
+      dueDate: finding?.due_date ?? "",
+      correction: meta?.correction ?? "",
+      rootCauseText: meta?.rootCauseText ?? "",
+      severity: meta?.severity ?? (finding?.type === "major" ? "High" : finding?.type === "minor" ? "Medium" : "Low"),
     });
   };
 
@@ -1355,75 +1476,18 @@ function Row({
 
   const handleAutoDeclare = async () => {
     const nextStatus = "minor";
-    const nextDescText = `Clause ${clause} requirement is not fully met: ${q}`;
-    const nextCapa = "Perform root cause analysis, revise operational procedure to address discrepancy, and conduct training session for relevant personnel.";
-    const nextOwner = "Process Owner";
-    const nextDueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    const nextCorrection = "Immediately contain the issue, quarantine affected areas/items, and inform the team.";
-    const nextRootCause = "Lack of formal training and standard operational compliance monitoring.";
-    const nextSeverity = "Medium";
-
     setStatus(nextStatus);
-    setDescription(nextDescText);
-    setCapa(nextCapa);
-    setOwner(nextOwner);
-    setDueDate(nextDueDate);
-    setCorrection(nextCorrection);
-    setRootCauseText(nextRootCause);
-    setSeverity(nextSeverity);
-
-    // Save answer as 'minor' status
-    await onSave({
-      process_id: processId,
-      clause,
-      kind,
-      q_ref: qRef,
-      question_text: answer.question_text || q,
-      status: nextStatus,
-      note: note || "Finding automatically declared during audit.",
-      evidence,
-    });
-
-    // Auto-sync finding details to the registry
-    await onSyncFinding({
-      processId,
-      clause,
-      kind,
-      qRef,
-      questionText: answer.question_text || q,
-      answerStatus: nextStatus,
-      description: nextDescText,
-      capa: nextCapa,
-      owner: nextOwner,
-      dueDate: nextDueDate,
-      correction: nextCorrection,
-      rootCauseText: nextRootCause,
-      severity: nextSeverity,
-    });
-
-    toast({
-      title: "Finding declared automatically",
-      description: "Successfully registered as a minor non-conformity with a default CAR plan, assigned owner, and 30-day due date.",
-    });
+    await persistAnswer(nextStatus, note);
+    onConfigureFinding({ processId, clause, kind, qRef, questionText: answer.question_text || q, finding });
   };
 
   const handleCancelFinding = async () => {
     const nextStatus = "pending";
     setStatus(nextStatus);
     
-    // Clear all finding-related fields
-    setDescription(answer.question_text || q);
-    setCapa("");
-    setOwner("");
-    setDueDate("");
-    setCorrection("");
-    setRootCauseText("");
-    setSeverity("Medium");
-
     const nextNote = note === "Finding automatically declared during audit." ? "" : note;
     setNote(nextNote);
 
-    // Save answer as 'pending'
     await onSave({
       process_id: processId,
       clause,
@@ -1435,7 +1499,6 @@ function Row({
       evidence,
     });
 
-    // Sync finding details, which deletes the finding from the DB since status is 'pending'
     await onSyncFinding({
       processId,
       clause,
@@ -1443,9 +1506,9 @@ function Row({
       qRef,
       questionText: answer.question_text || q,
       answerStatus: nextStatus,
-      description: answer.question_text || q,
+      description: "",
       capa: "",
-      owner: "",
+      owner: ownerName,
       dueDate: "",
       correction: "",
       rootCauseText: "",
@@ -1454,7 +1517,7 @@ function Row({
 
     toast({
       title: "Finding cancelled",
-      description: "The non-conformity finding and its CAR details have been removed.",
+      description: "The non-conformity finding has been removed.",
     });
   };
 

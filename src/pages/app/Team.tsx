@@ -4,7 +4,7 @@ import { useOrg } from "@/hooks/useOrg";
 import { useToast } from "@/hooks/use-toast";
 import { AppShell } from "@/components/app/AppShell";
 import { useAuth } from "@/hooks/useAuth";
-import { X } from "lucide-react";
+import { X, Pencil, Trash2 } from "lucide-react";
 
 type Auditor = { id: string; name: string; email: string | null; role: string | null; certifications: string | null; user_id: string | null };
 
@@ -253,10 +253,22 @@ export default function Team() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{auditor.certifications || "-"}</td>
-                <td className="px-4 py-3 text-right space-x-2">
-                  <button onClick={() => startEdit(auditor)} className="text-xs text-primary hover:underline font-semibold">Edit</button>
+                <td className="px-4 py-3 text-right space-x-3">
+                  <button 
+                    onClick={() => startEdit(auditor)} 
+                    className="inline-flex items-center text-muted-foreground hover:text-primary transition"
+                    title="Edit Member"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
                   {auditor.role !== "management_representative" && (
-                    <button onClick={() => remove(auditor.id, auditor.role)} className="text-xs text-destructive hover:underline">Remove</button>
+                    <button 
+                      onClick={() => remove(auditor.id, auditor.role)} 
+                      className="inline-flex items-center text-muted-foreground hover:text-destructive transition"
+                      title="Remove Member"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   )}
                 </td>
               </tr>
