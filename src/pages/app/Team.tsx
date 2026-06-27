@@ -218,10 +218,8 @@ export default function Team() {
         <input className="input" type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         <input className="input" type="password" placeholder="Password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
         <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-          <option value="lead_auditor">Lead Auditor</option>
           <option value="auditor">Auditor</option>
           <option value="management_representative">Management Representative</option>
-          <option value="auditee">Auditee</option>
         </select>
         <input className="input" placeholder="Location" value={form.certifications} onChange={(e) => setForm({ ...form, certifications: e.target.value })} />
         <button onClick={add} disabled={busy} className="pill-cta w-full">{busy ? "Creating..." : "Add auditor"}</button>
@@ -312,10 +310,8 @@ export default function Team() {
                   onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
                   className="input w-full"
                 >
-                  <option value="lead_auditor">Lead Auditor</option>
                   <option value="auditor">Auditor</option>
                   <option value="management_representative">Management Representative</option>
-                  <option value="auditee">Auditee</option>
                 </select>
               </div>
 
