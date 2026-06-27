@@ -1417,13 +1417,16 @@ export default function RunAudit() {
                     })()
                   }
                   onChange={(e) => {
-                    setEditingFinding({
-                      ...editingFinding,
-                      standardRequirement: e.target.value
-                    });
+                    if (editingFinding.kind === "custom") {
+                      setEditingFinding({
+                        ...editingFinding,
+                        standardRequirement: e.target.value
+                      });
+                    }
                   }}
-                  className="input min-h-[60px] w-full"
-                  placeholder="Enter standard requirement..."
+                  disabled={editingFinding.kind !== "custom"}
+                  className={`input min-h-[60px] w-full ${editingFinding.kind !== "custom" ? "opacity-65 cursor-not-allowed bg-secondary/30" : ""}`}
+                  placeholder={editingFinding.kind === "custom" ? "Enter standard requirement..." : ""}
                 />
               </div>
             </div>

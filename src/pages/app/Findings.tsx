@@ -289,9 +289,23 @@ export default function Findings() {
                 <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Requirement/Statement of the Standard not met</label>
                 <textarea
                   value={carForm.standardRequirement}
-                  onChange={(e) => setCarForm({ ...carForm, standardRequirement: e.target.value })}
-                  placeholder="Enter the requirement statement of the standard that was not met..."
-                  className="input min-h-[70px] w-full"
+                  onChange={(e) => {
+                    const meta = parseFindingMeta(selectedFinding?.root_cause);
+                    if (!meta || meta.kind === "custom") {
+                      setCarForm({ ...carForm, standardRequirement: e.target.value });
+                    }
+                  }}
+                  disabled={(() => {
+                    const meta = parseFindingMeta(selectedFinding?.root_cause);
+                    return meta ? meta.kind !== "custom" : false;
+                  })()}
+                  placeholder="Enter standard requirement..."
+                  className={`input min-h-[70px] w-full ${
+                    (() => {
+                      const meta = parseFindingMeta(selectedFinding?.root_cause);
+                      return meta && meta.kind !== "custom" ? "opacity-65 cursor-not-allowed bg-secondary/30" : "";
+                    })()
+                  }`}
                 />
               </div>
 
