@@ -81,6 +81,21 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
+  const [currentUserAuditor, setCurrentUserAuditor] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (!user || !currentOrg) return;
+    (async () => {
+      const { data } = await supabase
+        .from("auditors")
+        .select("*")
+        .eq("org_id", currentOrg.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setCurrentUserAuditor(data);
+    })();
+  }, [user, currentOrg]);
+
   /* ── Wallet balance & Real-time Sync ─────────────────────────── */
   useEffect(() => {
     if (!currentOrg) return;
@@ -170,7 +185,17 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   const fullName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
   const displayName = fullName.split(" ")[0];
   const displayEmail = user?.email ?? "";
-  const NAV = isIndividual ? INDIVIDUAL_NAV : ORG_NAV;
+  const NAV = useMemo(() => {
+    if (isIndividual) return INDIVIDUAL_NAV;
+    if (currentUserAuditor?.role === "auditor") {
+      return [
+        { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
+        { to: "/app/audits", label: "My Audits", icon: ClipboardCheck },
+        { to: "/contact", label: "Help & Support", icon: LifeBuoy },
+      ];
+    }
+    return ORG_NAV;
+  }, [isIndividual, currentUserAuditor]);
 
   const renderSidebarContent = () => (
     <div className="flex h-full flex-col justify-between">

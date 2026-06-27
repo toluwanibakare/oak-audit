@@ -245,10 +245,10 @@ export default function RunAudit() {
       }
       setIsLead(userIsLead);
 
-      // Filter procs list to only show processes linked to this audit and assigned to this auditor
+      // Filter procs list to only show processes linked to this audit and assigned to this auditor (or all if lead/admin)
       const auditProcIds = new Set(
         finalAuditProcs
-          .filter((ap) => !currentAuditorId || ap.auditor_id === currentAuditorId)
+          .filter((ap) => userIsLead || !currentAuditorId || ap.auditor_id === currentAuditorId)
           .map((ap) => ap.process_id)
       );
       const activeAuditProcs = visibleProcs.filter((p) => auditProcIds.has(p.id));
@@ -1562,7 +1562,7 @@ function Row({
               setStatus(nextStatus);
               await persistAnswer(nextStatus, note);
               if (NONCONFORMING.has(nextStatus)) {
-                setIsModalOpen(true);
+                onConfigureFinding({ processId, clause, kind, qRef, questionText: answer.question_text || q, finding });
               } else {
                 await persistFinding(nextStatus);
               }
@@ -1630,153 +1630,14 @@ function Row({
         <div className="mt-3 rounded-xl border border-warning/30 bg-warning/5 p-3 flex flex-wrap items-center justify-between gap-3 animate-fade-in-up">
           <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
             <AlertTriangle className="h-4 w-4 text-warning" />
-            <span>Finding details declared ({severity})</span>
+            <span>Finding details declared</span>
           </div>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => onConfigureFinding({ processId, clause, kind, qRef, questionText: answer.question_text || q, finding })}
             className="pill-secondary py-1.5 px-3.5 text-xs bg-warning/10 border-warning/20 hover:bg-warning/20 text-warning"
           >
             Configure Finding Details
           </button>
-        </div>
-      )}
-
-      {isModalOpen && (
-        <div 
-          className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in cursor-pointer"
-          onClick={() => setIsModalOpen(false)}
-        >
-          <div 
-            className="relative w-full max-w-2xl rounded-3xl border border-border bg-card p-6 shadow-elevated space-y-4 animate-scale-in max-h-[90vh] overflow-y-auto font-sans cursor-default"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h3 className="font-display text-lg font-bold text-foreground">
-                Configure Audit Finding (Clause {clause})
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground transition"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 text-xs">
-              <div>
-                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Audit</label>
-                <input
-                  type="text"
-                  value={auditTitle}
-                  disabled
-                  className="input opacity-65 cursor-not-allowed bg-secondary/30 w-full"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Owner</label>
-                <input
-                  type="text"
-                  value={ownerName}
-                  disabled
-                  className="input opacity-65 cursor-not-allowed bg-secondary/30 w-full"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Severity Rating</label>
-                <select
-                  value={severity}
-                  onChange={(e) => setSeverity(e.target.value)}
-                  className="input w-full"
-                >
-                  <option value="High">Major</option>
-                  <option value="Medium">Minor</option>
-                  <option value="Low">Observation</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Process</label>
-                <select
-                  value={modalProcessId}
-                  onChange={(e) => setModalProcessId(e.target.value)}
-                  className="input w-full"
-                >
-                  {allProcs.map((p: any) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Due Date</label>
-                <input
-                  type="date"
-                  value={modalDueDate}
-                  onChange={(e) => setModalDueDate(e.target.value)}
-                  className="input w-full md:w-1/2"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Finding Statement / Description</label>
-                <textarea
-                  value={modalDescription}
-                  onChange={(e) => setModalDescription(e.target.value)}
-                  className="input min-h-[80px] w-full"
-                  placeholder="Describe the discrepancy or compliance gap..."
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-3 border-t border-border">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="pill-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  const mappedStatus = severity === "High" ? "major" : severity === "Medium" ? "minor" : "observation";
-                  setStatus(mappedStatus);
-                  await onSave({
-                    process_id: modalProcessId,
-                    clause,
-                    kind,
-                    q_ref: qRef,
-                    question_text: answer.question_text || q,
-                    status: mappedStatus,
-                    note: note || "Finding details updated in modal.",
-                    evidence,
-                  });
-                  await onSyncFinding({
-                    processId: modalProcessId,
-                    clause,
-                    kind,
-                    qRef,
-                    questionText: answer.question_text || q,
-                    answerStatus: mappedStatus,
-                    description: modalDescription,
-                    capa: existingCapa,
-                    owner: ownerName,
-                    dueDate: modalDueDate,
-                    correction: existingCorrection,
-                    rootCauseText: existingRootCauseText,
-                    severity,
-                  });
-                  setIsModalOpen(false);
-                  toast({ title: "Finding saved successfully." });
-                }}
-                className="pill-cta"
-              >
-                Save Finding
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
