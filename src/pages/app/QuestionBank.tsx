@@ -38,9 +38,6 @@ type Answer = {
 };
 
 const getApplicableStandards = (auditStd: string): string[] => {
-  if (auditStd === "ims") return ["9001", "14001", "45001", "ims"];
-  if (auditStd === "hse") return ["14001", "45001", "hse"];
-  if (auditStd === "27001") return ["9001", "27001"];
   return [auditStd];
 };
 
