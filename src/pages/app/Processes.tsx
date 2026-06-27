@@ -31,15 +31,16 @@ const UNIQUE_STANDARD_PROCESSES = Array.from(
 );
 
 
-type Proc = { id: string; key: string; name: string; scope: string | null; is_custom: boolean; process_owner: string | null };
+type Proc = { id: string; key: string; name: string; scope: string | null; is_custom: boolean; process_owner: string | null; process_owner_email?: string | null };
 
 export default function Processes() {
   const { currentOrg } = useOrg();
   const { toast } = useToast();
   const [list, setList] = useState<Proc[]>([]);
-  const [form, setForm] = useState({ name: "", scope: "", process_owner: "" });
+  const [form, setForm] = useState({ name: "", scope: "", process_owner: "", process_owner_email: "" });
   // Tracks the process owner name per standard process key during selection
   const [standardProcessOwners, setStandardProcessOwners] = useState<Record<string, string>>({});
+  const [standardProcessOwnersEmail, setStandardProcessOwnersEmail] = useState<Record<string, string>>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [processToDelete, setProcessToDelete] = useState<Proc | null>(null);
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -153,6 +154,16 @@ export default function Processes() {
       
       // Pre-fill selection keys with currently selected standard processes (normalized)
       setSelectedStandardKeys(finalProcessesList.filter(p => !p.is_custom).map(p => p.key));
+      const ownersMap: Record<string, string> = {};
+      const emailsMap: Record<string, string> = {};
+      finalProcessesList.forEach(p => {
+        if (!p.is_custom) {
+          if (p.process_owner) ownersMap[p.key] = p.process_owner;
+          if (p.process_owner_email) emailsMap[p.key] = p.process_owner_email;
+        }
+      });
+      setStandardProcessOwners(ownersMap);
+      setStandardProcessOwnersEmail(emailsMap);
 
       // Load paid standards/licenses
       const { data: licenses } = await supabase
@@ -213,6 +224,7 @@ export default function Processes() {
         scope: sp.scope || "",
         is_custom: false,
         process_owner: standardProcessOwners[sp.key]?.trim() || null,
+        process_owner_email: standardProcessOwnersEmail[sp.key]?.trim() || null,
       }));
 
       if (toInsert.length > 0) {
@@ -256,11 +268,12 @@ export default function Processes() {
       scope: form.scope,
       is_custom: isCustom,
       process_owner: form.process_owner.trim() || null,
+      process_owner_email: form.process_owner_email.trim() || null,
     });
 
     if (error) return toast({ title: error.message, variant: "destructive" });
 
-    setForm({ name: "", scope: "", process_owner: "" });
+    setForm({ name: "", scope: "", process_owner: "", process_owner_email: "" });
     setIsModalOpen(false);
     await load();
 
@@ -528,22 +541,41 @@ export default function Processes() {
                     </div>
                   </label>
                   {checked && (
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Process Owner name (required)..."
-                        className={`input h-8 text-xs w-full ${
-                          !(standardProcessOwners[sp.key]?.trim())
-                            ? "border-destructive focus:ring-destructive/30"
-                            : ""
-                        }`}
-                        value={standardProcessOwners[sp.key] ?? ""}
-                        onChange={(e) => setStandardProcessOwners(prev => ({ ...prev, [sp.key]: e.target.value }))}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                      {!(standardProcessOwners[sp.key]?.trim()) && (
-                        <p className="mt-1 text-[10px] text-destructive font-semibold">Process owner is required</p>
-                      )}
+                    <div className="space-y-2 mt-1">
+                      <div>
+                        <input
+                          type="text"
+                          placeholder="Process Owner name (required)..."
+                          className={`input h-8 text-xs w-full ${
+                            !(standardProcessOwners[sp.key]?.trim())
+                              ? "border-destructive focus:ring-destructive/30"
+                              : ""
+                          }`}
+                          value={standardProcessOwners[sp.key] ?? ""}
+                          onChange={(e) => setStandardProcessOwners(prev => ({ ...prev, [sp.key]: e.target.value }))}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        {!(standardProcessOwners[sp.key]?.trim()) && (
+                          <p className="mt-1 text-[10px] text-destructive font-semibold">Process owner is required</p>
+                        )}
+                      </div>
+                      <div>
+                        <input
+                          type="email"
+                          placeholder="Process Owner email (required)..."
+                          className={`input h-8 text-xs w-full ${
+                            !(standardProcessOwnersEmail[sp.key]?.trim())
+                              ? "border-destructive focus:ring-destructive/30"
+                              : ""
+                          }`}
+                          value={standardProcessOwnersEmail[sp.key] ?? ""}
+                          onChange={(e) => setStandardProcessOwnersEmail(prev => ({ ...prev, [sp.key]: e.target.value }))}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        {!(standardProcessOwnersEmail[sp.key]?.trim()) && (
+                          <p className="mt-1 text-[10px] text-destructive font-semibold">Owner email is required</p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -565,10 +597,10 @@ export default function Processes() {
               disabled={
                 saving ||
                 selectedStandardKeys.length === 0 ||
-                selectedStandardKeys.some(k => !(standardProcessOwners[k]?.trim()))
+                selectedStandardKeys.some(k => !(standardProcessOwners[k]?.trim()) || !(standardProcessOwnersEmail[k]?.trim()))
               }
               className="pill-cta px-6 py-2 text-sm font-semibold disabled:opacity-50"
-              title={selectedStandardKeys.some(k => !(standardProcessOwners[k]?.trim())) ? "All selected processes must have a process owner" : ""}
+              title={selectedStandardKeys.some(k => !(standardProcessOwners[k]?.trim()) || !(standardProcessOwnersEmail[k]?.trim())) ? "All selected processes must have a process owner and email" : ""}
             >
               {saving ? "Saving Changes..." : "Save Selected Processes"}
             </button>
@@ -620,7 +652,12 @@ export default function Processes() {
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{p.scope || "No description mapped."}</p>
                   {p.process_owner && (
-                    <p className="mt-1.5 text-xs font-semibold text-foreground/70">Owner: <span className="text-foreground">{p.process_owner}</span></p>
+                    <div className="mt-1.5 space-y-0.5">
+                      <p className="text-xs font-semibold text-foreground/70">Owner: <span className="text-foreground">{p.process_owner}</span></p>
+                      {p.process_owner_email && (
+                        <p className="text-[11px] text-muted-foreground">Email: <span className="text-foreground/80 font-medium">{p.process_owner_email}</span></p>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between">
@@ -723,6 +760,21 @@ export default function Processes() {
                   <p className="mt-1 text-[11px] text-destructive">Process owner name is required</p>
                 )}
               </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Process Owner Email *</label>
+                <input
+                  type="email"
+                  placeholder="e.g. johndoe@company.com"
+                  className={`input w-full h-11 ${
+                    !form.process_owner_email.trim() ? "border-destructive focus:ring-destructive/30" : ""
+                  }`}
+                  value={form.process_owner_email}
+                  onChange={(e) => setForm({ ...form, process_owner_email: e.target.value })}
+                />
+                {!form.process_owner_email.trim() && (
+                  <p className="mt-1 text-[11px] text-destructive">Process owner email is required</p>
+                )}
+              </div>
               <div className="flex justify-end gap-3 pt-3">
                 <button
                   onClick={() => setIsModalOpen(false)}
@@ -732,7 +784,7 @@ export default function Processes() {
                 </button>
                 <button
                   onClick={add}
-                  disabled={!form.name.trim() || !form.process_owner.trim()}
+                  disabled={!form.name.trim() || !form.process_owner.trim() || !form.process_owner_email.trim()}
                   className="pill-cta px-5 py-2 text-sm font-semibold disabled:opacity-50"
                 >
                   Add Process

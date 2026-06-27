@@ -559,8 +559,13 @@ export default function Licenses() {
                           setEndDate("");
                           setAuditOwner("");
                           setSelectedAuditorId("");
-                          setAuditeeName("");
-                          setAuditeeEmail("");
+                          if (currentOrg?.type === "individual") {
+                            setAuditeeName(currentOrg.name || "");
+                            setAuditeeEmail(user?.email || "");
+                          } else {
+                            setAuditeeName("");
+                            setAuditeeEmail("");
+                          }
                         }
                       }}
                       disabled={busy !== null || (!active && balance < cost) || !isProfileComplete || hasOpenAudit}
@@ -769,24 +774,38 @@ export default function Licenses() {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Auditee Contact Name <span className="text-destructive">*</span></label>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                      {currentOrg?.type === "individual" ? "Process Owner (Organization)" : "Auditee Contact Name / Process Owner"} <span className="text-destructive">*</span>
+                    </label>
                     <input
                       type="text"
-                      className="input w-full font-sans text-sm"
+                      className={`input w-full font-sans text-sm ${currentOrg?.type === "individual" ? "bg-secondary/40 opacity-70 cursor-not-allowed" : ""}`}
                       value={auditeeName}
-                      onChange={(e) => setAuditeeName(e.target.value)}
+                      onChange={(e) => {
+                        if (currentOrg?.type !== "individual") {
+                          setAuditeeName(e.target.value);
+                        }
+                      }}
+                      disabled={currentOrg?.type === "individual"}
                       placeholder="e.g. Samuel Auditee"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Auditee Email <span className="text-destructive">*</span></label>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                      {currentOrg?.type === "individual" ? "Process Owner Email" : "Auditee Email"} <span className="text-destructive">*</span>
+                    </label>
                     <input
                       type="email"
-                      className="input w-full font-sans text-sm"
+                      className={`input w-full font-sans text-sm ${currentOrg?.type === "individual" ? "bg-secondary/40 opacity-70 cursor-not-allowed" : ""}`}
                       value={auditeeEmail}
-                      onChange={(e) => setAuditeeEmail(e.target.value)}
+                      onChange={(e) => {
+                        if (currentOrg?.type !== "individual") {
+                          setAuditeeEmail(e.target.value);
+                        }
+                      }}
+                      disabled={currentOrg?.type === "individual"}
                       placeholder="e.g. auditee@example.com"
                       required
                     />
