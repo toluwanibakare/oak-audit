@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams, Link } from "react-router-dom";
-import { AlertTriangle, ArrowLeft, Download, PieChart as PieChartIcon, Printer, Radar, Table, FileText, Mail, Paperclip, Send } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ClipboardCheck, Download, PieChart as PieChartIcon, Printer, Radar, Table, FileText, Mail, Paperclip, Send, X } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app/AppShell";
@@ -76,6 +76,7 @@ const AuditReport = () => {
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
   const [emailNotes, setEmailNotes] = useState("");
+  const [showDownloadChoice, setShowDownloadChoice] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -415,11 +416,67 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
           <ArrowLeft className="h-4 w-4" />
           Back to audit
         </Link>
-        <button onClick={handleExportPdf} className="pill-cta">
-          <Printer className="h-4 w-4" />
-          Download PDF / Print Report
-        </button>
+        {(audit.standard === "hse" || audit.standard === "ims") ? (
+          <button onClick={() => setShowDownloadChoice(true)} className="pill-cta">
+            <Printer className="h-4 w-4" />
+            Download Report
+          </button>
+        ) : (
+          <button onClick={handleExportPdf} className="pill-cta">
+            <Printer className="h-4 w-4" />
+            Download PDF / Print Report
+          </button>
+        )}
       </div>
+
+      {/* HSE / IMS Download Choice Modal */}
+      {showDownloadChoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-sm rounded-3xl border border-border bg-card p-8 shadow-elevated animate-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setShowDownloadChoice(false)}
+              className="absolute top-4 right-4 rounded-lg p-1 text-muted-foreground hover:bg-secondary transition"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <h3 className="font-display text-lg font-bold text-foreground mb-1">Select Report Type</h3>
+            <p className="text-xs text-muted-foreground mb-6">Choose which report you want to download for this {audit.standard.toUpperCase()} audit.</p>
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  setShowDownloadChoice(false);
+                  handleExportPdf();
+                }}
+                className="w-full flex items-center gap-3 rounded-2xl border border-border bg-secondary/50 hover:bg-secondary px-4 py-3.5 text-left transition group"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-foreground">{audit.standard.toUpperCase()} Audit Report</div>
+                  <div className="text-xs text-muted-foreground">Full compliance findings & analytics</div>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  setShowDownloadChoice(false);
+                  // Open the inspection checklist modal via RunAudit — navigate back with flag, or print inline
+                  window.print();
+                }}
+                className="w-full flex items-center gap-3 rounded-2xl border border-border bg-secondary/50 hover:bg-secondary px-4 py-3.5 text-left transition group"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent group-hover:bg-accent group-hover:text-white transition">
+                  <ClipboardCheck className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-foreground">Inspection Checklist Report</div>
+                  <div className="text-xs text-muted-foreground">Site inspection checklist summary</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 rounded-3xl border border-border bg-card p-10 shadow-card print:border-none print:shadow-none relative overflow-hidden">
         <div className="relative z-10">

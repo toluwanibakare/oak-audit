@@ -313,43 +313,42 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
           </button>
         </div>
 
-        {/* User card with dropdown on hover */}
-        <div 
-          ref={userMenuRef}
-          className="relative"
-        >
+        {/* User card with inline expand menu */}
+        <div ref={userMenuRef} className="flex flex-col gap-1">
+          {/* Expanded menu items — shown above the card */}
           {userMenuOpen && (
-            <div className="absolute bottom-full left-0 right-0 pb-2 z-50 pointer-events-auto animate-fade-in">
-              <div className="rounded-2xl border border-border bg-card shadow-elevated p-1.5 space-y-0.5">
-                <Link
-                  to="/app/settings"
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                    setIsMobileOpen(false);
-                  }}
-                  className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
-                >
-                  <Settings className="h-4 w-4 text-muted-foreground" />
-                  <span>{isIndividual ? "Profile Settings" : "Settings"}</span>
-                </Link>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setUserMenuOpen(false);
-                    setIsMobileOpen(false);
-                    await signOut();
-                    window.location.href = "/auth";
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>Sign Out</span>
-                </button>
-              </div>
+            <div className="rounded-2xl border border-border bg-secondary/60 p-1.5 space-y-0.5 animate-in slide-in-from-bottom-2 duration-150">
+              <button
+                type="button"
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  setIsMobileOpen(false);
+                  navigate("/app/settings");
+                }}
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-background transition-colors"
+              >
+                <Settings className="h-4 w-4 text-muted-foreground" />
+                <span>{isIndividual ? "Profile Settings" : "Settings"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setUserMenuOpen(false);
+                  setIsMobileOpen(false);
+                  await signOut();
+                  window.location.href = "/auth";
+                }}
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Sign Out</span>
+              </button>
             </div>
           )}
 
+          {/* Profile card trigger button */}
           <button
+            type="button"
             onClick={() => setUserMenuOpen(!userMenuOpen)}
             className="flex w-full items-center gap-3 rounded-2xl border border-border bg-background/70 px-3.5 py-2.5 text-left transition duration-200 hover:bg-secondary group"
           >
