@@ -411,7 +411,7 @@ export default function RunAudit() {
     };
 
     const matchedClause = getClauseRequirement(audit?.standard, clause);
-    const resolvedReq = standardRequirement || (matchedClause ? matchedClause.requirement : (questionText ?? ""));
+    const resolvedReq = standardRequirement || (matchedClause ? matchedClause.requirement : (kind === "custom" ? (questionText ?? "") : ""));
 
     const rootCausePayload = `${AUTO_FINDING_PREFIX}${JSON.stringify({
       processId,
@@ -1413,7 +1413,7 @@ export default function RunAudit() {
                     editingFinding.standardRequirement || 
                     (() => {
                       const matched = getClauseRequirement(audit?.standard, editingFinding.clause);
-                      return matched ? matched.requirement : (editingFinding.questionText ?? "");
+                      return matched ? matched.requirement : (editingFinding.kind === "custom" ? (editingFinding.questionText ?? "") : "");
                     })()
                   }
                   onChange={(e) => {
@@ -1471,7 +1471,7 @@ export default function RunAudit() {
                     nonConformityStatement: modalNonConformity,
                     standardRequirement: editingFinding.standardRequirement || (() => {
                       const matched = getClauseRequirement(audit?.standard, editingFinding.clause);
-                      return matched ? matched.requirement : (editingFinding.questionText ?? "");
+                      return matched ? matched.requirement : (editingFinding.kind === "custom" ? (editingFinding.questionText ?? "") : "");
                     })(),
                   });
 
