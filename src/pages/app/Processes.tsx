@@ -332,40 +332,38 @@ export default function Processes() {
     }
     setImporting(true);
     try {
-      const standardsList = ["9001", "14001", "45001"].filter(std => purchasedLicenses.includes(std)) as ("9001" | "14001" | "45001")[];
+      const std = customQuestion.standard || purchasedLicenses[0];
       const insertRows: any[] = [];
       const userUuid = (await supabase.auth.getUser()).data.user?.id || currentOrg.id;
 
-      for (const std of standardsList) {
-        const qSets = getQuestionsFor(std, importFromKey as any);
-        if (qSets && qSets.length > 0) {
-          qSets.forEach((qs) => {
-            (qs.specific ?? []).forEach((qText) => {
-              insertRows.push({
-                org_id: currentOrg.id,
-                standard: std,
-                process_key: createdCustomProcessKey,
-                clause: qs.clause,
-                kind: "specific",
-                text: qText,
-                evidence: qs.evidence ? qs.evidence.join(", ") : null,
-                created_by: userUuid,
-                active: true
-              });
+      const qSets = getQuestionsFor(std as any, importFromKey as any);
+      if (qSets && qSets.length > 0) {
+        qSets.forEach((qs) => {
+          (qs.specific ?? []).forEach((qText) => {
+            insertRows.push({
+              org_id: currentOrg.id,
+              standard: std,
+              process_key: createdCustomProcessKey,
+              clause: qs.clause,
+              kind: "specific",
+              text: qText,
+              evidence: qs.evidence ? qs.evidence.join(", ") : null,
+              created_by: userUuid,
+              active: true
             });
           });
-        }
+        });
       }
 
       if (insertRows.length > 0) {
         const { error } = await supabase.from("custom_questions").insert(insertRows);
         if (error) throw error;
-        toast({ title: "Questions imported successfully", description: `${insertRows.length} questions copied from paid standards (${standardsList.join(", ")}).` });
+        toast({ title: "Questions imported successfully", description: `${insertRows.length} questions copied from standard ${std.toUpperCase()} (Process: ${importFromKey}).` });
         if (createdCustomProcessKey) {
           loadCustomQuestionsForProcess(createdCustomProcessKey);
         }
       } else {
-        toast({ title: "No questions found to import for selected standard process in your paid standards." });
+        toast({ title: `No questions found to import for ${std.toUpperCase()} and process ${importFromKey}.` });
       }
     } catch (err: any) {
       toast({ title: "Import failed", description: err.message, variant: "destructive" });
