@@ -342,9 +342,6 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
             <ChevronRight className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-300 ${userMenuOpen ? "-rotate-90" : "rotate-90"}`} />
           </button>
         </div>
-        <div className="pt-2 text-[10px] text-center text-muted-foreground/60 select-none font-medium">
-          © {new Date().getFullYear()} ISO AUDIT MANAGEMENT PORT. All rights reserved.
-        </div>
       </div>
     </div>
   );
