@@ -182,11 +182,13 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
   const processMap = useMemo(() => Object.fromEntries(processes.map((process) => [process.id, process.name])), [processes]);
 
   const total = answers.length;
-  const conform = answers.filter((answer) => answer.status === "conform").length;
+  const conform = answers.filter((answer) => answer.status === "conform" || answer.status === "conformant").length;
   const major = answers.filter((answer) => answer.status === "major").length;
   const minor = answers.filter((answer) => answer.status === "minor").length;
-  const observation = answers.filter((answer) => answer.status === "observation").length;
-  const conformity = total ? Math.round((conform / total) * 100) : 0;
+  const observation = answers.filter((answer) => answer.status === "observation" || answer.status === "ofi").length;
+  const na = answers.filter((answer) => answer.status === "na").length;
+  const pending = answers.filter((answer) => answer.status === "pending" || !answer.status).length;
+  const conformity = total ? Math.round((conform / (total - na - pending || 1)) * 100) : 0;
 
   const responseMix = useMemo(() => buildResponseBreakdown(answers), [answers]);
   const findingMix = useMemo(() => buildFindingsBreakdown(findings, "type"), [findings]);
