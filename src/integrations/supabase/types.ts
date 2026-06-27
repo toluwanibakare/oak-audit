@@ -229,6 +229,7 @@ export type Database = {
           status: string
           title: string
           updated_at: string
+          owner: string | null
         }
         Insert: {
           closed_at?: string | null
@@ -247,6 +248,7 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
+          owner?: string | null
         }
         Update: {
           closed_at?: string | null
@@ -265,6 +267,7 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          owner?: string | null
         }
         Relationships: [
           {

@@ -13,7 +13,7 @@ import { IMS_CHECKLIST_DATA } from "@/data/imsInspectionChecklist";
 import { Skeleton } from "@/components/ui/skeleton";
 
 
-type Audit = { id: string; title: string; standard: string; scope: string | null; status: string; org_id: string; lead_auditor_id: string | null };
+type Audit = { id: string; title: string; standard: string; scope: string | null; status: string; org_id: string; lead_auditor_id: string | null; owner: string | null };
 type Proc = { id: string; key: string; name: string };
 type AuditProc = { process_id: string; auditor_id: string | null };
 type Answer = { id?: string; clause: string; kind: string; q_ref: string; question_text: string | null; note: string | null; status: string };
@@ -928,6 +928,7 @@ export default function RunAudit() {
                         badge="Custom"
                         readOnly={!canEdit}
                         auditTitle={audit.title}
+                        auditOwner={audit.owner}
                         allProcs={procs}
                         auditors={auditors}
                         auditProcesses={auditProcesses}
@@ -985,6 +986,7 @@ export default function RunAudit() {
                             onUploadEvidence={uploadEvidence}
                             readOnly={!canEdit}
                             auditTitle={audit.title}
+                            auditOwner={audit.owner}
                             allProcs={procs}
                             auditors={auditors}
                             auditProcesses={auditProcesses}
@@ -1013,6 +1015,7 @@ export default function RunAudit() {
                             onUploadEvidence={uploadEvidence}
                             readOnly={!canEdit}
                             auditTitle={audit.title}
+                            auditOwner={audit.owner}
                             allProcs={procs}
                             auditors={auditors}
                             auditProcesses={auditProcesses}
@@ -1256,6 +1259,7 @@ function Row({
   readOnly,
   index,
   auditTitle,
+  auditOwner,
   allProcs = [],
   auditors = [],
   auditProcesses = [],
@@ -1282,15 +1286,17 @@ function Row({
   const [modalProcessId, setModalProcessId] = useState(processId);
   const [modalDueDate, setModalDueDate] = useState(finding?.due_date ?? "");
   const [modalDescription, setModalDescription] = useState(finding?.description ?? (answer.question_text || q));
-  const [modalCapa, setModalCapa] = useState(finding?.capa ?? "");
 
   const meta = parseFindingMeta(finding?.root_cause ?? null);
-  const [modalCorrection, setModalCorrection] = useState(meta?.correction ?? "");
-  const [modalRootCauseText, setModalRootCauseText] = useState(meta?.rootCauseText ?? "");
   const [severity, setSeverity] = useState(meta?.severity ?? deriveSeverity(finding?.type ?? status));
 
   // Resolved owner name as the auditee (the entity/person the audit is for)
-  const ownerName = orgName || currentUser?.user_metadata?.full_name || currentUser?.email || "Auditee";
+  const ownerName = auditOwner || orgName || "Auditee";
+
+  // Preserve existing CAR details (RCA, CAPA, containment) so they don't get overwritten
+  const existingCorrection = meta?.correction ?? "";
+  const existingRootCauseText = meta?.rootCauseText ?? "";
+  const existingCapa = finding?.capa ?? "";
 
   useEffect(() => {
     const latest = parseAuditNote(answer.note ?? "");
@@ -1301,9 +1307,6 @@ function Row({
     setModalProcessId(processId);
     setModalDueDate(finding?.due_date ?? "");
     setModalDescription(finding?.description ?? (answer.question_text || q));
-    setModalCapa(finding?.capa ?? "");
-    setModalCorrection(latestMeta?.correction ?? "");
-    setModalRootCauseText(latestMeta?.rootCauseText ?? "");
     setSeverity(latestMeta?.severity ?? deriveSeverity(finding?.type ?? answer.status));
   }, [answer.id, answer.note, answer.status, finding?.id, q]);
 
@@ -1329,11 +1332,11 @@ function Row({
       questionText: answer.question_text || q,
       answerStatus: nextStatus,
       description: modalDescription,
-      capa: modalCapa,
+      capa: existingCapa,
       owner: ownerName,
       dueDate: modalDueDate,
-      correction: modalCorrection,
-      rootCauseText: modalRootCauseText,
+      correction: existingCorrection,
+      rootCauseText: existingRootCauseText,
       severity,
     });
   };
@@ -1664,36 +1667,6 @@ function Row({
                   placeholder="Describe the discrepancy or compliance gap..."
                 />
               </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Correction / Containment Action (Immediate containment)</label>
-                <textarea
-                  value={modalCorrection}
-                  onChange={(e) => setModalCorrection(e.target.value)}
-                  placeholder="Contain the problem, isolate affected items..."
-                  className="input min-h-[60px] w-full"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Root Cause Analysis (RCA)</label>
-                <textarea
-                  value={modalRootCauseText}
-                  onChange={(e) => setModalRootCauseText(e.target.value)}
-                  placeholder="Why did this occur?"
-                  className="input min-h-[60px] w-full"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Corrective Action Plan (CAR)</label>
-                <textarea
-                  value={modalCapa}
-                  onChange={(e) => setModalCapa(e.target.value)}
-                  placeholder="Long-term corrective action..."
-                  className="input min-h-[60px] w-full"
-                />
-              </div>
             </div>
 
             <div className="flex justify-end gap-3 pt-3 border-t border-border">
@@ -1725,11 +1698,11 @@ function Row({
                     questionText: answer.question_text || q,
                     answerStatus: mappedStatus,
                     description: modalDescription,
-                    capa: modalCapa,
+                    capa: existingCapa,
                     owner: ownerName,
                     dueDate: modalDueDate,
-                    correction: modalCorrection,
-                    rootCauseText: modalRootCauseText,
+                    correction: existingCorrection,
+                    rootCauseText: existingRootCauseText,
                     severity,
                   });
                   setIsModalOpen(false);

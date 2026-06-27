@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Clock3 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { AppShell } from "@/components/app/AppShell";
@@ -13,6 +13,10 @@ export default function Findings() {
   const [audits, setAudits] = useState<any[]>([]);
   const [processes, setProcesses] = useState<Record<string, string>>({});
   const [form, setForm] = useState({ audit_id: "", type: "minor", clause: "", description: "", capa: "", owner: "", due_date: "" });
+
+  // CAR Modal States
+  const [selectedFinding, setSelectedFinding] = useState<any | null>(null);
+  const [carForm, setCarForm] = useState({ correction: "", rootCauseText: "", capa: "" });
 
   const load = async () => {
     if (!currentOrg) return;
@@ -29,7 +33,7 @@ export default function Findings() {
     });
     setProcesses(pMap);
 
-    const { data } = await supabase.from("findings").select("*,audits(title,standard)").eq("org_id", currentOrg.id).order("created_at", { ascending: false });
+    const { data } = await supabase.from("findings").select("*,audits(title,standard,owner)").eq("org_id", currentOrg.id).order("created_at", { ascending: false });
     setList(data ?? []);
     const { data: auditList } = await supabase.from("audits").select("id,title").eq("org_id", currentOrg.id).order("created_at", { ascending: false });
     setAudits(auditList ?? []);
@@ -53,6 +57,45 @@ export default function Findings() {
 
   const setStatus = async (id: string, status: string) => {
     await supabase.from("findings").update({ status }).eq("id", id);
+    load();
+  };
+
+  const openCarModal = (finding: any) => {
+    const meta = parseFindingMeta(finding.root_cause);
+    setSelectedFinding(finding);
+    setCarForm({
+      correction: meta?.correction ?? "",
+      rootCauseText: meta?.rootCauseText ?? "",
+      capa: finding.capa ?? "",
+    });
+  };
+
+  const saveCar = async () => {
+    if (!selectedFinding) return;
+
+    const meta = parseFindingMeta(selectedFinding.root_cause) || {};
+    const updatedMeta = {
+      ...meta,
+      correction: carForm.correction.trim(),
+      rootCauseText: carForm.rootCauseText.trim(),
+    };
+
+    const rootCausePayload = `AUTO_META:${JSON.stringify(updatedMeta)}`;
+
+    const { error } = await supabase
+      .from("findings")
+      .update({
+        capa: carForm.capa.trim(),
+        root_cause: rootCausePayload,
+      })
+      .eq("id", selectedFinding.id);
+
+    if (error) {
+      return toast({ title: "Failed to save CAR details", description: error.message, variant: "destructive" });
+    }
+
+    toast({ title: "CAR and Root Cause details updated successfully." });
+    setSelectedFinding(null);
     load();
   };
 
@@ -104,6 +147,7 @@ export default function Findings() {
               <th className="px-4 py-3 text-left">Owner</th>
               <th className="px-4 py-3 text-left">Due Date</th>
               <th className="px-4 py-3 text-left">Status</th>
+              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -111,6 +155,7 @@ export default function Findings() {
               const meta = parseFindingMeta(finding.root_cause);
               const procName = meta?.processId ? (processes[meta.processId] || "N/A") : "N/A";
               const severity = finding.type === "major" ? "Major" : finding.type === "minor" ? "Minor" : "Observation";
+              const resolvedOwner = finding.owner || finding.audits?.owner || currentOrg?.name || "Auditee";
               
               return (
                 <tr key={finding.id} className="border-t border-border hover:bg-secondary/40 transition-colors">
@@ -138,7 +183,7 @@ export default function Findings() {
                     {procName}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {finding.owner || "-"}
+                    {resolvedOwner}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground font-medium whitespace-nowrap">
                     {finding.due_date ? new Date(finding.due_date).toLocaleDateString("en-NG", { dateStyle: "medium" }) : "-"}
@@ -154,12 +199,20 @@ export default function Findings() {
                       <option value="closed">Closed</option>
                     </select>
                   </td>
+                  <td className="px-4 py-3 text-right">
+                    <button 
+                      onClick={() => openCarModal(finding)}
+                      className="text-xs text-primary font-semibold hover:underline"
+                    >
+                      Manage CAR
+                    </button>
+                  </td>
                 </tr>
               );
             })}
             {list.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                <td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">
                   No findings recorded yet.
                 </td>
               </tr>
@@ -167,6 +220,85 @@ export default function Findings() {
           </tbody>
         </table>
       </section>
+
+      {/* CAR / RCA Action Plan Modal */}
+      {selectedFinding && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in cursor-pointer"
+          onClick={() => setSelectedFinding(null)}
+        >
+          <div 
+            className="relative w-full max-w-xl rounded-3xl border border-border bg-card p-6 shadow-elevated space-y-4 animate-scale-in max-h-[90vh] overflow-y-auto font-sans cursor-default"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="font-display text-lg font-bold text-foreground">
+                Manage Corrective Actions (CAR / RCA)
+              </h3>
+              <button
+                onClick={() => setSelectedFinding(null)}
+                className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground transition"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              <div>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Finding Statement</label>
+                <p className="bg-secondary/40 p-3 rounded-xl text-muted-foreground text-xs leading-relaxed border border-border">
+                  {selectedFinding.description}
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Correction / Containment Action (Immediate containment)</label>
+                <textarea
+                  value={carForm.correction}
+                  onChange={(e) => setCarForm({ ...carForm, correction: e.target.value })}
+                  placeholder="Immediate action to contain, isolate, or neutralize the issue..."
+                  className="input min-h-[70px] w-full"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Root Cause Analysis (RCA)</label>
+                <textarea
+                  value={carForm.rootCauseText}
+                  onChange={(e) => setCarForm({ ...carForm, rootCauseText: e.target.value })}
+                  placeholder="Detail the procedural, human, or systemic root causes behind the discrepancy..."
+                  className="input min-h-[70px] w-full"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Corrective Action Plan (CAR / CAPA)</label>
+                <textarea
+                  value={carForm.capa}
+                  onChange={(e) => setCarForm({ ...carForm, capa: e.target.value })}
+                  placeholder="Describe the long-term corrective action planned to prevent recurrence..."
+                  className="input min-h-[70px] w-full"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-border">
+              <button
+                onClick={() => setSelectedFinding(null)}
+                className="pill-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveCar}
+                className="pill-cta"
+              >
+                Save Action Plan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
@@ -190,6 +322,8 @@ function parseFindingMeta(rootCause: string | null) {
       kind: string;
       qRef: string;
       severity?: string;
+      correction?: string;
+      rootCauseText?: string;
     };
   } catch {
     return null;

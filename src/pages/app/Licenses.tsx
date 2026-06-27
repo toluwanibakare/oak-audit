@@ -44,8 +44,9 @@ export default function Licenses() {
   const [auditObject, setAuditObject] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [auditOwner, setAuditOwner] = useState("");
   const [selectedAuditorId, setSelectedAuditorId] = useState("");
-  const [auditors, setAuditors] = useState<{ id: string; name: string }[]>([]);
+  const [auditors, setAuditors] = useState<{ id: string; name: string; role?: string | null }[]>([]);
   const [modalProcs, setModalProcs] = useState<{ id: string; key: string; name: string }[]>([]);
   const [assignmentType, setAssignmentType] = useState<"all" | "some">("all");
   const [selectedProcIds, setSelectedProcIds] = useState<string[]>([]);
@@ -163,11 +164,11 @@ export default function Licenses() {
       // Fetch all auditors for the organization
       const { data: auditorsList } = await supabase
         .from("auditors")
-        .select("id,name")
+        .select("id,name,role")
         .eq("org_id", currentOrg.id)
         .order("name");
 
-      const list = (auditorsList ?? []) as { id: string; name: string }[];
+      const list = (auditorsList ?? []) as { id: string; name: string; role?: string | null }[];
       setAuditors(list);
 
       // Pre-select the logged-in user as the lead auditor by default
@@ -356,6 +357,7 @@ export default function Licenses() {
         object: auditObject.trim() || null,
         start_date: startDate || null,
         end_date: endDate || null,
+        owner: auditOwner || null,
         lead_auditor_id: auditorId,
         status: "in_progress",
         started_at: new Date().toISOString(),
@@ -542,6 +544,7 @@ export default function Licenses() {
                           setAuditObject("");
                           setStartDate("");
                           setEndDate("");
+                          setAuditOwner("");
                           setSelectedAuditorId("");
                         }
                       }}
@@ -732,6 +735,22 @@ export default function Licenses() {
                       onChange={(e) => setAuditObject(e.target.value)}
                       placeholder="e.g. Health, Safety & Environmental Management"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Owner / Auditee (Who the audit is for)</label>
+                    <select
+                      className="input w-full font-sans text-sm"
+                      value={auditOwner}
+                      onChange={(e) => setAuditOwner(e.target.value)}
+                    >
+                      <option value="">— Select Owner / Auditee —</option>
+                      {auditors.map((a) => (
+                        <option key={a.id} value={a.name}>
+                          {a.name} ({a.role === "management_representative" ? "Management Rep" : a.role === "lead_auditor" ? "Lead Auditor" : a.role === "auditee" ? "Auditee" : "Auditor"})
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
