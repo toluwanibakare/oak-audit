@@ -131,14 +131,14 @@ export default function Team() {
           <option value="auditor">Auditor</option>
           <option value="auditee">Auditee</option>
         </select>
-        <input className="input" placeholder="Certifications" value={form.certifications} onChange={(e) => setForm({ ...form, certifications: e.target.value })} />
+        <input className="input" placeholder="Location" value={form.certifications} onChange={(e) => setForm({ ...form, certifications: e.target.value })} />
         <button onClick={add} disabled={busy} className="pill-cta w-full">{busy ? "Creating..." : "Add auditor"}</button>
       </div>
 
       <div className="mt-6 overflow-hidden rounded-[28px] border border-border bg-card shadow-card">
         <table className="w-full text-sm">
           <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
-            <tr><th className="px-4 py-2 text-left">Name</th><th className="px-4 py-2 text-left">Email</th><th className="px-4 py-2 text-left">Role</th><th className="px-4 py-2 text-left">Certifications</th><th /></tr>
+            <tr><th className="px-4 py-2 text-left">Name</th><th className="px-4 py-2 text-left">Email</th><th className="px-4 py-2 text-left">Role</th><th className="px-4 py-2 text-left">Location</th><th /></tr>
           </thead>
           <tbody>
             {list.map((auditor) => (
