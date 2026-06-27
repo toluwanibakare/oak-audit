@@ -13,7 +13,7 @@ import { IMS_CHECKLIST_DATA } from "@/data/imsInspectionChecklist";
 import { Skeleton } from "@/components/ui/skeleton";
 
 
-type Audit = { id: string; title: string; standard: string; scope: string | null; status: string; org_id: string };
+type Audit = { id: string; title: string; standard: string; scope: string | null; status: string; org_id: string; lead_auditor_id: string | null };
 type Proc = { id: string; key: string; name: string };
 type AuditProc = { process_id: string; auditor_id: string | null };
 type Answer = { id?: string; clause: string; kind: string; q_ref: string; question_text: string | null; note: string | null; status: string };
@@ -61,6 +61,7 @@ export default function RunAudit() {
   const [tempAuditorId, setTempAuditorId] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLead, setIsLead] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
 
   const [showHseChecklist, setShowHseChecklist] = useState(false);
@@ -198,6 +199,7 @@ export default function RunAudit() {
 
       // 4.5. Check user's role to see if they are an auditor
       let currentAuditorId = null;
+      let userIsLead = false;
       if (user) {
         const { data: userRole } = await supabase
           .from("user_roles")
@@ -206,18 +208,25 @@ export default function RunAudit() {
           .eq("org_id", currentOrg.id)
           .maybeSingle();
 
-        if (userRole && (userRole.role === "auditor" || userRole.role === "lead_auditor")) {
-          const { data: auditorRow } = await supabase
-            .from("auditors")
-            .select("id")
-            .eq("org_id", currentOrg.id)
-            .eq("user_id", user.id)
-            .maybeSingle();
-          if (auditorRow) {
-            currentAuditorId = auditorRow.id;
+        const { data: auditorRow } = await supabase
+          .from("auditors")
+          .select("id, role")
+          .eq("org_id", currentOrg.id)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (auditorRow) {
+          currentAuditorId = auditorRow.id;
+          if (auditorRow.role === "lead_auditor" || auditorRow.id === currentAudit.lead_auditor_id) {
+            userIsLead = true;
           }
         }
+
+        if (userRole?.role === "admin" || userRole?.role === "owner" || !auditorRow) {
+          userIsLead = true;
+        }
       }
+      setIsLead(userIsLead);
 
       // Filter procs list to only show processes linked to this audit and assigned to this auditor
       const auditProcIds = new Set(
@@ -739,24 +748,50 @@ export default function RunAudit() {
           )}
           <span className="text-sm text-muted-foreground">Conformity: <strong className="text-foreground">{conformity}%</strong></span>
           {audit.status === "in_progress" && (
-            pendingCount > 0 ? (
-              <button
-                disabled
-                className="pill-secondary cursor-not-allowed opacity-60 flex items-center gap-1.5"
-                title="All process audit questions must be completed first"
-              >
-                <Lock className="h-3.5 w-3.5" />
-                Submit & Generate Report ({pendingCount} pending)
-              </button>
+            isLead ? (
+              pendingCount > 0 ? (
+                <button
+                  disabled
+                  className="pill-secondary cursor-not-allowed opacity-60 flex items-center gap-1.5"
+                  title="All process audit questions must be completed first"
+                >
+                  <Lock className="h-3.5 w-3.5" />
+                  Submit & Generate Report ({pendingCount} pending)
+                </button>
+              ) : (
+                <button
+                  onClick={submitAudit}
+                  disabled={isSubmitting}
+                  className="pill-cta animate-pulse flex items-center gap-1.5"
+                >
+                  <Unlock className="h-3.5 w-3.5" />
+                  {isSubmitting ? "Submitting..." : "Submit & Generate Report"}
+                </button>
+              )
             ) : (
-              <button
-                onClick={submitAudit}
-                disabled={isSubmitting}
-                className="pill-cta animate-pulse flex items-center gap-1.5"
-              >
-                <Unlock className="h-3.5 w-3.5" />
-                {isSubmitting ? "Submitting..." : "Submit & Generate Report"}
-              </button>
+              pendingCount > 0 ? (
+                <button
+                  disabled
+                  className="pill-secondary cursor-not-allowed opacity-60 flex items-center gap-1.5"
+                  title="All of your assigned process questions must be completed first"
+                >
+                  <Lock className="h-3.5 w-3.5" />
+                  Submit My Allocation ({pendingCount} pending)
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    toast({
+                      title: "Allocation Completed Successfully",
+                      description: "Your assigned processes are complete. The Lead Auditor/Admin will generate the final report when all processes are finished.",
+                    });
+                  }}
+                  className="pill-cta bg-primary hover:bg-primary/95 text-white flex items-center gap-1.5"
+                >
+                  <Unlock className="h-3.5 w-3.5" />
+                  Submit My Allocation
+                </button>
+              )
             )
           )}
         </div>

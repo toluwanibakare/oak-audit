@@ -106,8 +106,8 @@ const ProcessAudit = () => {
                           ? "bg-foreground text-background"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
-                    >
-                      {s.code.replace("ISO ", "")}
+                    > 
+                    {s.code.replace("ISO ", "")}
                     </button>
                   );
                 })}

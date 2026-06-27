@@ -130,37 +130,52 @@ export default function Licenses() {
   }, [currentOrg]);
 
   useEffect(() => {
-    if (!currentOrg) return;
-    supabase.from("auditors").select("id,name").eq("org_id", currentOrg.id).order("name")
-      .then(async ({ data }) => {
-        const list = (data ?? []) as { id: string; name: string }[];
-        setAuditors(list);
-        
-        // Auto-select auditor if it's an individual and at least one exists
-        if (currentOrg.type === "individual") {
-          if (list.length > 0) {
-            setSelectedAuditorId(list[0].id);
-          } else if (user) {
-            // Silently seed a default self auditor for the individual workspace
-            const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Auditor";
-            const { data: newAuditor, error } = await supabase
-              .from("auditors")
-              .insert({
-                org_id: currentOrg.id,
-                name: fullName,
-                email: user.email || "",
-                role: "Lead Auditor",
-                user_id: user.id
-              })
-              .select("id,name")
-              .single();
-            if (newAuditor && !error) {
-              setAuditors([newAuditor]);
-              setSelectedAuditorId(newAuditor.id);
-            }
-          }
+    if (!currentOrg || !user) return;
+    (async () => {
+      // Check if current user is already registered in the auditors table for this org
+      const { data: userAuditor } = await supabase
+        .from("auditors")
+        .select("id,name")
+        .eq("org_id", currentOrg.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      let finalUserAuditorId = userAuditor?.id;
+
+      if (!userAuditor) {
+        const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Admin/Organization";
+        const { data: newAuditor } = await supabase
+          .from("auditors")
+          .insert({
+            org_id: currentOrg.id,
+            name: fullName,
+            email: user.email || "",
+            role: "lead_auditor",
+            user_id: user.id
+          })
+          .select("id,name")
+          .maybeSingle();
+        if (newAuditor) {
+          finalUserAuditorId = newAuditor.id;
         }
-      });
+      }
+
+      // Fetch all auditors for the organization
+      const { data: auditorsList } = await supabase
+        .from("auditors")
+        .select("id,name")
+        .eq("org_id", currentOrg.id)
+        .order("name");
+
+      const list = (auditorsList ?? []) as { id: string; name: string }[];
+      setAuditors(list);
+
+      // Pre-select the logged-in user as the lead auditor by default
+      const loggedInAuditor = list.find((a) => a.id === finalUserAuditorId) || list[0];
+      if (loggedInAuditor) {
+        setSelectedAuditorId(loggedInAuditor.id);
+      }
+    })();
   }, [currentOrg, user]);
 
   useEffect(() => {
@@ -777,6 +792,26 @@ export default function Licenses() {
             {/* STEP 3: Process Auditor Assignment */}
             {currentStep === 3 && currentOrg?.type !== "individual" && (
               <div className="space-y-4">
+                <div className="rounded-2xl border border-border bg-card p-4 space-y-3 font-sans shadow-sm">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                      Assign Lead Auditor
+                    </label>
+                    <select
+                      className="input w-full font-sans text-xs"
+                      value={selectedAuditorId}
+                      onChange={(e) => setSelectedAuditorId(e.target.value)}
+                    >
+                      <option value="">— Select Lead Auditor —</option>
+                      {auditors.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div className="max-h-60 overflow-y-auto border border-border rounded-2xl p-4 bg-secondary/10 space-y-4 font-sans">
                   <div className="flex justify-between items-center border-b border-border/50 pb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                     <span>Process Name</span>
@@ -811,7 +846,7 @@ export default function Licenses() {
                     ? Number(customPricing[configuringPack]) 
                     : PACK_CREDIT_COST[configuringPack as keyof typeof PACK_CREDIT_COST];
                   const isInsufficient = balance < activeCost;
-                  const allAssigned = modalProcs.every((p) => !!processAuditorMap[p.id]);
+                  const allAssigned = modalProcs.every((p) => !!processAuditorMap[p.id]) && !!selectedAuditorId;
 
                   return (
                     <>

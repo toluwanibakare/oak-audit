@@ -3,24 +3,48 @@ import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { useToast } from "@/hooks/use-toast";
 import { AppShell } from "@/components/app/AppShell";
+import { useAuth } from "@/hooks/useAuth";
 
 type Auditor = { id: string; name: string; email: string | null; role: string | null; certifications: string | null; user_id: string | null };
 
 export default function Team() {
   const { currentOrg } = useOrg();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [list, setList] = useState<Auditor[]>([]);
   const [form, setForm] = useState({ name: "", email: "", role: "auditor", certifications: "", password: "" });
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
     if (!currentOrg) return;
+
+    // Check if the current logged-in user is already in the auditors directory
+    if (user) {
+      const { data: existing } = await supabase
+        .from("auditors")
+        .select("id")
+        .eq("org_id", currentOrg.id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!existing) {
+        const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Admin/Organization";
+        await supabase.from("auditors").insert({
+          org_id: currentOrg.id,
+          name: fullName,
+          email: user.email || "",
+          role: "lead_auditor",
+          user_id: user.id
+        });
+      }
+    }
+
     const { data } = await supabase.from("auditors").select("*").eq("org_id", currentOrg.id).order("created_at");
     setList((data ?? []) as Auditor[]);
   };
   useEffect(() => {
     load();
-  }, [currentOrg]);
+  }, [currentOrg, user]);
 
   const add = async () => {
     if (!currentOrg || !form.name.trim() || !form.email.trim() || !form.password.trim()) {

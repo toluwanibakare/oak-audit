@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +21,47 @@ export default function Settings() {
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
   const [uploading, setUploading] = useState(false);
+
+  const isDirty = useMemo(() => {
+    if (!currentOrg) return false;
+    
+    const initialName = currentOrg.type === "individual"
+      ? currentOrg.name.replace(/'s workspace$/, "")
+      : currentOrg.name;
+      
+    const initialIndustry = currentOrg.industry ?? "";
+    let initialAddress = "";
+    let initialWebsite = "";
+    let initialSize = "";
+    let initialPhone = "";
+    let initialDescription = "";
+    
+    const addr = currentOrg.address ?? "";
+    if (addr.trim().startsWith("{")) {
+      try {
+        const parsed = JSON.parse(addr);
+        initialAddress = parsed.address ?? "";
+        initialWebsite = parsed.website ?? "";
+        initialSize = parsed.size ?? "";
+        initialPhone = parsed.phone ?? "";
+        initialDescription = parsed.description ?? "";
+      } catch (e) {
+        initialAddress = addr;
+      }
+    } else {
+      initialAddress = addr;
+    }
+    
+    return (
+      name.trim() !== initialName.trim() ||
+      industry !== initialIndustry ||
+      website.trim() !== initialWebsite.trim() ||
+      size !== initialSize ||
+      phone.trim() !== initialPhone.trim() ||
+      address.trim() !== initialAddress.trim() ||
+      description.trim() !== initialDescription.trim()
+    );
+  }, [currentOrg, name, industry, website, size, phone, address, description]);
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -217,7 +258,13 @@ export default function Settings() {
             </div>
           </div>
           <div className="pt-2 border-t border-border mt-6 flex flex-wrap gap-4 items-center justify-between">
-            <button onClick={save} className="pill-cta">Save changes</button>
+            <button 
+              onClick={save} 
+              disabled={!isDirty} 
+              className={`pill-cta transition duration-200 ${!isDirty ? "opacity-50 cursor-not-allowed bg-secondary/80 text-muted-foreground border-transparent hover:bg-secondary/80" : ""}`}
+            >
+              Save changes
+            </button>
             <button
               onClick={async () => {
                 await supabase.auth.signOut();
