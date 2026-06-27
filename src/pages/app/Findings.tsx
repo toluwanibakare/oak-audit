@@ -11,15 +11,30 @@ export default function Findings() {
   const { toast } = useToast();
   const [list, setList] = useState<any[]>([]);
   const [audits, setAudits] = useState<any[]>([]);
+  const [processes, setProcesses] = useState<Record<string, string>>({});
   const [form, setForm] = useState({ audit_id: "", type: "minor", clause: "", description: "", capa: "", owner: "", due_date: "" });
 
   const load = async () => {
     if (!currentOrg) return;
+
+    // Fetch processes list to translate process ID to Name
+    const { data: procs } = await supabase
+      .from("org_processes")
+      .select("id,name")
+      .eq("org_id", currentOrg.id);
+    
+    const pMap: Record<string, string> = {};
+    (procs ?? []).forEach((p) => {
+      pMap[p.id] = p.name;
+    });
+    setProcesses(pMap);
+
     const { data } = await supabase.from("findings").select("*,audits(title,standard)").eq("org_id", currentOrg.id).order("created_at", { ascending: false });
     setList(data ?? []);
     const { data: auditList } = await supabase.from("audits").select("id,title").eq("org_id", currentOrg.id).order("created_at", { ascending: false });
     setAudits(auditList ?? []);
   };
+
   useEffect(() => {
     load();
   }, [currentOrg]);
@@ -77,27 +92,80 @@ export default function Findings() {
         </div>
       </section>
 
-      <section className="mt-6 space-y-4">
-        {list.map((finding) => (
-          <div key={finding.id} className="app-surface p-5">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="max-w-3xl">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-secondary px-2.5 py-1 text-xs uppercase">{finding.type}</span>
-                  <span className="text-xs text-muted-foreground">{finding.audits?.title} · clause {finding.clause || "-"}</span>
-                </div>
-                <p className="mt-3 text-sm leading-6">{finding.description}</p>
-                {finding.capa && <p className="mt-2 text-sm text-muted-foreground"><strong className="text-foreground">CAR Plan:</strong> {finding.capa}</p>}
-              </div>
-              <select value={finding.status} onChange={(e) => setStatus(finding.id, e.target.value)} className="input w-40 text-xs">
-                <option value="open">Open</option>
-                <option value="in_progress">In progress</option>
-                <option value="closed">Closed</option>
-              </select>
-            </div>
-          </div>
-        ))}
-        {list.length === 0 && <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center text-sm text-muted-foreground">No findings yet.</div>}
+      <section className="mt-6 overflow-hidden rounded-[28px] border border-border bg-card shadow-card">
+        <table className="w-full text-sm">
+          <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3 text-left">ID</th>
+              <th className="px-4 py-3 text-left">Clause</th>
+              <th className="px-4 py-3 text-left">Description</th>
+              <th className="px-4 py-3 text-left">Severity</th>
+              <th className="px-4 py-3 text-left">Process</th>
+              <th className="px-4 py-3 text-left">Owner</th>
+              <th className="px-4 py-3 text-left">Due Date</th>
+              <th className="px-4 py-3 text-left">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((finding) => {
+              const meta = parseFindingMeta(finding.root_cause);
+              const procName = meta?.processId ? (processes[meta.processId] || "N/A") : "N/A";
+              const severity = finding.type === "major" ? "Major" : finding.type === "minor" ? "Minor" : "Observation";
+              
+              return (
+                <tr key={finding.id} className="border-t border-border hover:bg-secondary/40 transition-colors">
+                  <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground truncate max-w-[80px]" title={finding.id}>
+                    #{finding.id.slice(0, 8)}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-foreground">
+                    {finding.clause || "-"}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground leading-normal max-w-sm">
+                    <p className="line-clamp-2" title={finding.description}>{finding.description}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                      finding.type === "major" 
+                        ? "bg-destructive/10 text-destructive border border-destructive/20" 
+                        : finding.type === "minor"
+                        ? "bg-warning/10 text-warning border border-warning/20"
+                        : "bg-blue-600/10 text-blue-500 border border-blue-500/20"
+                    }`}>
+                      {severity}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground font-medium">
+                    {procName}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {finding.owner || "-"}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground font-medium whitespace-nowrap">
+                    {finding.due_date ? new Date(finding.due_date).toLocaleDateString("en-NG", { dateStyle: "medium" }) : "-"}
+                  </td>
+                  <td className="px-4 py-3">
+                    <select 
+                      value={finding.status} 
+                      onChange={(e) => setStatus(finding.id, e.target.value)} 
+                      className="input py-1 px-2 h-8 text-[11px] font-semibold w-28"
+                    >
+                      <option value="open">Open</option>
+                      <option value="in_progress">In progress</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                  </td>
+                </tr>
+              );
+            })}
+            {list.length === 0 && (
+              <tr>
+                <td colSpan={8} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                  No findings recorded yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </section>
     </AppShell>
   );
@@ -113,3 +181,17 @@ const StatusCard = ({ label, value, hint, icon }: { label: string; value: number
     <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
   </div>
 );
+
+function parseFindingMeta(rootCause: string | null) {
+  if (!rootCause?.startsWith("AUTO_META:")) return null;
+  try {
+    return JSON.parse(rootCause.slice("AUTO_META:".length)) as {
+      processId: string;
+      kind: string;
+      qRef: string;
+      severity?: string;
+    };
+  } catch {
+    return null;
+  }
+}

@@ -927,6 +927,11 @@ export default function RunAudit() {
                         onUploadEvidence={uploadEvidence}
                         badge="Custom"
                         readOnly={!canEdit}
+                        auditTitle={audit.title}
+                        allProcs={procs}
+                        auditors={auditors}
+                        auditProcesses={auditProcesses}
+                        currentUser={user}
                       />
                     ))}
                   </div>
@@ -978,6 +983,11 @@ export default function RunAudit() {
                             onSyncFinding={syncFinding}
                             onUploadEvidence={uploadEvidence}
                             readOnly={!canEdit}
+                            auditTitle={audit.title}
+                            allProcs={procs}
+                            auditors={auditors}
+                            auditProcesses={auditProcesses}
+                            currentUser={user}
                           />
                         );
                       })}
@@ -1000,6 +1010,11 @@ export default function RunAudit() {
                             onSyncFinding={syncFinding}
                             onUploadEvidence={uploadEvidence}
                             readOnly={!canEdit}
+                            auditTitle={audit.title}
+                            allProcs={procs}
+                            auditors={auditors}
+                            auditProcesses={auditProcesses}
+                            currentUser={user}
                           />
                         );
                       })}
@@ -1237,6 +1252,11 @@ function Row({
   badge,
   readOnly,
   index,
+  auditTitle,
+  allProcs = [],
+  auditors = [],
+  auditProcesses = [],
+  currentUser,
 }: any) {
   const { toast } = useToast();
   const key = buildAnswerKey(processId, clause, kind, qRef);
@@ -1252,15 +1272,23 @@ function Row({
   const [status, setStatus] = useState(answer.status);
   const [note, setNote] = useState(parsed.text);
   const [evidence, setEvidence] = useState<EvidenceItem[]>(parsed.evidence);
-  const [description, setDescription] = useState(finding?.description ?? (answer.question_text || q));
-  const [capa, setCapa] = useState(finding?.capa ?? "");
-  const [owner, setOwner] = useState(finding?.owner ?? "");
-  const [dueDate, setDueDate] = useState(finding?.due_date ?? "");
+  
+  // Modal states
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalProcessId, setModalProcessId] = useState(processId);
+  const [modalDueDate, setModalDueDate] = useState(finding?.due_date ?? "");
+  const [modalDescription, setModalDescription] = useState(finding?.description ?? (answer.question_text || q));
+  const [modalCapa, setModalCapa] = useState(finding?.capa ?? "");
 
   const meta = parseFindingMeta(finding?.root_cause ?? null);
-  const [correction, setCorrection] = useState(meta?.correction ?? "");
-  const [rootCauseText, setRootCauseText] = useState(meta?.rootCauseText ?? "");
+  const [modalCorrection, setModalCorrection] = useState(meta?.correction ?? "");
+  const [modalRootCauseText, setModalRootCauseText] = useState(meta?.rootCauseText ?? "");
   const [severity, setSeverity] = useState(meta?.severity ?? deriveSeverity(finding?.type ?? status));
+
+  // Resolved owner name
+  const assignment = auditProcesses?.find((ap: any) => ap.process_id === processId);
+  const assignedAuditor = auditors?.find((a: any) => a.id === assignment?.auditor_id);
+  const ownerName = assignedAuditor ? assignedAuditor.name : (currentUser?.user_metadata?.full_name || currentUser?.email || "Auditor");
 
   useEffect(() => {
     const latest = parseAuditNote(answer.note ?? "");
@@ -1268,12 +1296,12 @@ function Row({
     setStatus(answer.status);
     setNote(latest.text);
     setEvidence(latest.evidence);
-    setDescription(finding?.description ?? (answer.question_text || q));
-    setCapa(finding?.capa ?? "");
-    setOwner(finding?.owner ?? "");
-    setDueDate(finding?.due_date ?? "");
-    setCorrection(latestMeta?.correction ?? "");
-    setRootCauseText(latestMeta?.rootCauseText ?? "");
+    setModalProcessId(processId);
+    setModalDueDate(finding?.due_date ?? "");
+    setModalDescription(finding?.description ?? (answer.question_text || q));
+    setModalCapa(finding?.capa ?? "");
+    setModalCorrection(latestMeta?.correction ?? "");
+    setModalRootCauseText(latestMeta?.rootCauseText ?? "");
     setSeverity(latestMeta?.severity ?? deriveSeverity(finding?.type ?? answer.status));
   }, [answer.id, answer.note, answer.status, finding?.id, q]);
 
@@ -1292,53 +1320,33 @@ function Row({
 
   const persistFinding = async (nextStatus = status) => {
     await onSyncFinding({
-      processId,
+      processId: modalProcessId,
       clause,
       kind,
       qRef,
       questionText: answer.question_text || q,
       answerStatus: nextStatus,
-      description,
-      capa,
-      owner,
-      dueDate,
-      correction,
-      rootCauseText,
+      description: modalDescription,
+      capa: modalCapa,
+      owner: ownerName,
+      dueDate: modalDueDate,
+      correction: modalCorrection,
+      rootCauseText: modalRootCauseText,
       severity,
     });
   };
 
-  // Debounced auto-save effect
+  // Debounced auto-save effect for notes
   useEffect(() => {
     const timer = setTimeout(() => {
       const initialNote = parseAuditNote(answer.note ?? "").text;
-      const initialDesc = finding?.description ?? (answer.question_text || q);
-      const initialCapa = finding?.capa ?? "";
-      const initialOwner = finding?.owner ?? "";
-      const initialDueDate = finding?.due_date ?? "";
-      const latestMeta = parseFindingMeta(finding?.root_cause ?? null);
-      const initialCorr = latestMeta?.correction ?? "";
-      const initialRoot = latestMeta?.rootCauseText ?? "";
-
-      const noteChanged = note !== initialNote;
-      const findingChanged = 
-        description !== initialDesc ||
-        capa !== initialCapa ||
-        owner !== initialOwner ||
-        dueDate !== initialDueDate ||
-        correction !== initialCorr ||
-        rootCauseText !== initialRoot;
-
-      if (noteChanged) {
+      if (note !== initialNote) {
         persistAnswer(status, note);
-      }
-      if (findingChanged) {
-        persistFinding();
       }
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [note, description, capa, owner, dueDate, correction, rootCauseText]);
+  }, [note]);
 
   const handleAutoDeclare = async () => {
     const nextStatus = "minor";
@@ -1485,7 +1493,11 @@ function Row({
               const nextStatus = e.target.value;
               setStatus(nextStatus);
               await persistAnswer(nextStatus, note);
-              await persistFinding(nextStatus);
+              if (NONCONFORMING.has(nextStatus)) {
+                setIsModalOpen(true);
+              } else {
+                await persistFinding(nextStatus);
+              }
             }}
             disabled={readOnly}
             className="input w-32 text-xs animate-none"
@@ -1547,68 +1559,178 @@ function Row({
       </div>
 
       {NONCONFORMING.has(status) && (
-        <div className="mt-3 rounded-xl border border-warning/30 bg-warning/5 p-4 animate-fade-in-up">
-          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <div className="mt-3 rounded-xl border border-warning/30 bg-warning/5 p-3 flex flex-wrap items-center justify-between gap-3 animate-fade-in-up">
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
             <AlertTriangle className="h-4 w-4 text-warning" />
-            Finding record auto-created
+            <span>Finding details declared ({severity})</span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">Just specify the issue details below. This will feed the findings register and the final report automatically.</p>
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Finding statement</label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} onBlur={() => persistFinding()} disabled={readOnly} className="input min-h-[76px] text-sm" />
-            </div>
-            
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Correction / Containment Action (Immediate containment)</label>
-              <textarea value={correction} onChange={(e) => setCorrection(e.target.value)} onBlur={() => persistFinding()} placeholder={readOnly ? "No containment action specified." : "Contain the problem, isolate/quarantine affected items, clean up immediately..."} disabled={readOnly} className="input min-h-[76px] text-sm" />
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="pill-secondary py-1.5 px-3.5 text-xs bg-warning/10 border-warning/20 hover:bg-warning/20 text-warning"
+          >
+            Configure Finding Details
+          </button>
+        </div>
+      )}
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-2xl rounded-3xl border border-border bg-card p-6 shadow-elevated space-y-4 animate-scale-in max-h-[90vh] overflow-y-auto font-sans">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="font-display text-lg font-bold text-foreground">
+                Configure Audit Finding (Clause {clause})
+              </h3>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground transition"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Root Cause Analysis (RCA) Details</label>
-              <textarea value={rootCauseText} onChange={(e) => setRootCauseText(e.target.value)} onBlur={() => persistFinding()} placeholder={readOnly ? "No RCA recorded." : "Why did this occur? Trace back to procedural, tool, training, or systemic root causes..."} disabled={readOnly} className="input min-h-[76px] text-sm" />
+            <div className="grid gap-4 md:grid-cols-2 text-xs">
+              <div>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Audit</label>
+                <input
+                  type="text"
+                  value={auditTitle}
+                  disabled
+                  className="input opacity-65 cursor-not-allowed bg-secondary/30 w-full"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Owner</label>
+                <input
+                  type="text"
+                  value={ownerName}
+                  disabled
+                  className="input opacity-65 cursor-not-allowed bg-secondary/30 w-full"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Severity Rating</label>
+                <select
+                  value={severity}
+                  onChange={(e) => setSeverity(e.target.value)}
+                  className="input w-full"
+                >
+                  <option value="High">Major</option>
+                  <option value="Medium">Minor</option>
+                  <option value="Low">Observation</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Process</label>
+                <select
+                  value={modalProcessId}
+                  onChange={(e) => setModalProcessId(e.target.value)}
+                  className="input w-full"
+                >
+                  {allProcs.map((p: any) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Due Date</label>
+                <input
+                  type="date"
+                  value={modalDueDate}
+                  onChange={(e) => setModalDueDate(e.target.value)}
+                  className="input w-full md:w-1/2"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Finding Statement / Description</label>
+                <textarea
+                  value={modalDescription}
+                  onChange={(e) => setModalDescription(e.target.value)}
+                  className="input min-h-[80px] w-full"
+                  placeholder="Describe the discrepancy or compliance gap..."
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Correction / Containment Action (Immediate containment)</label>
+                <textarea
+                  value={modalCorrection}
+                  onChange={(e) => setModalCorrection(e.target.value)}
+                  placeholder="Contain the problem, isolate affected items..."
+                  className="input min-h-[60px] w-full"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Root Cause Analysis (RCA)</label>
+                <textarea
+                  value={modalRootCauseText}
+                  onChange={(e) => setModalRootCauseText(e.target.value)}
+                  placeholder="Why did this occur?"
+                  className="input min-h-[60px] w-full"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Corrective Action Plan (CAR)</label>
+                <textarea
+                  value={modalCapa}
+                  onChange={(e) => setModalCapa(e.target.value)}
+                  placeholder="Long-term corrective action..."
+                  className="input min-h-[60px] w-full"
+                />
+              </div>
             </div>
 
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Corrective Action Plan (CAR)</label>
-              <textarea value={capa} onChange={(e) => setCapa(e.target.value)} onBlur={() => persistFinding()} placeholder={readOnly ? "No CAR specified." : "Long-term actions to prevent recurrence..."} disabled={readOnly} className="input min-h-[76px] text-sm" />
-            </div>
-            
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Severity Rating</label>
-              <select value={severity} onChange={(e) => {
-                const nextSeverity = e.target.value;
-                setSeverity(nextSeverity);
-                onSyncFinding({
-                  processId,
-                  clause,
-                  kind,
-                  qRef,
-                  questionText: q,
-                  answerStatus: status,
-                  description,
-                  capa,
-                  owner,
-                  dueDate,
-                  correction,
-                  rootCauseText,
-                  severity: nextSeverity,
-                });
-              }} disabled={readOnly} className="input text-xs">
-                <option value="High">High</option>
-                <option value="Medium">Medium</option>
-                <option value="Low">Low</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Owner</label>
-              <input value={owner} onChange={(e) => setOwner(e.target.value)} onBlur={() => persistFinding()} disabled={readOnly} className="input" placeholder="Responsible person" />
-            </div>
-            
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Due date</label>
-              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} onBlur={() => persistFinding()} disabled={readOnly} className="input w-full md:w-1/2" />
+            <div className="flex justify-end gap-3 pt-3 border-t border-border">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="pill-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const mappedStatus = severity === "High" ? "major" : severity === "Medium" ? "minor" : "observation";
+                  setStatus(mappedStatus);
+                  await onSave({
+                    process_id: modalProcessId,
+                    clause,
+                    kind,
+                    q_ref: qRef,
+                    question_text: answer.question_text || q,
+                    status: mappedStatus,
+                    note: note || "Finding details updated in modal.",
+                    evidence,
+                  });
+                  await onSyncFinding({
+                    processId: modalProcessId,
+                    clause,
+                    kind,
+                    qRef,
+                    questionText: answer.question_text || q,
+                    answerStatus: mappedStatus,
+                    description: modalDescription,
+                    capa: modalCapa,
+                    owner: ownerName,
+                    dueDate: modalDueDate,
+                    correction: modalCorrection,
+                    rootCauseText: modalRootCauseText,
+                    severity,
+                  });
+                  setIsModalOpen(false);
+                  toast({ title: "Finding saved successfully." });
+                }}
+                className="pill-cta"
+              >
+                Save Finding
+              </button>
             </div>
           </div>
         </div>
