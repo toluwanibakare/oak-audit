@@ -312,6 +312,7 @@ export default function Settings() {
               {uploading ? "Uploading..." : isIndividual ? "Upload profile photo" : "Upload new logo"}
             </label>
           </div>
+        </div>
       </div>
 
       <div className="pt-10 pb-6 text-center text-xs text-muted-foreground/60 select-none font-medium border-t border-border/40 mt-10">
