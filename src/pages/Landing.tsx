@@ -1,12 +1,10 @@
-﻿import { Link } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
+import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
   ArrowRight,
   ArrowUp,
   ArrowDown,
-  ChevronLeft,
-  ChevronRight,
   BadgeCheck,
   BarChart3,
   CheckCircle2,
@@ -64,75 +62,84 @@ const features = [
   {
     icon: Globe,
     color: "bg-accent/15 text-accent",
-    title: "Credit-Based Access Control",
-    body: "Unlock audit packs only for the teams, sites, or clients that need them. Scale up or down without committing to blanket subscriptions.",
+    title: "Pay-Per-Audit Access",
+    body: "Pay only when you run an audit. Pricing is based on your team size — no subscriptions, no credits, no admin setup. Just pay via Paystack and go.",
   },
 ];
 
-const allBundles = [
+// Pricing packs for the landing page
+const pricingPacks = [
   {
-    name: "ISO Standard Pack (Individual)",
-    price: "Personal Auditor Access",
-    tagline: "Self-managed audit for a single ISO standard",
+    code: "9001",
+    label: "ISO 9001",
+    description: "Quality Management System",
+    badge: null,
     color: "border-border/60 hover:border-primary/50",
-    badge: "Individual Pack",
-    features: [
-      "Full access to any 1 standard (9001 / 14001 / 27001)",
-      "Seeded standard process question banks & checklists",
-      "Immediate workspace access — zero compliance review delay",
-      "Auto-generate professional reports & watermarks",
-      "Personal auditor dashboard & compliance scoring",
+    tiers: [
+      { tier: "1 – 5 Users",      price: "₦500,000" },
+      { tier: "5 – 15 Users",     price: "₦1,000,000" },
+      { tier: "16+ Users",        price: "₦1,500,000" },
     ],
-    cta: "Start Auditing",
-    ctaStyle: "pill-secondary w-full justify-center",
   },
   {
-    name: "HSE Safety Pack (Individual)",
-    price: "Safety Specialist",
-    tagline: "For comprehensive health & safety check runs",
-    color: "border-primary/60 hover:border-primary/80",
-    badge: "Safety Special",
-    features: [
-      "Full access to the 150-item HSE question bank",
-      "Site inspection checklists & dynamic observation notes",
-      "Audit title & lead auditor sign-off locks",
-      "Action tracking & self-managed CAPA logs",
-      "Custom report templates with photo attachments",
+    code: "14001",
+    label: "ISO 14001",
+    description: "Environmental Management System",
+    badge: null,
+    color: "border-border/60 hover:border-primary/50",
+    tiers: [
+      { tier: "1 – 5 Users",      price: "₦500,000" },
+      { tier: "5 – 15 Users",     price: "₦1,000,000" },
+      { tier: "16+ Users",        price: "₦1,500,000" },
     ],
-    cta: "Start Safety Audit",
-    ctaStyle: "pill-cta w-full justify-center",
   },
   {
-    name: "ISO Multi-Standard Corporate",
-    price: "Corporate Teams",
-    tagline: "Audit any single standard for your entire enterprise",
-    color: "border-border/60 hover:border-accent/50",
-    badge: "Enterprise Pack",
-    features: [
-      "Enterprise access to ISO 9001 / 14001 / 45001 / 27001",
-      "Central team management & audit task assignment",
-      "Custom corporate logos & custom watermarks",
-      "Real-time corporate compliance dashboards",
-      "Traceable multi-site auditor records",
+    code: "45001",
+    label: "ISO 45001",
+    description: "Occupational Health & Safety",
+    badge: null,
+    color: "border-border/60 hover:border-primary/50",
+    tiers: [
+      { tier: "1 – 5 Users",      price: "₦500,000" },
+      { tier: "5 – 15 Users",     price: "₦1,000,000" },
+      { tier: "16+ Users",        price: "₦1,500,000" },
     ],
-    cta: "Configure Workspace",
-    ctaStyle: "pill-secondary w-full justify-center",
   },
   {
-    name: "IMS Integrated Enterprise",
-    price: "Full ISO Command",
-    tagline: "All standards integrated into one unified room",
-    color: "border-accent/70 hover:border-accent",
+    code: "27001",
+    label: "ISO 27001",
+    description: "Information Security Management",
+    badge: null,
+    color: "border-border/60 hover:border-primary/50",
+    tiers: [
+      { tier: "1 – 5 Users",      price: "₦500,000" },
+      { tier: "5 – 15 Users",     price: "₦1,000,000" },
+      { tier: "16+ Users",        price: "₦1,500,000" },
+    ],
+  },
+  {
+    code: "hse",
+    label: "HSE Bundle",
+    description: "ISO 14001 + ISO 45001 Combined",
+    badge: "Bundle",
+    color: "border-primary/40 hover:border-primary/70",
+    tiers: [
+      { tier: "1 – 5 Users",      price: "₦1,000,000" },
+      { tier: "5 – 15 Users",     price: "₦1,500,000" },
+      { tier: "16+ Users",        price: "₦2,000,000" },
+    ],
+  },
+  {
+    code: "ims",
+    label: "IMS Bundle",
+    description: "ISO 9001 + 14001 + 45001 Combined",
     badge: "Most Popular",
-    features: [
-      "Cross-mapped integrated checklists (IMS)",
-      "Dedicated management review workflows",
-      "Central processes & KPI dashboard",
-      "Administrative controls & custom billing plans",
-      "Advanced action tracking across all sites & departments",
+    color: "border-accent/50 hover:border-accent/80",
+    tiers: [
+      { tier: "1 – 5 Users",      price: "₦1,500,000" },
+      { tier: "5 – 15 Users",     price: "₦2,000,000" },
+      { tier: "16+ Users",        price: "₦2,500,000" },
     ],
-    cta: "Request ISO Setup",
-    ctaStyle: "pill-cta w-full justify-center",
   },
 ];
 
@@ -149,8 +156,8 @@ const workflow = [
   },
   {
     step: "03",
-    title: "Purchase Bundle",
-    body: "Acquire your preferred ISO audit bundle using credits via our secure wallet.",
+    title: "Pay & Activate",
+    body: "Select your ISO standard, confirm your team size, and pay securely via Paystack. Your audit activates instantly.",
   },
   {
     step: "04",
@@ -177,21 +184,9 @@ export default function Landing() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [pricingTab, setPricingTab] = useState<"individual" | "organisation">("organisation");
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
-  const sliderRef = useRef<HTMLDivElement>(null);
-
-  const scrollPrev = () => {
-    if (sliderRef.current) {
-      sliderRef.current.scrollBy({ left: -sliderRef.current.clientWidth / 2, behavior: "smooth" });
-    }
-  };
-
-  const scrollNext = () => {
-    if (sliderRef.current) {
-      sliderRef.current.scrollBy({ left: sliderRef.current.clientWidth / 2, behavior: "smooth" });
-    }
-  };
 
   useEffect(() => {
     setMounted(true);
@@ -273,7 +268,7 @@ export default function Landing() {
           <nav className="hidden items-center gap-6 text-sm font-medium text-muted-foreground md:flex">
             <a href="#features" className="transition hover:text-foreground">Features</a>
             <a href="#how-it-works" className="transition hover:text-foreground">How It Works</a>
-            <a href="#bundles" className="transition hover:text-foreground">Audit Bundles</a>
+            <a href="#bundles" className="transition hover:text-foreground">Pricing</a>
           </nav>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -372,7 +367,7 @@ export default function Landing() {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="rounded-xl px-4 py-3 hover:bg-secondary text-muted-foreground hover:text-foreground transition"
               >
-                Audit Bundles
+                Pricing
               </a>
             </nav>
           </div>
@@ -493,7 +488,7 @@ export default function Landing() {
               {[
                 { value: "End-to-End", label: "Audit Flow", sub: "From scope to PDF without leaving the workspace" },
                 { value: "ISO-Ready", label: "Coverage", sub: "Quality, OH&S, environment, information security & IMS" },
-                { value: "Real-Time Wallet", label: "Instant Access", sub: "Automatic credit refreshes, seamless activations, and zero setup delays" },
+                { value: "Pay-Per-Audit", label: "Instant Access", sub: "Pay via Paystack based on team size — audit activates the moment payment is confirmed" },
               ].map(({ value, label, sub }) => (
                 <div key={label} className="text-center">
                   <div className="font-display text-2xl font-extrabold text-primary">{value}</div>
@@ -643,6 +638,223 @@ export default function Landing() {
           </div>
         </section>
 
+        {/* ── Pricing Section ─────────────────────────────────────── */}
+        <section id="bundles" className="bg-secondary/40 py-24 relative overflow-hidden border-b border-border">
+          <div className="glow-orb glow-orb-accent -bottom-40 -left-40 h-[380px] w-[380px]" />
+          <div className="glow-orb glow-orb-primary -top-40 -right-40 h-[380px] w-[380px]" />
+
+          <div className="mx-auto max-w-7xl px-6 lg:px-10 relative z-10">
+            {/* Header */}
+            <div className="text-center">
+              <span className="eyebrow-chip-green">
+                <BadgeCheck className="h-3.5 w-3.5 text-accent" />
+                Transparent Pricing
+              </span>
+              <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight text-foreground">
+                Pay Per Audit. No Subscriptions.
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground leading-relaxed">
+                Choose your account type below. Pay once when you run an audit — no recurring fees, no credits.
+              </p>
+            </div>
+
+            {/* Tab switcher */}
+            <div className="mt-10 flex justify-center">
+              <div className="relative flex items-center rounded-2xl border border-border bg-card/80 p-1.5 shadow-card gap-1">
+                <button
+                  onClick={() => setPricingTab("individual")}
+                  className={`relative px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                    pricingTab === "individual"
+                      ? "bg-primary text-white shadow-card"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Individual
+                </button>
+                <button
+                  onClick={() => setPricingTab("organisation")}
+                  className={`relative px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                    pricingTab === "organisation"
+                      ? "bg-primary text-white shadow-card"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Organisation
+                </button>
+              </div>
+            </div>
+
+            {/* ── INDIVIDUAL VIEW ───────────────────────────────────── */}
+            {pricingTab === "individual" && (
+              <div className="mt-10">
+                <p className="text-center text-sm text-muted-foreground mb-8">
+                  Single auditor account · Flat rate per audit run · All features included
+                </p>
+                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                  {pricingPacks.map((pack) => (
+                    <div
+                      key={pack.code}
+                      className={`relative flex flex-col rounded-[28px] border bg-card/70 backdrop-blur-md p-6 shadow-card hover:shadow-elevated transition-all duration-500 premium-glass-card ${pack.color}`}
+                    >
+                      {pack.badge && (
+                        <span className="absolute top-5 right-5 inline-flex items-center rounded-full bg-primary px-3 py-1 text-[9px] font-bold text-white uppercase tracking-wider shadow-sm">
+                          {pack.badge}
+                        </span>
+                      )}
+
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                          <ShieldCheck className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{pack.label}</p>
+                          <h3 className="font-display text-base font-bold text-foreground">{pack.description}</h3>
+                        </div>
+                      </div>
+
+                      {/* Single flat price */}
+                      <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Per Audit Run</p>
+                          <p className="font-display text-3xl font-extrabold text-foreground mt-0.5">{pack.tiers[0].price}</p>
+                        </div>
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                          <Users className="h-5 w-5" />
+                        </div>
+                      </div>
+
+                      {/* Features */}
+                      <div className="mt-4 space-y-1.5">
+                        {[
+                          "Audit Planning & Execution",
+                          "Report Analytics & Dashboard",
+                          "CAPA Management",
+                          "Document Repository",
+                          "Email Notifications",
+                        ].map((f) => (
+                          <div key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-accent" />
+                            {f}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-5 pt-4 border-t border-border/40">
+                        <Link to="/auth?mode=signup" className="pill-cta w-full justify-center text-sm">
+                          Get Started
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── ORGANISATION VIEW ─────────────────────────────────── */}
+            {pricingTab === "organisation" && (
+              <div className="mt-10">
+                {/* Tier legend */}
+                <div className="flex flex-wrap justify-center gap-3 mb-8">
+                  {[
+                    { tier: "1 – 5 Users",  desc: "Small teams" },
+                    { tier: "5 – 15 Users", desc: "Mid-size" },
+                    { tier: "16+ Users",    desc: "Large enterprise" },
+                  ].map(({ tier, desc }) => (
+                    <div key={tier} className="flex items-center gap-2.5 rounded-2xl border border-border bg-card/70 backdrop-blur-sm px-4 py-2.5 shadow-sm">
+                      <Users className="h-4 w-4 text-primary shrink-0" />
+                      <div>
+                        <p className="text-xs font-bold text-foreground">{tier}</p>
+                        <p className="text-[10px] text-muted-foreground">{desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                  {pricingPacks.map((pack) => (
+                    <div
+                      key={pack.code}
+                      className={`relative flex flex-col rounded-[28px] border bg-card/70 backdrop-blur-md p-6 shadow-card hover:shadow-elevated transition-all duration-500 premium-glass-card ${pack.color}`}
+                    >
+                      {pack.badge && (
+                        <span className="absolute top-5 right-5 inline-flex items-center rounded-full bg-primary px-3 py-1 text-[9px] font-bold text-white uppercase tracking-wider shadow-sm">
+                          {pack.badge}
+                        </span>
+                      )}
+
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                          <ShieldCheck className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{pack.label}</p>
+                          <h3 className="font-display text-base font-bold text-foreground">{pack.description}</h3>
+                        </div>
+                      </div>
+
+                      {/* 3-tier pricing table */}
+                      <div className="mt-5 rounded-2xl border border-border/60 bg-secondary/30 overflow-hidden">
+                        <div className="flex items-center justify-between border-b border-border/40 bg-secondary/60 px-3 py-2">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Team Size</span>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Price / Audit</span>
+                        </div>
+                        {pack.tiers.map(({ tier, price }) => (
+                          <div key={tier} className="flex items-center justify-between px-3 py-2.5 border-b last:border-0 border-border/30">
+                            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Users className="h-3 w-3 shrink-0" />
+                              {tier}
+                            </span>
+                            <span className="font-display text-sm font-bold text-foreground">{price}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Features */}
+                      <div className="mt-4 space-y-1.5">
+                        {[
+                          "Audit Planning & Execution",
+                          "Report Analytics & Dashboard",
+                          "CAPA Management",
+                          "Document Repository",
+                          "Email Notifications",
+                        ].map((f) => (
+                          <div key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-accent" />
+                            {f}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-5 pt-4 border-t border-border/40">
+                        <Link to="/auth?mode=signup" className="pill-cta w-full justify-center text-sm">
+                          Get Started
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Bottom note */}
+            <div className="mt-12 rounded-3xl border border-border/60 bg-card/60 backdrop-blur-sm p-6 text-center shadow-sm max-w-2xl mx-auto">
+              <p className="text-sm font-semibold text-foreground">How payment works</p>
+              <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
+                {pricingTab === "individual"
+                  ? "As an individual auditor, you pay a flat rate per audit run. No team size calculations — just pick your standard and pay via Paystack."
+                  : "Your team size is automatically detected from your workspace. Pay via Paystack and your audit is activated the moment payment is confirmed."}
+              </p>
+              <div className="mt-4 flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-accent" /> Secure Paystack Checkout</span>
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-accent" /> Instant Activation</span>
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-accent" /> One-Time Per Audit Run</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="bg-gradient-to-br from-primary/5 to-accent/5 py-20 border-y border-border/80 relative overflow-hidden">
           <div className="glow-orb glow-orb-primary -top-40 -left-40 h-[400px] w-[400px]" />
           
@@ -735,107 +947,6 @@ export default function Landing() {
                 </div>
               </div>
             </div>
-          </div>
-        </section>
-
-        {/* ── Audit Bundles Section ──────────────────────────────── */}
-        <section id="bundles" className="bg-secondary/40 py-24 relative overflow-hidden border-b border-border">
-          {/* Glow decoration */}
-          <div className="glow-orb glow-orb-accent -bottom-40 -left-40 h-[380px] w-[380px]" />
-          <div className="glow-orb glow-orb-primary -top-40 -right-40 h-[380px] w-[380px]" />
-          
-          <div className="mx-auto max-w-7xl px-6 lg:px-10 relative z-10">
-            <div className="text-center">
-              <span className="eyebrow-chip-green">
-                <BadgeCheck className="h-3.5 w-3.5 text-accent" />
-                Audit Access Bundles
-              </span>
-              <h2 className="mt-4 font-display text-4xl font-extrabold tracking-tight text-foreground">
-                Select Your ISO Audit Bundles
-              </h2>
-              <p className="mx-auto mt-4 max-w-2xl text-base text-muted-foreground leading-relaxed">
-                Activate audit packs matched to your standard scope and compliance needs. Fully self-managed via credit allocation.
-              </p>
-            </div>
-
-            <div className="flex justify-end gap-2.5 mt-8 mb-6">
-              <button 
-                onClick={scrollPrev} 
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background hover:bg-secondary text-foreground transition-all duration-300 shadow-sm hover:scale-105 active:scale-95"
-                title="Scroll Left"
-                aria-label="Scroll Left"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              <button 
-                onClick={scrollNext} 
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background hover:bg-secondary text-foreground transition-all duration-300 shadow-sm hover:scale-105 active:scale-95"
-                title="Scroll Right"
-                aria-label="Scroll Right"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div 
-              ref={sliderRef}
-              className="flex gap-6 overflow-x-auto snap-x snap-mandatory scrollbar-none scroll-smooth py-8 px-2 transition-all duration-500"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {allBundles.map((plan) => (
-                <div
-                  key={plan.name}
-                  className={`relative flex flex-col md:flex-row md:items-stretch justify-between shrink-0 snap-center w-full md:w-[calc(50%-12px)] rounded-[28px] border bg-card/65 backdrop-blur-md p-6 sm:p-8 shadow-card hover:shadow-elevated transition-all duration-500 premium-glass-card ${plan.color}`}
-                >
-                  {/* Left Column: Info */}
-                  <div className="w-full md:w-[45%] flex flex-col justify-between mb-6 md:mb-0 gap-4">
-                    <div>
-                      {plan.badge && (
-                        <div className="mb-3">
-                          <span className="inline-flex items-center rounded-full bg-primary px-3.5 py-1 text-[10px] font-bold text-white shadow-card uppercase tracking-wider animate-pulse">
-                            {plan.badge}
-                          </span>
-                        </div>
-                      )}
-                      <div className="font-display text-lg sm:text-xl font-extrabold text-foreground">{plan.name}</div>
-                      <p className="mt-2 text-xs sm:text-sm text-muted-foreground leading-relaxed">{plan.tagline}</p>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Designed For:</span>
-                      <span className="inline-flex items-center w-fit rounded-xl bg-primary/10 border border-primary/20 px-3.5 py-1.5 text-xs font-bold text-primary uppercase">
-                        {plan.price}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Right Column: Features and CTA */}
-                  <div className="w-full md:w-[50%] flex flex-col justify-between md:border-l md:border-border/60 md:pl-8 gap-5">
-                    <div>
-                      <div className="text-[10px] font-bold text-foreground/80 uppercase tracking-widest border-b border-border pb-2">Includes:</div>
-                      <ul className="mt-3.5 space-y-2.5">
-                        {plan.features.map((f) => (
-                          <li key={f} className="flex items-start gap-2 text-xs sm:text-sm text-foreground">
-                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent animate-pulse" />
-                            <span className="leading-relaxed text-muted-foreground transition-colors duration-300">{f}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    <div className="mt-4">
-                      <Link to="/auth?mode=signup" className={plan.ctaStyle}>
-                        {plan.cta}
-                        <ArrowRight className="h-4 w-4 animate-bounce-right" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <p className="mt-10 text-center text-xs text-muted-foreground leading-relaxed max-w-md mx-auto">
-              All activations are credit-allocated and managed securely through the ISO console. Annual custom allocations available with additional discounts. Contact compliance admin to unlock.
-            </p>
           </div>
         </section>
 
