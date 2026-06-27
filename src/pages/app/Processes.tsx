@@ -528,14 +528,23 @@ export default function Processes() {
                     </div>
                   </label>
                   {checked && (
-                    <input
-                      type="text"
-                      placeholder="Process Owner name..."
-                      className="input h-8 text-xs w-full"
-                      value={standardProcessOwners[sp.key] ?? ""}
-                      onChange={(e) => setStandardProcessOwners(prev => ({ ...prev, [sp.key]: e.target.value }))}
-                      onClick={(e) => e.stopPropagation()}
-                    />
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Process Owner name (required)..."
+                        className={`input h-8 text-xs w-full ${
+                          !(standardProcessOwners[sp.key]?.trim())
+                            ? "border-destructive focus:ring-destructive/30"
+                            : ""
+                        }`}
+                        value={standardProcessOwners[sp.key] ?? ""}
+                        onChange={(e) => setStandardProcessOwners(prev => ({ ...prev, [sp.key]: e.target.value }))}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      {!(standardProcessOwners[sp.key]?.trim()) && (
+                        <p className="mt-1 text-[10px] text-destructive font-semibold">Process owner is required</p>
+                      )}
+                    </div>
                   )}
                 </div>
               );
@@ -553,8 +562,13 @@ export default function Processes() {
             </button>
             <button 
               onClick={saveStandardSelection}
-              disabled={saving || selectedStandardKeys.length === 0}
+              disabled={
+                saving ||
+                selectedStandardKeys.length === 0 ||
+                selectedStandardKeys.some(k => !(standardProcessOwners[k]?.trim()))
+              }
               className="pill-cta px-6 py-2 text-sm font-semibold disabled:opacity-50"
+              title={selectedStandardKeys.some(k => !(standardProcessOwners[k]?.trim())) ? "All selected processes must have a process owner" : ""}
             >
               {saving ? "Saving Changes..." : "Save Selected Processes"}
             </button>
@@ -693,14 +707,21 @@ export default function Processes() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Process Owner</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                  Process Owner <span className="text-destructive">*</span>
+                </label>
                 <input
                   type="text"
                   placeholder="e.g. John Doe"
-                  className="input w-full h-11"
+                  className={`input w-full h-11 ${
+                    !form.process_owner.trim() ? "border-destructive focus:ring-destructive/30" : ""
+                  }`}
                   value={form.process_owner}
                   onChange={(e) => setForm({ ...form, process_owner: e.target.value })}
                 />
+                {!form.process_owner.trim() && (
+                  <p className="mt-1 text-[11px] text-destructive">Process owner name is required</p>
+                )}
               </div>
               <div className="flex justify-end gap-3 pt-3">
                 <button
@@ -711,7 +732,7 @@ export default function Processes() {
                 </button>
                 <button
                   onClick={add}
-                  disabled={!form.name.trim()}
+                  disabled={!form.name.trim() || !form.process_owner.trim()}
                   className="pill-cta px-5 py-2 text-sm font-semibold disabled:opacity-50"
                 >
                   Add Process
