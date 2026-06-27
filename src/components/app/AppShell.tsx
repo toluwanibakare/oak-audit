@@ -288,25 +288,58 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
           </button>
         </div>
 
-        {/* User card linking directly to Settings */}
-        <Link
-          to="/app/settings"
-          onClick={() => setIsMobileOpen(false)}
-          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-background/70 px-3.5 py-2.5 text-left transition duration-200 hover:bg-secondary group"
+        {/* User card with dropdown on hover */}
+        <div 
+          className="relative"
+          onMouseEnter={() => setUserMenuOpen(true)}
+          onMouseLeave={() => setUserMenuOpen(false)}
         >
-          {!isIndividual && currentOrg?.logo_url ? (
-            <img src={currentOrg.logo_url} alt="Company Logo" className="h-8 w-8 rounded-full object-cover shrink-0 border border-border" />
-          ) : (
-            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary transition-colors duration-200 group-hover:bg-primary group-hover:text-primary-foreground">
-              <User className="h-4 w-4" />
+          {userMenuOpen && (
+            <div className="absolute bottom-full left-0 right-0 mb-2 z-30 rounded-2xl border border-border bg-card/95 backdrop-blur-md p-1.5 shadow-elevated animate-fade-in space-y-0.5">
+              <Link
+                to="/app/settings"
+                onClick={() => {
+                  setUserMenuOpen(false);
+                  setIsMobileOpen(false);
+                }}
+                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
+              >
+                <Settings className="h-4 w-4 text-muted-foreground animate-spin-slow" />
+                <span>Profile Settings</span>
+              </Link>
+              <button
+                onClick={async () => {
+                  setUserMenuOpen(false);
+                  setIsMobileOpen(false);
+                  await signOut();
+                  window.location.href = "/auth";
+                }}
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Sign Out</span>
+              </button>
             </div>
           )}
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-foreground group-hover:text-primary transition-colors duration-150">{displayName}</div>
-            <div className="truncate text-[11px] text-muted-foreground">{displayEmail}</div>
-          </div>
-          <Settings className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-300 group-hover:rotate-45 group-hover:text-foreground" />
-        </Link>
+
+          <button
+            onClick={() => setUserMenuOpen(!userMenuOpen)}
+            className="flex w-full items-center gap-3 rounded-2xl border border-border bg-background/70 px-3.5 py-2.5 text-left transition duration-200 hover:bg-secondary group"
+          >
+            {!isIndividual && currentOrg?.logo_url ? (
+              <img src={currentOrg.logo_url} alt="Company Logo" className="h-8 w-8 rounded-full object-cover shrink-0 border border-border" />
+            ) : (
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary transition-colors duration-200 group-hover:bg-primary group-hover:text-primary-foreground">
+                <User className="h-4 w-4" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold text-foreground group-hover:text-primary transition-colors duration-150">{displayName}</div>
+              <div className="truncate text-[11px] text-muted-foreground">{displayEmail}</div>
+            </div>
+            <ChevronRight className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-300 ${userMenuOpen ? "-rotate-90" : "rotate-90"}`} />
+          </button>
+        </div>
         <div className="pt-2 text-[10px] text-center text-muted-foreground/60 select-none font-medium">
           © {new Date().getFullYear()} ISO AUDIT MANAGEMENT PORT. All rights reserved.
         </div>

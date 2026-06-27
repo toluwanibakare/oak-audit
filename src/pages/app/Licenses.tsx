@@ -42,6 +42,8 @@ export default function Licenses() {
   const [auditCriteria, setAuditCriteria] = useState("");
   const [auditScope, setAuditScope] = useState("");
   const [auditObject, setAuditObject] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [selectedAuditorId, setSelectedAuditorId] = useState("");
   const [auditors, setAuditors] = useState<{ id: string; name: string }[]>([]);
   const [modalProcs, setModalProcs] = useState<{ id: string; key: string; name: string }[]>([]);
@@ -337,6 +339,8 @@ export default function Licenses() {
         criteria: auditCriteria.trim() || null,
         scope: auditScope.trim() || null,
         object: auditObject.trim() || null,
+        start_date: startDate || null,
+        end_date: endDate || null,
         lead_auditor_id: auditorId,
         status: "in_progress",
         started_at: new Date().toISOString(),
@@ -521,6 +525,8 @@ export default function Licenses() {
                           setAuditCriteria("");
                           setAuditScope("");
                           setAuditObject("");
+                          setStartDate("");
+                          setEndDate("");
                           setSelectedAuditorId("");
                         }
                       }}
@@ -710,6 +716,26 @@ export default function Licenses() {
                       value={auditObject}
                       onChange={(e) => setAuditObject(e.target.value)}
                       placeholder="e.g. Health, Safety & Environmental Management"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Start Date</label>
+                    <input
+                      type="date"
+                      className="input w-full font-sans text-sm"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">End Date</label>
+                    <input
+                      type="date"
+                      className="input w-full font-sans text-sm"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
                     />
                   </div>
                 </div>

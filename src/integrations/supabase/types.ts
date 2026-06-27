@@ -223,6 +223,8 @@ export type Database = {
           org_id: string
           scope: string | null
           standard: string
+          start_date: string | null
+          end_date: string | null
           started_at: string | null
           status: string
           title: string
@@ -239,6 +241,8 @@ export type Database = {
           org_id: string
           scope?: string | null
           standard: string
+          start_date?: string | null
+          end_date?: string | null
           started_at?: string | null
           status?: string
           title: string
@@ -255,6 +259,8 @@ export type Database = {
           org_id?: string
           scope?: string | null
           standard?: string
+          start_date?: string | null
+          end_date?: string | null
           started_at?: string | null
           status?: string
           title?: string
