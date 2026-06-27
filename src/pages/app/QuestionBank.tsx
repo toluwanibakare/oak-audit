@@ -7,7 +7,7 @@ import { AppShell } from "@/components/app/AppShell";
 import { Header } from "./Team";
 import { getQuestionsFor, STANDARDS, getProcessesFor, type StandardKey } from "@/data/standards";
 import { ISO_CLAUSES_FOR_AUDIT } from "@/data/processAudit";
-import { BookOpen, Settings, Search, Plus, Edit2, Check, X, Copy, HelpCircle, Layers } from "lucide-react";
+import { BookOpen, Settings, Search, Plus, Edit2, Check, X, Copy, HelpCircle, Layers, Info } from "lucide-react";
 
 type Audit = {
   id: string;
@@ -21,10 +21,12 @@ type Audit = {
 type CustomQuestion = {
   id: string;
   clause: string;
+  kind: string;
   text: string;
   evidence: string | null;
   reference: string | null;
   active: boolean;
+  created_at?: string;
 };
 
 type Answer = {
@@ -37,9 +39,16 @@ type Answer = {
   status: string;
 };
 
+// Reference marker used to identify rephrase overrides stored in custom_questions
+const REPHRASE_PREFIX = "REPHRASE:";
+
 const getApplicableStandards = (auditStd: string): string[] => {
   return [auditStd];
 };
+
+// Build a rephrase reference key for a standard question
+const buildRephraseRef = (std: string, procKey: string, kind: string, qRef: string) =>
+  `${REPHRASE_PREFIX}${std}:${procKey}:${kind}:${qRef}`;
 
 export default function QuestionBank() {
   const { currentOrg } = useOrg();
@@ -53,9 +62,16 @@ export default function QuestionBank() {
   const [browseProc, setBrowseProc] = useState("");
   const browseProcessesList = useMemo(() => getProcessesFor(browseStd), [browseStd]);
 
-  // Tab 2: Manage Audits State
+  // Tab 2: Manage — Audit-linked or Template mode
   const [audits, setAudits] = useState<Audit[]>([]);
   const [selectedAudit, setSelectedAudit] = useState<Audit | null>(null);
+
+  // Template mode selectors (used when no audit selected)
+  const [templateStd, setTemplateStd] = useState<StandardKey>("9001");
+  const [templateProc, setTemplateProc] = useState("");
+  const templateProcessesList = useMemo(() => getProcessesFor(templateStd), [templateStd]);
+
+  // Audit-linked mode
   const [auditProcs, setAuditProcs] = useState<{ id: string; key: string; name: string }[]>([]);
   const [selectedAuditProc, setSelectedAuditProc] = useState<string>("");
 
@@ -87,9 +103,11 @@ export default function QuestionBank() {
       if (allowed.length > 0) {
         setImportSrcStd(allowed[0] as StandardKey);
       }
-      setImportSrcProc("");
-      setSelectedImportKeys(new Set());
+    } else {
+      setImportSrcStd(templateStd);
     }
+    setImportSrcProc("");
+    setSelectedImportKeys(new Set());
     setIsImportModalOpen(true);
   };
 
@@ -99,9 +117,11 @@ export default function QuestionBank() {
       if (allowed.length > 0) {
         setCopyDestStd(allowed[0] as StandardKey);
       }
-      setCopyDestProc("");
-      setCopyDestClause("");
+    } else {
+      setCopyDestStd(templateStd);
     }
+    setCopyDestProc("");
+    setCopyDestClause("");
     setCopyTargetQuestion(q);
     setIsCopyModalOpen(true);
   };
@@ -138,7 +158,6 @@ export default function QuestionBank() {
   // Load basic data
   const loadBasicData = async () => {
     if (!currentOrg) return;
-    // Load audits
     const { data: auditData } = await supabase
       .from("audits")
       .select("*")
@@ -160,17 +179,16 @@ export default function QuestionBank() {
     }
 
     const loadAuditProcs = async () => {
-      // Fetch org processes linked to this audit
       const { data } = await supabase
         .from("audit_processes")
         .select("process_id, org_processes(id, key, name, scope)")
         .eq("audit_id", selectedAudit.id);
-      
+
       const parsedProcs = (data ?? [])
         .map((ap: any) => ap.org_processes)
         .filter(Boolean)
         .map((p: any) => ({ id: p.id, key: p.key, name: p.name }));
-      
+
       setAuditProcs(parsedProcs);
       if (parsedProcs.length > 0) {
         setSelectedAuditProc(parsedProcs[0].id);
@@ -182,123 +200,172 @@ export default function QuestionBank() {
     loadAuditProcs();
   }, [selectedAudit, currentOrg]);
 
-  // Load questionnaire questions + answers + custom questions for selected audit process
-  const loadAuditQuestionsData = async () => {
-    if (!selectedAudit || !selectedAuditProc || !currentOrg) return;
-    const activeProc = auditProcs.find(p => p.id === selectedAuditProc);
-    if (!activeProc) return;
+  // Determine the effective standard and process key for template mode
+  const effectiveStd: StandardKey = selectedAudit
+    ? (selectedAudit.standard as StandardKey)
+    : templateStd;
 
-    // Fetch answers / overrides
-    const { data: answersData } = await supabase
-      .from("audit_answers")
-      .select("id, clause, kind, q_ref, question_text, note, status")
-      .eq("audit_id", selectedAudit.id)
-      .eq("process_id", selectedAuditProc);
+  const effectiveProcKey: string = useMemo(() => {
+    if (selectedAudit && selectedAuditProc) {
+      const proc = auditProcs.find((p) => p.id === selectedAuditProc);
+      return proc?.key || "";
+    }
+    return templateProc;
+  }, [selectedAudit, selectedAuditProc, auditProcs, templateProc]);
 
-    const amap: Record<string, Answer> = {};
-    (answersData ?? []).forEach((ans: any) => {
-      const key = `${selectedAuditProc}:${ans.clause}:${ans.kind}:${ans.q_ref}`;
-      amap[key] = ans;
-    });
-    setAnswers(amap);
+  // Load questions data (audit-linked or template mode)
+  const loadQuestionsData = async () => {
+    if (!currentOrg) return;
 
-    // Fetch custom questions
-    const applicableStds = getApplicableStandards(selectedAudit.standard);
+    const std = effectiveStd;
+    const procKey = effectiveProcKey;
+    if (!procKey) {
+      setAnswers({});
+      setCustomQuestions([]);
+      return;
+    }
+
+    // Answers only available in audit mode
+    if (selectedAudit && selectedAuditProc) {
+      const { data: answersData } = await supabase
+        .from("audit_answers")
+        .select("id, clause, kind, q_ref, question_text, note, status")
+        .eq("audit_id", selectedAudit.id)
+        .eq("process_id", selectedAuditProc);
+
+      const amap: Record<string, Answer> = {};
+      (answersData ?? []).forEach((ans: any) => {
+        const key = `${selectedAuditProc}:${ans.clause}:${ans.kind}:${ans.q_ref}`;
+        amap[key] = ans;
+      });
+      setAnswers(amap);
+    } else {
+      setAnswers({});
+    }
+
+    // Custom questions (includes rephrases stored with REPHRASE: reference prefix)
     const { data: customData } = await supabase
       .from("custom_questions")
-      .select("id, clause, text, evidence, reference, active, created_at")
+      .select("id, clause, kind, text, evidence, reference, active, created_at")
       .eq("org_id", currentOrg.id)
-      .in("standard", applicableStds)
-      .eq("process_key", activeProc.key)
+      .eq("standard", std)
+      .eq("process_key", procKey)
       .order("created_at", { ascending: false });
-    
+
     setCustomQuestions((customData ?? []) as CustomQuestion[]);
   };
 
   useEffect(() => {
-    loadAuditQuestionsData();
-  }, [selectedAudit, selectedAuditProc, auditProcs]);
+    loadQuestionsData();
+  }, [selectedAudit, selectedAuditProc, auditProcs, templateStd, templateProc, currentOrg]);
 
-  // Derived list of current questions for managing
+  // Build a map of rephrase overrides: rephraseRef -> custom question
+  const rephraseOverrides = useMemo(() => {
+    const map: Record<string, CustomQuestion> = {};
+    customQuestions.forEach((cq) => {
+      if (cq.reference?.startsWith(REPHRASE_PREFIX)) {
+        map[cq.reference] = cq;
+      }
+    });
+    return map;
+  }, [customQuestions]);
+
+  // Derived list of questions for the manage tab
   const currentManageQuestions = useMemo(() => {
-    if (!selectedAudit || !selectedAuditProc) return [];
-    const activeProc = auditProcs.find(p => p.id === selectedAuditProc);
-    if (!activeProc) return [];
+    const std = effectiveStd;
+    const procKey = effectiveProcKey;
+    if (!procKey) return [];
 
-    // 1. Get standard questions
-    const stdKey: StandardKey = selectedAudit.standard === "27001" ? "9001" : (selectedAudit.standard as StandardKey);
-    const stdQuestions = getQuestionsFor(stdKey, activeProc.key as any) ?? [];
+    const stdKey: StandardKey = std === "27001" ? "9001" : (std as StandardKey);
+    const stdQuestions = getQuestionsFor(stdKey, procKey as any) ?? [];
 
     const list: any[] = [];
 
     stdQuestions.forEach((clauseSet) => {
-      // Generic
       clauseSet.generic.forEach((question, index) => {
         const qRef = `g${index}`;
-        const key = `${selectedAuditProc}:${clauseSet.clause}:generic:${qRef}`;
-        const answer = answers[key];
+        const rephraseRef = buildRephraseRef(std, procKey, "generic", qRef);
+        const rephraseOverride = rephraseOverrides[rephraseRef];
+
+        // In audit mode, also check audit_answers
+        let auditAnswerText: string | null = null;
+        if (selectedAudit && selectedAuditProc) {
+          const key = `${selectedAuditProc}:${clauseSet.clause}:generic:${qRef}`;
+          auditAnswerText = answers[key]?.question_text || null;
+        }
+
+        const displayText = auditAnswerText || rephraseOverride?.text || question;
         list.push({
-          id: key,
+          id: `${procKey}:${clauseSet.clause}:generic:${qRef}`,
           clause: clauseSet.clause,
           kind: "generic",
           q_ref: qRef,
           originalText: question,
-          text: answer?.question_text || question,
+          text: displayText,
           evidence: clauseSet.evidence?.join(" · ") || null,
           reference: null,
           isCustom: false,
-          answerId: answer?.id || null,
-          answer: answer || null,
+          isRephrased: displayText !== question,
+          rephraseRef,
+          rephraseOverrideId: rephraseOverride?.id || null,
+          answerId: selectedAudit && selectedAuditProc ? (answers[`${selectedAuditProc}:${clauseSet.clause}:generic:${qRef}`]?.id || null) : null,
         });
       });
 
-      // Specific
       clauseSet.specific.forEach((question, index) => {
         const qRef = `s${index}`;
-        const key = `${selectedAuditProc}:${clauseSet.clause}:specific:${qRef}`;
-        const answer = answers[key];
+        const rephraseRef = buildRephraseRef(std, procKey, "specific", qRef);
+        const rephraseOverride = rephraseOverrides[rephraseRef];
+
+        let auditAnswerText: string | null = null;
+        if (selectedAudit && selectedAuditProc) {
+          const key = `${selectedAuditProc}:${clauseSet.clause}:specific:${qRef}`;
+          auditAnswerText = answers[key]?.question_text || null;
+        }
+
+        const displayText = auditAnswerText || rephraseOverride?.text || question;
         list.push({
-          id: key,
+          id: `${procKey}:${clauseSet.clause}:specific:${qRef}`,
           clause: clauseSet.clause,
           kind: "specific",
           q_ref: qRef,
           originalText: question,
-          text: answer?.question_text || question,
+          text: displayText,
           evidence: clauseSet.evidence?.join(" · ") || null,
           reference: null,
           isCustom: false,
-          answerId: answer?.id || null,
-          answer: answer || null,
+          isRephrased: displayText !== question,
+          rephraseRef,
+          rephraseOverrideId: rephraseOverride?.id || null,
+          answerId: selectedAudit && selectedAuditProc ? (answers[`${selectedAuditProc}:${clauseSet.clause}:specific:${qRef}`]?.id || null) : null,
         });
       });
     });
 
-    // 2. Add custom questions
-    customQuestions.forEach((cq) => {
-      const key = `${selectedAuditProc}:${cq.clause}:custom:${cq.id}`;
-      const answer = answers[key];
-      list.push({
-        id: cq.id,
-        clause: cq.clause,
-        kind: "custom",
-        q_ref: cq.id,
-        originalText: cq.text,
-        text: cq.text,
-        evidence: cq.evidence,
-        reference: cq.reference,
-        isCustom: true,
-        active: cq.active,
-        answer: answer || null,
-        created_at: (cq as any).created_at,
+    // Add custom questions (non-rephrase ones)
+    customQuestions
+      .filter((cq) => !cq.reference?.startsWith(REPHRASE_PREFIX))
+      .forEach((cq) => {
+        list.push({
+          id: cq.id,
+          clause: cq.clause,
+          kind: "custom",
+          q_ref: cq.id,
+          originalText: cq.text,
+          text: cq.text,
+          evidence: cq.evidence,
+          reference: cq.reference,
+          isCustom: true,
+          isRephrased: false,
+          active: cq.active,
+          created_at: cq.created_at,
+        });
       });
-    });
 
     const clauseSort = (a: string) => a.split(".").map((n) => parseInt(n, 10) || 0);
 
     return list.sort((a, b) => {
-      if (a.isCustom !== b.isCustom) {
-        return a.isCustom ? -1 : 1;
-      }
+      if (a.isCustom !== b.isCustom) return a.isCustom ? -1 : 1;
       if (a.isCustom && b.isCustom) {
         return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
       }
@@ -309,7 +376,7 @@ export default function QuestionBank() {
       }
       return 0;
     });
-  }, [selectedAudit, selectedAuditProc, auditProcs, answers, customQuestions]);
+  }, [effectiveStd, effectiveProcKey, answers, customQuestions, rephraseOverrides, selectedAudit, selectedAuditProc]);
 
   // Derived browse questions list
   const currentBrowseQuestions = useMemo(() => {
@@ -326,6 +393,14 @@ export default function QuestionBank() {
     }
   }, [browseStd, browseProcessesList]);
 
+  useEffect(() => {
+    if (templateProcessesList.length > 0 && !templateProc) {
+      setTemplateProc(templateProcessesList[0].key);
+    } else if (templateProcessesList.length === 0) {
+      setTemplateProc("");
+    }
+  }, [templateStd, templateProcessesList]);
+
   // Auto pre-select process when copy destination standard changes
   useEffect(() => {
     if (copyDestProcessesList.length > 0) {
@@ -335,66 +410,112 @@ export default function QuestionBank() {
     }
   }, [copyDestStd, copyDestProcessesList]);
 
+  // Save rephrase — works in both template mode and audit mode
   const handleSaveRephrase = async (item: any) => {
-    if (!selectedAudit || !selectedAuditProc) return;
+    if (isAuditLocked) {
+      return toast({ title: "Audit in progress", description: "You cannot edit questions while the audit is active.", variant: "destructive" });
+    }
     if (!editingText.trim()) return;
+    if (!currentOrg || !user) return;
 
     if (item.isCustom) {
-      // Update custom question
+      // Update custom question text directly
       const { error } = await supabase
         .from("custom_questions")
         .update({ text: editingText })
         .eq("id", item.id);
-      
+
       if (error) {
         toast({ title: "Failed to update custom question", description: error.message, variant: "destructive" });
       } else {
-        // Also update audit_answers if there is an existing answer for it
-        await supabase
-          .from("audit_answers")
-          .update({ question_text: editingText })
-          .eq("audit_id", selectedAudit.id)
-          .eq("process_id", selectedAuditProc)
-          .eq("clause", item.clause)
-          .eq("kind", "custom")
-          .eq("q_ref", item.id);
-
+        // Also sync to audit_answers if in audit mode
+        if (selectedAudit && selectedAuditProc) {
+          await supabase
+            .from("audit_answers")
+            .update({ question_text: editingText })
+            .eq("audit_id", selectedAudit.id)
+            .eq("process_id", selectedAuditProc)
+            .eq("clause", item.clause)
+            .eq("kind", "custom")
+            .eq("q_ref", item.id);
+        }
         toast({ title: "Custom question updated successfully." });
-        loadAuditQuestionsData();
+        loadQuestionsData();
       }
     } else {
-      // Update or Insert in audit_answers
-      const key = `${selectedAuditProc}:${item.clause}:${item.kind}:${item.q_ref}`;
-      const existing = answers[key];
+      // Standard question rephrase
+      const procKey = effectiveProcKey;
+      const std = effectiveStd;
 
-      if (existing?.id) {
-        const { error } = await supabase
-          .from("audit_answers")
-          .update({ question_text: editingText })
-          .eq("id", existing.id);
-        if (error) {
-          toast({ title: "Failed to save rephrase", description: error.message, variant: "destructive" });
+      if (selectedAudit && selectedAuditProc) {
+        // Audit mode: save to audit_answers
+        const key = `${selectedAuditProc}:${item.clause}:${item.kind}:${item.q_ref}`;
+        const existing = answers[key];
+
+        if (existing?.id) {
+          const { error } = await supabase
+            .from("audit_answers")
+            .update({ question_text: editingText })
+            .eq("id", existing.id);
+          if (error) {
+            toast({ title: "Failed to save rephrase", description: error.message, variant: "destructive" });
+          } else {
+            toast({ title: "Question rephrased for this audit." });
+            loadQuestionsData();
+          }
         } else {
-          toast({ title: "Question rephrased successfully." });
-          loadAuditQuestionsData();
+          const { error } = await supabase
+            .from("audit_answers")
+            .insert({
+              audit_id: selectedAudit.id,
+              process_id: selectedAuditProc,
+              clause: item.clause,
+              kind: item.kind,
+              q_ref: item.q_ref,
+              question_text: editingText,
+              status: "pending",
+            });
+          if (error) {
+            toast({ title: "Failed to save rephrase", description: error.message, variant: "destructive" });
+          } else {
+            toast({ title: "Question rephrased for this audit." });
+            loadQuestionsData();
+          }
         }
       } else {
-        const { error } = await supabase
-          .from("audit_answers")
-          .insert({
-            audit_id: selectedAudit.id,
-            process_id: selectedAuditProc,
-            clause: item.clause,
-            kind: item.kind,
-            q_ref: item.q_ref,
-            question_text: editingText,
-            status: "pending",
-          });
-        if (error) {
-          toast({ title: "Failed to save rephrase", description: error.message, variant: "destructive" });
+        // Template mode: save rephrase to custom_questions with special reference marker
+        if (item.rephraseOverrideId) {
+          // Update existing rephrase override
+          const { error } = await supabase
+            .from("custom_questions")
+            .update({ text: editingText })
+            .eq("id", item.rephraseOverrideId);
+          if (error) {
+            toast({ title: "Failed to save rephrase", description: error.message, variant: "destructive" });
+          } else {
+            toast({ title: "Template rephrase saved.", description: "This wording will be pre-filled when a new audit uses this process." });
+            loadQuestionsData();
+          }
         } else {
-          toast({ title: "Question rephrased successfully." });
-          loadAuditQuestionsData();
+          // Insert new rephrase override
+          const { error } = await supabase.from("custom_questions").insert({
+            org_id: currentOrg.id,
+            created_by: user.id,
+            standard: std,
+            process_key: procKey,
+            clause: item.clause,
+            kind: "rephrase",
+            text: editingText,
+            evidence: item.evidence || null,
+            reference: item.rephraseRef, // e.g. "REPHRASE:9001:management_review:generic:g0"
+            active: true,
+          });
+          if (error) {
+            toast({ title: "Failed to save rephrase", description: error.message, variant: "destructive" });
+          } else {
+            toast({ title: "Template rephrase saved.", description: "This wording will be pre-filled when a new audit uses this process." });
+            loadQuestionsData();
+          }
         }
       }
     }
@@ -402,12 +523,19 @@ export default function QuestionBank() {
     setEditingQuestionKey(null);
   };
 
-  // Add custom question
+  // Add custom question — works in both modes
   const handleAddQuestion = async () => {
-    if (!currentOrg || !user || !selectedAudit || !selectedAuditProc) return;
-    const activeProc = auditProcs.find(p => p.id === selectedAuditProc);
-    if (!activeProc) return;
+    if (isAuditLocked) {
+      return toast({ title: "Audit in progress", description: "You cannot add custom questions while the audit is active.", variant: "destructive" });
+    }
+    if (!currentOrg || !user) return;
 
+    const std = effectiveStd;
+    const procKey = effectiveProcKey;
+
+    if (!procKey) {
+      return toast({ title: "Please select a process first", variant: "destructive" });
+    }
     if (!newQuestion.clause || !newQuestion.text.trim()) {
       return toast({ title: "Please fill in Clause and Question text", variant: "destructive" });
     }
@@ -415,8 +543,8 @@ export default function QuestionBank() {
     const { error } = await supabase.from("custom_questions").insert({
       org_id: currentOrg.id,
       created_by: user.id,
-      standard: selectedAudit.standard,
-      process_key: activeProc.key,
+      standard: std,
+      process_key: procKey,
       clause: newQuestion.clause,
       text: newQuestion.text,
       evidence: newQuestion.evidence || null,
@@ -429,37 +557,44 @@ export default function QuestionBank() {
     } else {
       toast({ title: "Custom question added successfully." });
       setNewQuestion({ clause: "", text: "", evidence: "", reference: "" });
-      loadAuditQuestionsData();
+      loadQuestionsData();
     }
   };
 
   // Delete custom question
   const handleDeleteCustom = async (id: string) => {
+    if (isAuditLocked) {
+      return toast({ title: "Audit in progress", description: "You cannot delete custom questions while the audit is active.", variant: "destructive" });
+    }
     const { error } = await supabase.from("custom_questions").delete().eq("id", id);
     if (error) {
       toast({ title: "Failed to delete question", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Question deleted successfully." });
-      loadAuditQuestionsData();
+      loadQuestionsData();
     }
   };
 
   // Copy/Import selected questions from source standard/proc
   const handleImportSelected = async () => {
-    if (!currentOrg || !user || !selectedAudit || !selectedAuditProc) return;
-    const activeProc = auditProcs.find(p => p.id === selectedAuditProc);
-    if (!activeProc) return;
+    if (isAuditLocked) {
+      return toast({ title: "Audit in progress", description: "You cannot import questions while the audit is active.", variant: "destructive" });
+    }
+    if (!currentOrg || !user) return;
+    const std = effectiveStd;
+    const procKey = effectiveProcKey;
 
+    if (!procKey) {
+      return toast({ title: "Please select a target process first", variant: "destructive" });
+    }
     if (selectedImportKeys.size === 0) {
       return toast({ title: "No questions selected", variant: "destructive" });
     }
 
-    // Get source questions list
     const srcQuestions = getQuestionsFor(importSrcStd, importSrcProc as any) ?? [];
     const importPromises: any[] = [];
 
     srcQuestions.forEach((clauseSet) => {
-      // Check generics
       clauseSet.generic.forEach((question, index) => {
         const key = `generic:${clauseSet.clause}:g${index}`;
         if (selectedImportKeys.has(key)) {
@@ -467,8 +602,8 @@ export default function QuestionBank() {
             supabase.from("custom_questions").insert({
               org_id: currentOrg.id,
               created_by: user.id,
-              standard: selectedAudit.standard,
-              process_key: activeProc.key,
+              standard: std,
+              process_key: procKey,
               clause: clauseSet.clause,
               text: `[Imported from ${importSrcStd.toUpperCase()}/${importSrcProc}] ${question}`,
               evidence: clauseSet.evidence?.join(" · ") || null,
@@ -479,7 +614,6 @@ export default function QuestionBank() {
         }
       });
 
-      // Check specifics
       clauseSet.specific.forEach((question, index) => {
         const key = `specific:${clauseSet.clause}:s${index}`;
         if (selectedImportKeys.has(key)) {
@@ -487,8 +621,8 @@ export default function QuestionBank() {
             supabase.from("custom_questions").insert({
               org_id: currentOrg.id,
               created_by: user.id,
-              standard: selectedAudit.standard,
-              process_key: activeProc.key,
+              standard: std,
+              process_key: procKey,
               clause: clauseSet.clause,
               text: `[Imported from ${importSrcStd.toUpperCase()}/${importSrcProc}] ${question}`,
               evidence: clauseSet.evidence?.join(" · ") || null,
@@ -505,7 +639,7 @@ export default function QuestionBank() {
       toast({ title: `Successfully imported ${importPromises.length} question(s).` });
       setIsImportModalOpen(false);
       setSelectedImportKeys(new Set());
-      loadAuditQuestionsData();
+      loadQuestionsData();
     } catch (err: any) {
       toast({ title: "Import failed", description: err.message, variant: "destructive" });
     }
@@ -536,7 +670,7 @@ export default function QuestionBank() {
       toast({ title: "Question successfully copied to destination." });
       setIsCopyModalOpen(false);
       setCopyTargetQuestion(null);
-      loadAuditQuestionsData();
+      loadQuestionsData();
     }
   };
 
@@ -558,6 +692,14 @@ export default function QuestionBank() {
     if (!importSrcProc) return [];
     return getQuestionsFor(importSrcStd, importSrcProc as any) ?? [];
   }, [importSrcStd, importSrcProc]);
+
+  // Is the manage panel ready to show questions?
+  const isManageReady = selectedAudit
+    ? !!selectedAuditProc
+    : !!templateProc;
+
+  // Lock editing when a live audit is selected (in_progress or closed)
+  const isAuditLocked = !!selectedAudit && (selectedAudit.status === "in_progress" || selectedAudit.status === "closed");
 
   return (
     <AppShell>
@@ -586,7 +728,7 @@ export default function QuestionBank() {
         {activeTab === "browse" && (
           <div className="mt-6 space-y-6">
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm max-w-3xl">
-              <h3 className="font-display text-sm font-semibold text-foreground">Select Standard & Process</h3>
+              <h3 className="font-display text-sm font-semibold text-foreground">Select Standard &amp; Process</h3>
               <p className="text-xs text-muted-foreground mt-0.5 mb-4">View standard compliance questions without needing to create or open an audit.</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
@@ -688,29 +830,44 @@ export default function QuestionBank() {
           <div className="mt-6 space-y-6">
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm max-w-4xl space-y-4">
               <div>
-                <h3 className="font-display text-base font-semibold text-foreground">Select Active Audit Run</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Customize the exact checklists, add bespoke questions, and copy requirements between standards.</p>
+                <h3 className="font-display text-base font-semibold text-foreground">Personalize Questions</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Customize checklists, rephrase standard questions, and add bespoke questions.
+                  Works both pre-audit (template mode) and during an active audit run.
+                </p>
               </div>
-              
+
+              {/* Info banner for template mode */}
+              {!selectedAudit && (
+                <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3.5">
+                  <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <p className="text-xs text-foreground/80 leading-relaxed">
+                    <strong>Template Mode</strong> — No audit selected. Rephrased questions and custom additions are saved as org-level templates and will be pre-filled when running audits for this standard and process.
+                  </p>
+                </div>
+              )}
+
               <div className="grid gap-3 sm:grid-cols-2">
+                {/* Audit selector */}
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">My Audits</label>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Audit Run (optional)</label>
                   <select
                     value={selectedAudit?.id || ""}
                     onChange={(e) => {
-                      const audit = audits.find(a => a.id === e.target.value);
+                      const audit = audits.find((a) => a.id === e.target.value);
                       setSelectedAudit(audit || null);
                     }}
                     className="input w-full h-11"
                   >
-                    <option value="">-- Choose Audit --</option>
+                    <option value="">-- Template Mode (No Audit) --</option>
                     {audits.map((a) => (
                       <option key={a.id} value={a.id}>{a.title} ({a.standard.toUpperCase()}) · {a.status}</option>
                     ))}
                   </select>
                 </div>
 
-                {selectedAudit && (
+                {/* Process selector */}
+                {selectedAudit ? (
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Audited Process</label>
                     <select
@@ -724,28 +881,84 @@ export default function QuestionBank() {
                       ))}
                     </select>
                   </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 col-span-1 sm:col-span-1 contents">
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Standard</label>
+                      <select
+                        value={templateStd}
+                        onChange={(e) => {
+                          setTemplateStd(e.target.value as StandardKey);
+                          setTemplateProc("");
+                        }}
+                        className="input w-full h-11"
+                      >
+                        {STANDARDS.map((s) => (
+                          <option key={s.key} value={s.key}>{s.code} - {s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Process</label>
+                      <select
+                        value={templateProc}
+                        onChange={(e) => setTemplateProc(e.target.value)}
+                        className="input w-full h-11"
+                      >
+                        <option value="">-- Choose Process --</option>
+                        {templateProcessesList.map((p) => (
+                          <option key={p.key} value={p.key}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
 
-            {selectedAudit && selectedAuditProc && (
+            {isManageReady && (
               <div className="space-y-6">
+                {/* Locked banner when audit is running */}
+                {isAuditLocked && (
+                  <div className="flex items-start gap-3 rounded-xl border border-destructive/25 bg-destructive/5 p-4">
+                    <X className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-destructive uppercase tracking-wide">
+                        Question Bank Locked
+                      </p>
+                      <p className="text-xs text-foreground/70 mt-0.5 leading-relaxed">
+                        This audit is currently <strong>{selectedAudit?.status === "closed" ? "closed" : "in progress"}</strong>. Questions cannot be edited, added, or imported once an audit has started. Switch to <strong>Template Mode</strong> (no audit selected) to prepare questions for future audits.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Question list panel */}
                 <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
                   <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4 mb-4">
                     <div>
-                      <h3 className="font-display text-base font-semibold text-foreground">Audit Checklist Questions</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">Edit wording or inject custom requirements for this process.</p>
+                      <h3 className="font-display text-base font-semibold text-foreground">
+                        {selectedAudit ? "Audit Checklist Questions" : "Template Questions"}
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {selectedAudit
+                          ? isAuditLocked
+                            ? "View-only — audit is in progress or closed."
+                            : "Edit wording or inject custom requirements for this audit process."
+                          : "Rephrase standard questions for your organisation. Saved as reusable templates."}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleOpenImportModal}
-                        className="rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold hover:bg-secondary transition flex items-center gap-1.5"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                        Import Questions
-                      </button>
-                    </div>
+                    {!isAuditLocked && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleOpenImportModal}
+                          className="rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold hover:bg-secondary transition flex items-center gap-1.5"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                          Import Questions
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-4">
@@ -763,6 +976,11 @@ export default function QuestionBank() {
                                 <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase ${item.isCustom ? "bg-amber-500/10 text-amber-500" : "bg-primary/10 text-primary"}`}>
                                   {item.isCustom ? "Custom" : "Standard"}
                                 </span>
+                                {item.isRephrased && !item.isCustom && (
+                                  <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase bg-emerald-500/10 text-emerald-500">
+                                    Rephrased
+                                  </span>
+                                )}
                               </div>
 
                               {isEditing ? (
@@ -778,7 +996,7 @@ export default function QuestionBank() {
                                     onClick={() => handleSaveRephrase(item)}
                                     className="rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary/95 transition shrink-0 h-9"
                                   >
-                                    Save Changes
+                                    Save
                                   </button>
                                   <button
                                     onClick={() => setEditingQuestionKey(null)}
@@ -790,7 +1008,7 @@ export default function QuestionBank() {
                               ) : (
                                 <div>
                                   <p className="text-sm text-foreground/90 font-medium">{item.text}</p>
-                                  {item.originalText !== item.text && (
+                                  {item.isRephrased && item.originalText !== item.text && (
                                     <p className="text-[11px] text-muted-foreground italic mt-0.5">Original: {item.originalText}</p>
                                   )}
                                 </div>
@@ -799,12 +1017,12 @@ export default function QuestionBank() {
                               {item.evidence && (
                                 <p className="text-[11px] text-muted-foreground"><strong>Evidence:</strong> {item.evidence}</p>
                               )}
-                              {item.reference && (
+                              {item.reference && !item.reference.startsWith(REPHRASE_PREFIX) && (
                                 <p className="text-[11px] text-muted-foreground"><strong>Reference:</strong> {item.reference}</p>
                               )}
                             </div>
 
-                            {!isEditing && (
+                            {!isEditing && !isAuditLocked && (
                               <div className="flex items-center gap-2 shrink-0">
                                 <button
                                   onClick={() => {
@@ -819,7 +1037,7 @@ export default function QuestionBank() {
                                 <button
                                   onClick={() => {
                                     setCopyTargetQuestion({ text: item.text, evidence: item.evidence });
-                                    setCopyDestStd(selectedAudit.standard as StandardKey);
+                                    setCopyDestStd((selectedAudit?.standard || templateStd) as StandardKey);
                                     setCopyDestClause(item.clause);
                                     setIsCopyModalOpen(true);
                                   }}
@@ -828,11 +1046,17 @@ export default function QuestionBank() {
                                 >
                                   <Copy className="h-3.5 w-3.5" />
                                 </button>
-                                {item.isCustom && (
+                                {(item.isCustom || item.isRephrased) && (
                                   <button
-                                    onClick={() => handleDeleteCustom(item.id)}
+                                    onClick={() => {
+                                      if (item.isCustom) {
+                                        handleDeleteCustom(item.id);
+                                      } else if (item.rephraseOverrideId) {
+                                        handleDeleteCustom(item.rephraseOverrideId);
+                                      }
+                                    }}
                                     className="rounded-lg p-1.5 text-destructive hover:bg-destructive/10 transition"
-                                    title="Remove question"
+                                    title={item.isCustom ? "Remove question" : "Reset rephrase to original"}
                                   >
                                     <X className="h-3.5 w-3.5" />
                                   </button>
@@ -846,78 +1070,86 @@ export default function QuestionBank() {
 
                     {currentManageQuestions.length === 0 && (
                       <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-                        No questions mapped. Import or add questions to get started.
+                        No questions found. Import or add questions to get started.
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Add Custom Question Form */}
-                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm max-w-xl">
-                  <h3 className="font-display text-sm font-semibold text-foreground">Add Custom Question</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 mb-4">Inject a brand new question specific to this audit process.</p>
-                  <div className="space-y-3">
-                    <div className="grid gap-2 grid-cols-3">
-                      <div className="col-span-1">
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Clause</label>
-                        <select
-                          value={newQuestion.clause}
-                          onChange={(e) => setNewQuestion({ ...newQuestion, clause: e.target.value })}
-                          className="input w-full h-10 text-xs"
-                        >
-                          <option value="">--</option>
-                          {ISO_CLAUSES_FOR_AUDIT.map((c) => (
-                            <option key={c.clause} value={c.clause}>{c.clause}</option>
-                          ))}
-                        </select>
+                {/* Add Custom Question Form — hidden when audit is locked */}
+                {!isAuditLocked && (
+                  <div className="rounded-2xl border border-border bg-card p-5 shadow-sm max-w-xl">
+                    <h3 className="font-display text-sm font-semibold text-foreground">Add Custom Question</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5 mb-4">
+                      {selectedAudit
+                        ? "Inject a brand new question specific to this audit process."
+                        : "Add a reusable custom question for this standard and process template."}
+                    </p>
+                    <div className="space-y-3">
+                      <div className="grid gap-2 grid-cols-3">
+                        <div className="col-span-1">
+                          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Clause</label>
+                          <select
+                            value={newQuestion.clause}
+                            onChange={(e) => setNewQuestion({ ...newQuestion, clause: e.target.value })}
+                            className="input w-full h-10 text-xs"
+                          >
+                            <option value="">--</option>
+                            {ISO_CLAUSES_FOR_AUDIT.map((c) => (
+                              <option key={c.clause} value={c.clause}>{c.clause}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Question Text</label>
+                          <input
+                            type="text"
+                            placeholder="Type question wording..."
+                            value={newQuestion.text}
+                            onChange={(e) => setNewQuestion({ ...newQuestion, text: e.target.value })}
+                            className="input w-full h-10 text-xs"
+                          />
+                        </div>
                       </div>
-                      <div className="col-span-2">
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Question Text</label>
-                        <input
-                          type="text"
-                          placeholder="Type question wording..."
-                          value={newQuestion.text}
-                          onChange={(e) => setNewQuestion({ ...newQuestion, text: e.target.value })}
-                          className="input w-full h-10 text-xs"
-                        />
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <div>
+                          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Expected Evidence</label>
+                          <input
+                            type="text"
+                            placeholder="SOP logs, minutes, reports..."
+                            value={newQuestion.evidence}
+                            onChange={(e) => setNewQuestion({ ...newQuestion, evidence: e.target.value })}
+                            className="input w-full h-10 text-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">SOP / Reference Ref</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. OAK-SOP-03"
+                            value={newQuestion.reference}
+                            onChange={(e) => setNewQuestion({ ...newQuestion, reference: e.target.value })}
+                            className="input w-full h-10 text-xs"
+                          />
+                        </div>
                       </div>
+                      <button
+                        onClick={handleAddQuestion}
+                        className="pill-cta px-4 py-2 text-xs font-semibold"
+                      >
+                        Add Question
+                      </button>
                     </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <div>
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Expected Evidence</label>
-                        <input
-                          type="text"
-                          placeholder="SOP logs, minutes, reports..."
-                          value={newQuestion.evidence}
-                          onChange={(e) => setNewQuestion({ ...newQuestion, evidence: e.target.value })}
-                          className="input w-full h-10 text-xs"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">SOP / Reference Ref</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. OAK-SOP-03"
-                          value={newQuestion.reference}
-                          onChange={(e) => setNewQuestion({ ...newQuestion, reference: e.target.value })}
-                          className="input w-full h-10 text-xs"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleAddQuestion}
-                      className="pill-cta px-4 py-2 text-xs font-semibold"
-                    >
-                      Add Question
-                    </button>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
-            {!selectedAudit && (
+            {!isManageReady && (
               <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center text-sm text-muted-foreground">
-                Select an audit above to begin managing and rephrasing questions.
+                {selectedAudit
+                  ? "Select a process above to begin managing questions for this audit."
+                  : "Select a Standard and Process above to start personalizing your question templates."}
               </div>
             )}
           </div>
@@ -936,7 +1168,7 @@ export default function QuestionBank() {
               >
                 <X className="h-4 w-4" />
               </button>
-              
+
               <div className="mb-4">
                 <h3 className="font-display text-base font-semibold text-foreground">Copy Question</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Copy the selected requirement to another standard process or clause.</p>
@@ -1003,7 +1235,7 @@ export default function QuestionBank() {
                     disabled={!copyDestProc || !copyDestClause}
                     className="pill-cta px-4 py-2 text-xs font-semibold disabled:opacity-50"
                   >
-                    Copy & Save
+                    Copy &amp; Save
                   </button>
                 </div>
               </div>
@@ -1021,12 +1253,12 @@ export default function QuestionBank() {
               >
                 <X className="h-4 w-4" />
               </button>
-              
+
               {/* Modal Header */}
               <div className="p-6 border-b border-border">
                 <h3 className="font-display text-lg font-semibold text-foreground">Import Questions</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Select a source standard and process to pull questions into the current active process.</p>
-                
+
                 {/* Selectors inside modal */}
                 <div className="grid gap-3 sm:grid-cols-2 mt-4">
                   <div>
@@ -1064,7 +1296,7 @@ export default function QuestionBank() {
                     <div className="font-mono text-xs font-bold text-primary border-b border-border pb-1">
                       Clause {clauseSet.clause} · {clauseSet.title}
                     </div>
-                    
+
                     {clauseSet.generic?.map((q: string, i: number) => {
                       const key = `generic:${clauseSet.clause}:g${i}`;
                       const isChecked = selectedImportKeys.has(key);

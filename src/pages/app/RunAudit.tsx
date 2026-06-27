@@ -1409,9 +1409,21 @@ export default function RunAudit() {
               <div className="md:col-span-2">
                 <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Requirement/Statement of the Standard not met</label>
                 <textarea
-                  value={editingFinding.questionText}
-                  disabled
-                  className="input min-h-[60px] w-full opacity-65 cursor-not-allowed bg-secondary/30"
+                  value={
+                    editingFinding.standardRequirement || 
+                    (() => {
+                      const matched = getClauseRequirement(audit?.standard, editingFinding.clause);
+                      return matched ? matched.requirement : (editingFinding.questionText ?? "");
+                    })()
+                  }
+                  onChange={(e) => {
+                    setEditingFinding({
+                      ...editingFinding,
+                      standardRequirement: e.target.value
+                    });
+                  }}
+                  className="input min-h-[60px] w-full"
+                  placeholder="Enter standard requirement..."
                 />
               </div>
             </div>
@@ -1454,7 +1466,10 @@ export default function RunAudit() {
                     rootCauseText: meta?.rootCauseText ?? "",
                     severity: modalSeverity,
                     nonConformityStatement: modalNonConformity,
-                    standardRequirement: editingFinding.questionText,
+                    standardRequirement: editingFinding.standardRequirement || (() => {
+                      const matched = getClauseRequirement(audit?.standard, editingFinding.clause);
+                      return matched ? matched.requirement : (editingFinding.questionText ?? "");
+                    })(),
                   });
 
                   setEditingFinding(null);
@@ -1564,7 +1579,17 @@ function Row({
     const nextStatus = "minor";
     setStatus(nextStatus);
     await persistAnswer(nextStatus, note);
-    onConfigureFinding({ processId, clause, kind, qRef, questionText: answer.question_text || q, finding, initialSeverity: "Medium" });
+    const meta = parseFindingMeta(finding?.root_cause ?? null);
+    onConfigureFinding({
+      processId,
+      clause,
+      kind,
+      qRef,
+      questionText: answer.question_text || q,
+      standardRequirement: meta?.standardRequirement || "",
+      finding,
+      initialSeverity: "Medium"
+    });
   };
 
   const handleCancelFinding = async () => {
@@ -1648,7 +1673,17 @@ function Row({
               setStatus(nextStatus);
               await persistAnswer(nextStatus, note);
               if (NONCONFORMING.has(nextStatus)) {
-                onConfigureFinding({ processId, clause, kind, qRef, questionText: answer.question_text || q, finding, initialSeverity: nextStatus === "major" ? "High" : nextStatus === "minor" ? "Medium" : "Low" });
+                const meta = parseFindingMeta(finding?.root_cause ?? null);
+                onConfigureFinding({
+                  processId,
+                  clause,
+                  kind,
+                  qRef,
+                  questionText: answer.question_text || q,
+                  standardRequirement: meta?.standardRequirement || "",
+                  finding,
+                  initialSeverity: nextStatus === "major" ? "High" : nextStatus === "minor" ? "Medium" : "Low"
+                });
               } else {
                 await persistFinding(nextStatus);
               }
@@ -1719,7 +1754,19 @@ function Row({
             <span>Finding details declared</span>
           </div>
           <button
-            onClick={() => onConfigureFinding({ processId, clause, kind, qRef, questionText: answer.question_text || q, finding, initialSeverity: status === "major" ? "High" : status === "minor" ? "Medium" : "Low" })}
+            onClick={() => {
+              const meta = parseFindingMeta(finding?.root_cause ?? null);
+              onConfigureFinding({
+                processId,
+                clause,
+                kind,
+                qRef,
+                questionText: answer.question_text || q,
+                standardRequirement: meta?.standardRequirement || "",
+                finding,
+                initialSeverity: status === "major" ? "High" : status === "minor" ? "Medium" : "Low"
+              });
+            }}
             className="pill-secondary py-1.5 px-3.5 text-xs bg-warning/10 border-warning/20 hover:bg-warning/20 text-warning"
           >
             Configure Finding Details

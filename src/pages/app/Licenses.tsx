@@ -357,7 +357,7 @@ export default function Licenses() {
         object: auditObject.trim() || null,
         start_date: startDate || null,
         end_date: endDate || null,
-        owner: auditOwner || null,
+        owner: currentOrg.type !== "individual" ? currentOrg.name : (auditOwner || null),
         lead_auditor_id: auditorId,
         status: "in_progress",
         started_at: new Date().toISOString(),
@@ -739,18 +739,18 @@ export default function Licenses() {
 
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Owner / Auditee (Who the audit is for)</label>
-                    <select
-                      className="input w-full font-sans text-sm"
-                      value={auditOwner}
-                      onChange={(e) => setAuditOwner(e.target.value)}
-                    >
-                      <option value="">— Select Owner / Auditee —</option>
-                      {auditors.map((a) => (
-                        <option key={a.id} value={a.name}>
-                          {a.name} ({a.role === "management_representative" ? "Management Rep" : a.role === "lead_auditor" ? "Lead Auditor" : a.role === "auditee" ? "Auditee" : "Auditor"})
-                        </option>
-                      ))}
-                    </select>
+                    <input
+                      type="text"
+                      className={`input w-full font-sans text-sm ${currentOrg?.type !== "individual" ? "bg-secondary/40 opacity-70 cursor-not-allowed" : ""}`}
+                      value={currentOrg?.type !== "individual" ? (currentOrg?.name || "") : auditOwner}
+                      onChange={(e) => {
+                        if (currentOrg?.type === "individual") {
+                          setAuditOwner(e.target.value);
+                        }
+                      }}
+                      disabled={currentOrg?.type !== "individual"}
+                      placeholder={currentOrg?.type === "individual" ? "Type owner/auditee name..." : currentOrg?.name || ""}
+                    />
                   </div>
 
                   <div>
