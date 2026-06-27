@@ -9,7 +9,7 @@ import { PROCESSES } from "@/data/processAudit";
 import { PROCESSES_14001 } from "@/data/processAudit14001";
 import { PROCESSES_45001 } from "@/data/processAudit45001";
 import { HSE_PROCESSES } from "@/data/standardsHse";
-import { Plus, X, ArrowLeft, Check, ClipboardCopy, HelpCircle } from "lucide-react";
+import { Plus, X, ArrowLeft, Check, ClipboardCopy, HelpCircle, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 
@@ -528,9 +528,10 @@ export default function Processes() {
                           e.stopPropagation();
                           setProcessToDelete(p);
                         }} 
-                        className="text-xs text-destructive hover:underline font-semibold"
+                        className="inline-flex items-center text-muted-foreground hover:text-destructive transition"
+                        title="Remove process"
                       >
-                        Remove
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     )}
                   </div>
