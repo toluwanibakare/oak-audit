@@ -234,12 +234,14 @@ const AppDashboard = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <div className="rounded-full border border-border bg-background px-4 py-2 text-sm shadow-card">
-              <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Credits</span>
-              <span className="ml-2 font-display text-base font-bold">
-                {loading || credits === null ? <Skeleton className="inline-block h-5 w-12 align-middle" /> : credits}
-              </span>
-            </div>
+            {!isAuditor && (
+              <div className="rounded-full border border-border bg-background px-4 py-2 text-sm shadow-card">
+                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Credits</span>
+                <span className="ml-2 font-display text-base font-bold">
+                  {loading || credits === null ? <Skeleton className="inline-block h-5 w-12 align-middle" /> : credits}
+                </span>
+              </div>
+            )}
             {!isAuditor && <Link to="/app/licenses" className="pill-cta">+ New audit</Link>}
           </div>
         </div>

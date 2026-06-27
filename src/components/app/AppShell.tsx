@@ -96,6 +96,8 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
     })();
   }, [user, currentOrg]);
 
+  const isAuditor = currentUserAuditor?.role === "auditor";
+
   /* ── Wallet balance & Real-time Sync ─────────────────────────── */
   useEffect(() => {
     if (!currentOrg) return;
@@ -568,15 +570,17 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
             </div>
           </div>
 
-          <Link
-            to="/app/wallet"
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 sm:px-4 sm:py-2 text-xs font-medium transition hover:bg-secondary shrink-0"
-          >
-            <WalletIcon className="h-3.5 w-3.5 text-primary shrink-0" />
-            <span className="font-semibold text-foreground">{balance ?? 0}</span>
-            <span className="text-muted-foreground hidden sm:inline">credit{balance === 1 ? "" : "s"} · Top up</span>
-            <span className="text-muted-foreground sm:hidden">cr</span>
-          </Link>
+          {!isAuditor && (
+            <Link
+              to="/app/wallet"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 sm:px-4 sm:py-2 text-xs font-medium transition hover:bg-secondary shrink-0"
+            >
+              <WalletIcon className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span className="font-semibold text-foreground">{balance ?? 0}</span>
+              <span className="text-muted-foreground hidden sm:inline">credit{balance === 1 ? "" : "s"} · Top up</span>
+              <span className="text-muted-foreground sm:hidden">cr</span>
+            </Link>
+          )}
         </header>
 
         <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-10">
