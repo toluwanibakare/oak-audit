@@ -56,6 +56,8 @@ export default function RunAudit() {
   const [allCustom, setAllCustom] = useState<any[]>([]);
   const [findingsMap, setFindingsMap] = useState<Record<string, FindingRow>>({});
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
+  // ISO clause requirements loaded from Supabase: clause -> requirement text
+  const [clauseRequirementsMap, setClauseRequirementsMap] = useState<Record<string, string>>({});
   
   const [auditors, setAuditors] = useState<{ id: string; name: string; user_id: string | null }[]>([]);
   const [auditProcesses, setAuditProcesses] = useState<{ process_id: string; auditor_id: string | null }[]>([]);
@@ -154,6 +156,22 @@ export default function RunAudit() {
       if (!auditRow) return;
       const currentAudit = auditRow as Audit;
       setAudit(currentAudit);
+
+      // 1b. Fetch ISO clause requirements for this standard from the database
+      const applicableStdsForClauses: string[] = currentAudit.standard === "ims"
+        ? ["9001", "14001", "45001"]
+        : currentAudit.standard === "hse"
+        ? ["14001", "45001"]
+        : [currentAudit.standard];
+      const { data: clauseRows } = await supabase
+        .from("iso_clauses")
+        .select("clause, requirement")
+        .in("standard", applicableStdsForClauses);
+      if (clauseRows) {
+        const reqMap: Record<string, string> = {};
+        clauseRows.forEach((row: any) => { reqMap[row.clause.trim()] = row.requirement; });
+        setClauseRequirementsMap(reqMap);
+      }
 
       // 2. Fetch existing organization processes
       const { data: orgProcs } = await supabase.from("org_processes").select("id,key,name").eq("org_id", currentOrg.id).order("name");
@@ -412,8 +430,8 @@ export default function RunAudit() {
       return "Low";
     };
 
-    const matchedClause = getClauseRequirement(audit?.standard, clause);
-    const resolvedReq = standardRequirement || (matchedClause ? matchedClause.requirement : (kind === "custom" ? (questionText ?? "") : ""));
+    const matchedClause = clauseRequirementsMap[clause?.trim() ?? ""] || getClauseRequirement(audit?.standard, clause)?.requirement || "";
+    const resolvedReq = standardRequirement || matchedClause || (kind === "custom" ? (questionText ?? "") : "");
 
     const rootCausePayload = `${AUTO_FINDING_PREFIX}${JSON.stringify({
       processId,
@@ -1424,11 +1442,10 @@ export default function RunAudit() {
                 <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Requirement/Statement of the Standard not met</label>
                 <textarea
                   value={
-                    editingFinding.standardRequirement || 
-                    (() => {
-                      const matched = getClauseRequirement(audit?.standard, editingFinding.clause);
-                      return matched ? matched.requirement : (editingFinding.kind === "custom" ? (editingFinding.questionText ?? "") : "");
-                    })()
+                    editingFinding.standardRequirement ||
+                    clauseRequirementsMap[editingFinding.clause?.trim() ?? ""] ||
+                    getClauseRequirement(audit?.standard, editingFinding.clause)?.requirement ||
+                    (editingFinding.kind === "custom" ? (editingFinding.questionText ?? "") : "")
                   }
                   onChange={(e) => {
                     if (editingFinding.kind === "custom") {
@@ -1483,10 +1500,11 @@ export default function RunAudit() {
                     rootCauseText: meta?.rootCauseText ?? "",
                     severity: modalSeverity,
                     nonConformityStatement: modalNonConformity,
-                    standardRequirement: editingFinding.standardRequirement || (() => {
-                      const matched = getClauseRequirement(audit?.standard, editingFinding.clause);
-                      return matched ? matched.requirement : (editingFinding.kind === "custom" ? (editingFinding.questionText ?? "") : "");
-                    })(),
+                    standardRequirement: editingFinding.standardRequirement ||
+                      clauseRequirementsMap[editingFinding.clause?.trim() ?? ""] ||
+                      getClauseRequirement(audit?.standard, editingFinding.clause)?.requirement ||
+                      (editingFinding.kind === "custom" ? (editingFinding.questionText ?? "") : ""),
+
                   });
 
                   setEditingFinding(null);
