@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -260,10 +260,10 @@ export default function Landing() {
             <img src={logo} alt="Logo" className="h-9 w-auto shrink-0 object-contain" />
             <div className="flex flex-col min-w-0">
               <span className="font-display text-[13.5px] sm:text-[14.5px] font-extrabold text-foreground leading-none truncate">
-                ISO AUDIT MANAGEMENT PORT
+                OakAudix
               </span>
               <span className="font-display text-[9px] sm:text-[10.5px] text-muted-foreground font-normal leading-none mt-1 tracking-wide block">
-                Powered By Oak Global International
+                Powered By OakAudix
               </span>
 
             </div>
@@ -440,7 +440,7 @@ export default function Landing() {
             </h1>
 
             <p className="animate-fade-in-up-delay-2 mx-auto mt-4 max-w-2xl text-sm sm:text-base leading-6 sm:leading-7 text-white/85 md:text-lg">
-              ISO AUDIT MANAGEMENT PORT gives auditors one clean place to manage processes, run audits,
+              OakAudix gives auditors one clean place to manage processes, run audits,
               collect evidence, track findings, and export polished reports — without the usual friction.
             </p>
 
@@ -857,7 +857,7 @@ export default function Landing() {
               Ready To Modernise Your Audit Operations?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-base text-white/80 leading-relaxed">
-              Join audit teams across Africa using ISO AUDIT MANAGEMENT PORT's platform to run ISO-ready audits faster
+              Join audit teams across Africa using OakAudix's platform to run ISO-ready audits faster
               and with greater confidence.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3.5 max-w-xs mx-auto sm:max-w-none">
@@ -888,8 +888,8 @@ export default function Landing() {
             <div className="flex items-center gap-3">
               <img src={logo} alt="Logo" className="h-9 w-auto shrink-0 object-contain" />
               <div>
-                <span className="font-display text-base font-bold text-foreground block">ISO AUDIT MANAGEMENT PORT</span>
-                <span className="text-[10px] text-muted-foreground uppercase tracking-widest block">Powered By Oak Global International</span>
+                <span className="font-display text-base font-bold text-foreground block">OakAudix</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-widest block">Powered By OakAudix</span>
 
               </div>
             </div>
@@ -915,7 +915,7 @@ export default function Landing() {
           {/* Bottom section */}
           <div className="flex flex-col items-center justify-between gap-4 sm:flex-row pt-8">
             <p className="text-xs text-muted-foreground text-center sm:text-left">
-              © {new Date().getFullYear()} ISO AUDIT MANAGEMENT PORT. All rights reserved.
+              © {new Date().getFullYear()} OakAudix. All rights reserved.
             </p>
             
             <p className="text-xs text-muted-foreground text-center sm:text-right">

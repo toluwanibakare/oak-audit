@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 import { ArrowLeft, FileText, AlertTriangle, Scale, ShieldAlert } from "lucide-react";
 import logo from "@/assets/logo.png";
 
@@ -16,10 +16,10 @@ export default function Terms() {
             <img src={logo} alt="Logo" className="h-8 w-auto shrink-0 object-contain" />
             <div className="flex flex-col min-w-0">
               <span className="font-display text-[12px] sm:text-[13px] font-extrabold text-foreground leading-none truncate uppercase">
-                ISO AUDIT MANAGEMENT PORT
+                OakAudix
               </span>
               <span className="font-display text-[8.5px] sm:text-[9.5px] text-muted-foreground font-normal leading-none mt-0.5 tracking-wide block">
-                Powered By Oak Global International
+                Powered By OakAudix
               </span>
             </div>
           </Link>
@@ -57,7 +57,7 @@ export default function Terms() {
                 1. Acceptance of Terms
               </h2>
               <p>
-                By registering a ISO workspace, funding your credit wallet, or using OAK Global International's platform, you agree to be bound by these Terms of Service. If you are registering an account on behalf of a company or individual auditor workspace, you warrant that you possess full administrative permissions to bind that organization.
+                By registering a ISO workspace, funding your credit wallet, or using OakAudix's platform, you agree to be bound by these Terms of Service. If you are registering an account on behalf of a company or individual auditor workspace, you warrant that you possess full administrative permissions to bind that organization.
               </p>
             </section>
 
@@ -67,7 +67,7 @@ export default function Terms() {
                 2. Absolute Proprietary Protection & Intellectual Property
               </h2>
               <p>
-                The entire Platform, including but not limited to source code, React components, CSS stylesheets, custom database RPC scripts, pre-built ISO checklists (ISO 9001, 14001, 45001, 27001, HSE, and cross-mapped IMS databases), icons, illustrations, and logos, is the absolute proprietary intellectual property of **OAK Global International**.
+                The entire Platform, including but not limited to source code, React components, CSS stylesheets, custom database RPC scripts, pre-built ISO checklists (ISO 9001, 14001, 45001, 27001, HSE, and cross-mapped IMS databases), icons, illustrations, and logos, is the absolute proprietary intellectual property of **OakAudix**.
               </p>
               <ul className="list-disc pl-5 space-y-1">
                 <li><strong>No Duplication:</strong> Under no circumstances may any user, organization, or external developer duplicate, clone, scrape, mimic, or replicate the platform's UI workflows or checklists.</li>
@@ -80,7 +80,7 @@ export default function Terms() {
                 3. Credit Wallet & Licensing
               </h2>
               <p>
-                Auditing on OAK Global International operates on a proprietary pay-per-audit credit wallet system:
+                Auditing on OakAudix operates on a proprietary pay-per-audit credit wallet system:
               </p>
               <ul className="list-disc pl-5 space-y-1.5">
                 <li><strong>Rate:</strong> The exchange rate is **1 Credit = ₦10,000**. Credits are paid via the Paystack billing gate.</li>
@@ -94,7 +94,7 @@ export default function Terms() {
                 4. Compliance Review Gates
               </h2>
               <p>
-                To maintain the integrity of OAK Global International's platform:
+                To maintain the integrity of OakAudix's platform:
               </p>
               <ul className="list-disc pl-5 space-y-1">
                 <li>Both corporate and individual auditor workspaces must complete Profile Settings and pass compliance review by ISO administrators before licensing or unlocking audit packs.</li>
@@ -108,7 +108,7 @@ export default function Terms() {
                 For contract inquiries, institutional custom pricing review, or legal matters, please reach our board:
               </p>
               <address className="not-italic text-xs font-mono bg-secondary/50 border border-border p-4 rounded-xl mt-2 space-y-1 text-foreground">
-                <p>OAK Global International — Compliance & Corporate Governance Board</p>
+                <p>OakAudix — Compliance & Corporate Governance Board</p>
                 <p>Email: o.kolawole@oak-global.com.ng / info@oak-global.com.ng</p>
                 <p>Phone: +234 802 364 4148</p>
               </address>
@@ -120,7 +120,7 @@ export default function Terms() {
       {/* Guest footer */}
       <footer className="border-t border-border bg-card/80 py-5 relative z-10">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} ISO AUDIT MANAGEMENT PORT. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} OakAudix. All rights reserved.</span>
           <span>
             Built by{" "}
             <a 

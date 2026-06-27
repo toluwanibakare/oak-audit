@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+﻿import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams, Link } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, ClipboardCheck, Download, PieChart as PieChartIcon, Printer, Radar, Table, FileText, Mail, Paperclip, Send, X } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
@@ -546,7 +546,7 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <img src={logo} alt="OAK Logo" className="h-14 w-auto object-contain shrink-0" />
               <div>
-                <span className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">OAK Global International - Audit Report</span>
+                <span className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">OakAudix - Audit Report</span>
                 <div className="mt-1.5 space-y-1">
                   <label className="text-[9px] font-bold text-muted-foreground uppercase block">Report Title</label>
                   <input

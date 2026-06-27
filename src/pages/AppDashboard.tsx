@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowRight,
@@ -190,7 +190,7 @@ const AppDashboard = () => {
               <div>
                 <h2 className="font-display text-lg font-bold text-foreground">Account approved & ready</h2>
                 <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                  ISO AUDIT MANAGEMENT PORT compliance administrators have successfully activated your ISO environment. Go ahead, unlock an ISO standard, and start your compliance runs!
+                  OakAudix compliance administrators have successfully activated your ISO environment. Go ahead, unlock an ISO standard, and start your compliance runs!
                 </p>
                 <div className="mt-3.5 flex flex-wrap items-center gap-4">
                   <Link to="/app/licenses" className="inline-flex items-center gap-1.5 rounded-full bg-success px-4 py-2 text-xs font-bold text-success-foreground transition hover:opacity-90">
@@ -326,7 +326,7 @@ const AppDashboard = () => {
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary animate-bounce">
                 <ClipboardCheck className="h-8 w-8" />
               </div>
-              <h3 className="mt-6 font-display text-2xl font-bold text-foreground">Welcome to ISO AUDIT MANAGEMENT PORT</h3>
+              <h3 className="mt-6 font-display text-2xl font-bold text-foreground">Welcome to OakAudix</h3>
               <p className="mt-2.5 text-sm text-muted-foreground leading-relaxed">
                 Start auditing with absolute confidence. Unlock an ISO standard, IMS, or HSE Safety pack from our catalog, seed your question bank, and get going.
               </p>
@@ -359,23 +359,25 @@ const AppDashboard = () => {
             </div>
           </aside>
 
-          <aside className="analytics-panel rounded-[28px] border border-border bg-card p-6 shadow-card" style={{ animationDelay: "180ms" }}>
-            <div className="inline-flex items-center gap-2 rounded-full bg-gold/10 px-3 py-1 text-xs font-medium text-gold">
-              <FolderLock className="h-3.5 w-3.5" />
-              Expand access
-            </div>
-            <h2 className="mt-3 font-display text-2xl font-semibold">Unlock more packs</h2>
-            <p className="mt-2 text-sm text-muted-foreground">Add more standards when you need broader coverage for new teams, sites, or audit scopes.</p>
-            <div className="mt-5 rounded-2xl border border-dashed border-border p-4">
-              <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Ready now</div>
-              {loading ? <Skeleton className="mt-2 h-8 w-16" /> : <div className="mt-2 font-display text-3xl font-bold">{stats.licenses}</div>}
-              <p className="mt-1 text-xs text-muted-foreground">Unlocked packs available today</p>
-            </div>
-            <Link to="/app/licenses" className="pill-cta mt-6 w-full">
-              Unlock more packs
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </aside>
+          {!isAuditor && (
+            <aside className="analytics-panel rounded-[28px] border border-border bg-card p-6 shadow-card" style={{ animationDelay: "180ms" }}>
+              <div className="inline-flex items-center gap-2 rounded-full bg-gold/10 px-3 py-1 text-xs font-medium text-gold">
+                <FolderLock className="h-3.5 w-3.5" />
+                Expand access
+              </div>
+              <h2 className="mt-3 font-display text-2xl font-semibold">Unlock more packs</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Add more standards when you need broader coverage for new teams, sites, or audit scopes.</p>
+              <div className="mt-5 rounded-2xl border border-dashed border-border p-4">
+                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Ready now</div>
+                {loading ? <Skeleton className="mt-2 h-8 w-16" /> : <div className="mt-2 font-display text-3xl font-bold">{stats.licenses}</div>}
+                <p className="mt-1 text-xs text-muted-foreground">Unlocked packs available today</p>
+              </div>
+              <Link to="/app/licenses" className="pill-cta mt-6 w-full">
+                Unlock more packs
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </aside>
+          )}
         </div>
       </section>
 

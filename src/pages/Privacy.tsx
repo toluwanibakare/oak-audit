@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 import { ArrowLeft, Shield, Lock, Eye, RefreshCw, Clock } from "lucide-react";
 import logo from "@/assets/logo.png";
 
@@ -16,10 +16,10 @@ export default function Privacy() {
             <img src={logo} alt="Logo" className="h-8 w-auto shrink-0 object-contain" />
             <div className="flex flex-col min-w-0">
               <span className="font-display text-[12px] sm:text-[13px] font-extrabold text-foreground leading-none truncate uppercase">
-                ISO AUDIT MANAGEMENT PORT
+                OakAudix
               </span>
               <span className="font-display text-[8.5px] sm:text-[9.5px] text-muted-foreground font-normal leading-none mt-0.5 tracking-wide block">
-                Powered By Oak Global International
+                Powered By OakAudix
               </span>
             </div>
           </Link>
@@ -51,7 +51,7 @@ export default function Privacy() {
                 1. Information We Collect
               </h2>
               <p>
-                OAK Global International collects information necessary to facilitate ISO audit command workflows, credit allocations, and security records. This includes:
+                OakAudix collects information necessary to facilitate ISO audit command workflows, credit allocations, and security records. This includes:
               </p>
               <ul className="list-disc pl-5 space-y-1.5">
                 <li><strong>Account Credentials:</strong> Name, professional email address, phone number, physical contact address, and organizational metadata.</li>
@@ -81,7 +81,7 @@ export default function Privacy() {
                 3. Sharing of Information
               </h2>
               <p>
-                OAK Global International maintains an absolute policy of confidentiality. We **do not sell, rent, trade, or distribute** your organizational metrics, audit reports, finding databases, or contact records to any third-party advertisers, compliance boards, or external brokers. Data is stored solely to run compliance audits.
+                OakAudix maintains an absolute policy of confidentiality. We **do not sell, rent, trade, or distribute** your organizational metrics, audit reports, finding databases, or contact records to any third-party advertisers, compliance boards, or external brokers. Data is stored solely to run compliance audits.
               </p>
             </section>
 
@@ -103,7 +103,7 @@ export default function Privacy() {
                 desk, or reach us at:
               </p>
               <address className="not-italic text-xs font-mono bg-secondary/50 border border-border p-4 rounded-xl mt-2 space-y-1 text-foreground">
-                <p>OAK Global International — ISO Legal Affairs</p>
+                <p>OakAudix — ISO Legal Affairs</p>
                 <p>Email: o.kolawole@oak-global.com.ng / info@oak-global.com.ng</p>
                 <p>Phone: +234 802 364 4148</p>
               </address>
@@ -115,7 +115,7 @@ export default function Privacy() {
       {/* Guest footer */}
       <footer className="border-t border-border bg-card/80 py-5 relative z-10">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} ISO AUDIT MANAGEMENT PORT. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} OakAudix. All rights reserved.</span>
           <span>
             Built by{" "}
             <a 

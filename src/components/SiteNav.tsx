@@ -1,4 +1,4 @@
-import logo from "@/assets/logo.png";
+﻿import logo from "@/assets/logo.png";
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 
@@ -22,8 +22,8 @@ export const SiteNav = ({ onSwitchToSignIn, onSwitchToSignUp }: SiteNavProps = {
         <Link to="/" className="flex items-center gap-2">
           <img src={logo} alt="Logo" className="h-9 w-auto" />
           <span className="font-display">
-            <span className="block text-base font-semibold tracking-tight leading-none">ISO AUDIT MANAGEMENT PORT</span>
-            <span className="block text-[10px] text-muted-foreground font-normal tracking-wide mt-0.5">Powered By Oak Global International</span>
+            <span className="block text-base font-semibold tracking-tight leading-none">OakAudix</span>
+            <span className="block text-[10px] text-muted-foreground font-normal tracking-wide mt-0.5">Powered By OakAudix</span>
 
           </span>
         </Link>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
@@ -172,7 +172,7 @@ export default function Settings() {
                 className="input" 
                 value={name} 
                 onChange={(e) => setName(e.target.value)} 
-                placeholder={isIndividual ? "e.g. Adaeze Okonkwo" : "e.g. OAK Global International"} 
+                placeholder={isIndividual ? "e.g. Adaeze Okonkwo" : "e.g. OakAudix"} 
               />
             </Field>
 
@@ -316,7 +316,7 @@ export default function Settings() {
       </div>
 
       <div className="pt-10 pb-6 text-center text-xs text-muted-foreground/60 select-none font-medium border-t border-border/40 mt-10">
-        © {new Date().getFullYear()} ISO AUDIT MANAGEMENT PORT. All rights reserved.
+        © {new Date().getFullYear()} OakAudix. All rights reserved.
       </div>
     </AppShell>
   );

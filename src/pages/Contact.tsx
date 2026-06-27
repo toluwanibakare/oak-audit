@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -528,10 +528,10 @@ export default function Contact() {
             <img src={logo} alt="Logo" className="h-8 w-auto shrink-0 object-contain" />
             <div className="flex flex-col min-w-0">
               <span className="font-display text-[12px] sm:text-[13px] font-extrabold text-foreground leading-none truncate uppercase">
-                ISO AUDIT MANAGEMENT PORT
+                OakAudix
               </span>
               <span className="font-display text-[8.5px] sm:text-[9.5px] text-muted-foreground font-normal leading-none mt-0.5 tracking-wide block">
-                Powered By Oak Global International
+                Powered By OakAudix
               </span>
             </div>
           </Link>
@@ -559,7 +559,7 @@ export default function Contact() {
       {/* Guest footer */}
       <footer className="border-t border-border bg-card/80 py-5 relative z-10">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} ISO AUDIT MANAGEMENT PORT. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} OakAudix. All rights reserved.</span>
           <span>
             Built by{" "}
             <a 

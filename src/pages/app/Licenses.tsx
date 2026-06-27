@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+﻿import { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, CheckCircle2, Lock, Unlock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -348,7 +348,7 @@ export default function Licenses() {
             <div className="max-w-2xl">
               <h3 className="font-display text-lg font-bold text-foreground">Complete your Profile Settings to proceed</h3>
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                Before you can purchase or unlock any ISO standards, you are required to complete your organization profile details. This helps OAK Global International verify your ISO workspace and activate licensing permissions.
+                Before you can purchase or unlock any ISO standards, you are required to complete your organization profile details. This helps OakAudix verify your ISO workspace and activate licensing permissions.
               </p>
               <p className="mt-2 text-xs text-warning font-semibold tracking-wide uppercase">
                 Required fields: Website, Phone number, Industry, Company size, Address, and Description.
@@ -367,7 +367,7 @@ export default function Licenses() {
             <div className="max-w-2xl">
               <h3 className="font-display text-lg font-bold text-foreground">Active Audit In Progress</h3>
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                You currently have an active audit in progress. OAK Global International's compliance rules require you to submit and generate your active audit's report before you can unlock or setup another audit run.
+                You currently have an active audit in progress. OakAudix's compliance rules require you to submit and generate your active audit's report before you can unlock or setup another audit run.
               </p>
             </div>
             <Link to="/app/audits" className="pill-cta bg-warning hover:bg-warning/90 text-white shrink-0">

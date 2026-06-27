@@ -1,4 +1,4 @@
-import { useEffect, useState, type InputHTMLAttributes } from "react";
+﻿import { useEffect, useState, type InputHTMLAttributes } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -247,7 +247,7 @@ const Auth = () => {
           email: parsedStep1.data.email,
           password: parsedStep1.data.password,
           options: {
-            emailRedirectTo: "https://oak-audit.vercel.app/auth/callback",
+            emailRedirectTo: "https://oakaudix.app/auth/callback",
             data: {
               full_name: parsedStep1.data.full_name,
               account_type: accountType,
@@ -381,7 +381,7 @@ const Auth = () => {
               <p className="mt-1 text-sm text-muted-foreground">
                 {mode === "signup" 
                   ? (step === 1 ? "Start auditing in minutes." : "Required for determining your custom pricing tier.")
-                  : (mode === "forgot" ? "Retrieve Access To Your ISO AUDIT MANAGEMENT PORT Workspace." : "Sign In To Your ISO AUDIT MANAGEMENT PORT Workspace.")}
+                  : (mode === "forgot" ? "Retrieve Access To Your OakAudix Workspace." : "Sign In To Your OakAudix Workspace.")}
               </p>
 
               {/* Account Type Selector - Only visible in Step 1 of Sign Up */}
@@ -638,7 +638,7 @@ const Auth = () => {
                     <button onClick={() => switchMode("signin")} className="font-semibold text-foreground hover:underline transition">Sign In</button>
                   </>
                 ) : (
-                  <>New to ISO AUDIT MANAGEMENT PORT?{" "}
+                  <>New to OakAudix?{" "}
                     <button onClick={() => switchMode("signup")} className="font-semibold text-foreground hover:underline transition">Create An Account</button>
                   </>
                 )}

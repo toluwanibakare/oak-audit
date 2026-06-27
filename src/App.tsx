@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -97,7 +97,7 @@ const App = () => {
     
     console.log("%cSTOP! Proprietary Software Notice", warningStyle);
     console.log(
-      "%cThis platform and all its source files, database schemas, question checklists, and design systems are the highly confidential, proprietary intellectual property of ISO AUDIT MANAGEMENT PORT.\n\nUnauthorized inspection, duplication, decompilation, scraping, or usage is strictly prohibited under international copyright law and subject to immediate civil and criminal prosecution.",
+      "%cThis platform and all its source files, database schemas, question checklists, and design systems are the highly confidential, proprietary intellectual property of OakAudix.\n\nUnauthorized inspection, duplication, decompilation, scraping, or usage is strictly prohibited under international copyright law and subject to immediate civil and criminal prosecution.",
       "font-size: 1.1em; color: #cbd5e1; line-height: 1.4; margin-bottom: 12px; font-weight: 500;"
     );
     console.log("%cFor licensing inquiries: o.kolawole@oak-global.com.ng", infoStyle);

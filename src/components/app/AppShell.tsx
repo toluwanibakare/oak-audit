@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
+﻿import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { ReactNode, useEffect, useRef, useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrg } from "@/hooks/useOrg";
@@ -530,10 +530,10 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
             
             <div className="flex flex-col min-w-0">
               <span className="font-display text-xs sm:text-sm font-bold text-foreground tracking-tight whitespace-nowrap leading-none">
-                ISO AUDIT MANAGEMENT PORT
+                OakAudix
               </span>
               <span className="text-[8px] sm:text-[9px] text-muted-foreground font-normal tracking-wide mt-0.5 leading-none">
-                Powered By Oak Global International
+                Powered By OakAudix
               </span>
 
             </div>

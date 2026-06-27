@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AlertTriangle, FileUp, Link2, Lock, Unlock, User, RefreshCw, CheckCircle2, Clock, X, Search, ClipboardCheck, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -779,7 +779,7 @@ export default function RunAudit() {
           <div className="space-y-3">
             <h2 className="font-display text-2xl font-extrabold tracking-tight">Generating ISO Compliance Report</h2>
             <p className="text-sm text-muted-foreground leading-relaxed font-sans">
-              ISO AUDIT MANAGEMENT PORT's compliance engine is currently compiling your audit checklists, calculating standard conformity scores, cross-mapping nonconformities, and preparing your formal regulatory audit reports.
+              OakAudix's compliance engine is currently compiling your audit checklists, calculating standard conformity scores, cross-mapping nonconformities, and preparing your formal regulatory audit reports.
             </p>
             <div className="py-2.5 px-4 bg-secondary/50 rounded-2xl text-xs text-muted-foreground inline-flex items-center gap-2">
               <Clock className="h-4 w-4 text-primary" />
@@ -838,7 +838,7 @@ export default function RunAudit() {
               This compliance audit has been formally <strong>signed off, locked, and securely archived</strong>.
             </p>
             <p>
-              In accordance with international ISO standards (ISO 19011) and ISO AUDIT MANAGEMENT PORT's proprietary data protection policy, <strong>all checklists, answer logs, and evidence links are permanently frozen</strong> to maintain regulatory integrity, compliance traceability, and prevent post-audit tampering.
+              In accordance with international ISO standards (ISO 19011) and OakAudix's proprietary data protection policy, <strong>all checklists, answer logs, and evidence links are permanently frozen</strong> to maintain regulatory integrity, compliance traceability, and prevent post-audit tampering.
             </p>
             <div className="grid gap-3 sm:grid-cols-2 pt-2">
               <div className="bg-secondary/40 border border-border/50 p-4 rounded-2xl">
