@@ -176,11 +176,11 @@ const AppDashboard = () => {
               <div>
                 <h2 className="font-display text-lg font-bold text-foreground">Account approved & ready</h2>
                 <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                  ISO AUDIT MANAGEMENT PORT compliance administrators have successfully activated your ISO environment. Go ahead, unlock an audit pack, and start your compliance runs!
+                  ISO AUDIT MANAGEMENT PORT compliance administrators have successfully activated your ISO environment. Go ahead, unlock an ISO standard, and start your compliance runs!
                 </p>
                 <div className="mt-3.5 flex flex-wrap items-center gap-4">
                   <Link to="/app/licenses" className="inline-flex items-center gap-1.5 rounded-full bg-success px-4 py-2 text-xs font-bold text-success-foreground transition hover:opacity-90">
-                    Get an Audit Pack
+                    Go to ISO Library
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                   <button 
@@ -315,7 +315,7 @@ const AppDashboard = () => {
                 Start auditing with absolute confidence. Unlock an ISO standard, IMS, or HSE Safety pack from our catalog, seed your question bank, and get going.
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-3">
-                <Link to="/app/licenses" className="pill-cta px-6 py-3 text-sm">Unlock an Audit Pack</Link>
+                <Link to="/app/licenses" className="pill-cta px-6 py-3 text-sm">Go to ISO Library</Link>
               </div>
             </div>
           )}

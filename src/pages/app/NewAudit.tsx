@@ -101,7 +101,7 @@ export default function NewAudit() {
   const create = async () => {
     if (!currentOrg || !user) return;
     if (!form.title.trim()) return toast({ title: "Add a title", variant: "destructive" });
-    if (!hasLicense(form.standard)) return toast({ title: "No active license for that standard", description: "Spend credits on the Audit packs page.", variant: "destructive" });
+    if (!hasLicense(form.standard)) return toast({ title: "No active license for that standard", description: "Spend credits on the ISO Library page.", variant: "destructive" });
 
     const { data: audit, error } = await supabase.from("audits").insert({
       org_id: currentOrg.id, standard: form.standard, title: form.title, scope: form.scope,

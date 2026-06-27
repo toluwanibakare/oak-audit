@@ -404,7 +404,7 @@ export default function Licenses() {
     if (activeLicense) {
       toast({ title: "Audit launched under active license!", description: "Started audit with zero credit deduction." });
     } else {
-      toast({ title: "Audit pack unlocked & launched!", description: `${cost} credit(s) spent. Redirecting you...` });
+      toast({ title: "ISO Standard unlocked & launched!", description: `${cost} credit(s) spent. Redirecting you...` });
     }
     setBusy(null);
     setConfiguringPack(null);
@@ -414,7 +414,7 @@ export default function Licenses() {
   return (
     <AppShell>
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <Header title="Audit packs" subtitle="Unlock the standards and bundles you want to run next." />
+        <Header title="ISO Library" subtitle="Unlock the standards and bundles you want to run next." />
         <Link to="/app/wallet" className="pill-cta">Wallet · {balance} credit{balance === 1 ? "" : "s"}</Link>
       </div>
 
@@ -424,7 +424,7 @@ export default function Licenses() {
             <div className="max-w-2xl">
               <h3 className="font-display text-lg font-bold text-foreground">Complete your Profile Settings to proceed</h3>
               <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                Before you can purchase or unlock any audit packs, you are required to complete your organization profile details. This helps OAK Global International verify your ISO workspace and activate licensing permissions.
+                Before you can purchase or unlock any ISO standards, you are required to complete your organization profile details. This helps OAK Global International verify your ISO workspace and activate licensing permissions.
               </p>
               <p className="mt-2 text-xs text-warning font-semibold tracking-wide uppercase">
                 Required fields: Website, Phone number, Industry, Company size, Address, and Description.

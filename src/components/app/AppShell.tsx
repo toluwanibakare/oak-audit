@@ -30,7 +30,7 @@ import logo from "@/assets/logo.png";
 
 const ORG_NAV = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/app/licenses", label: "Audit Packs", icon: Receipt },
+  { to: "/app/licenses", label: "ISO Library", icon: Receipt },
   { to: "/app/processes", label: "Processes", icon: Workflow },
   { to: "/app/team", label: "My Team", icon: Users },
   { to: "/app/question-bank", label: "Question Banks", icon: BookOpen },
@@ -42,7 +42,7 @@ const ORG_NAV = [
 
 const INDIVIDUAL_NAV = [
   { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/app/licenses", label: "Audit Packs", icon: Receipt },
+  { to: "/app/licenses", label: "ISO Library", icon: Receipt },
   { to: "/app/processes", label: "Processes", icon: Workflow },
   { to: "/app/question-bank", label: "Question Banks", icon: BookOpen },
   { to: "/app/audits", label: "My Audits", icon: ClipboardCheck },
