@@ -12,7 +12,8 @@ export default function Findings() {
   const { toast } = useToast();
   const [list, setList] = useState<any[]>([]);
   const [audits, setAudits] = useState<any[]>([]);
-  const [processes, setProcesses] = useState<Record<string, string>>({});
+  const [processes, setProcesses] = useState<Record<string, string>>({}); // id -> name
+  const [processOwners, setProcessOwners] = useState<Record<string, string>>({}); // id -> process_owner
   const [form, setForm] = useState({ audit_id: "", type: "minor", clause: "", description: "", capa: "", owner: "", due_date: "" });
 
   // CAR Modal States
@@ -29,17 +30,20 @@ export default function Findings() {
   const load = async () => {
     if (!currentOrg) return;
 
-    // Fetch processes list to translate process ID to Name
+    // Fetch processes list to translate process ID to Name and Owner
     const { data: procs } = await supabase
       .from("org_processes")
-      .select("id,name")
+      .select("id,name,process_owner")
       .eq("org_id", currentOrg.id);
     
     const pMap: Record<string, string> = {};
+    const oMap: Record<string, string> = {};
     (procs ?? []).forEach((p) => {
       pMap[p.id] = p.name;
+      if (p.process_owner) oMap[p.id] = p.process_owner;
     });
     setProcesses(pMap);
+    setProcessOwners(oMap);
 
     const { data, error } = await supabase.from("findings").select("*,audits(title,standard)").eq("org_id", currentOrg.id).order("created_at", { ascending: false });
     if (error) console.error("Findings load error:", error);
@@ -176,7 +180,9 @@ export default function Findings() {
               const meta = parseFindingMeta(finding.root_cause);
               const procName = meta?.processId ? (processes[meta.processId] || "N/A") : "N/A";
               const severity = finding.type === "major" ? "Major" : finding.type === "minor" ? "Minor" : "Observation";
-              const resolvedOwner = finding.owner || finding.audits?.owner || currentOrg?.name || "Auditee";
+              const resolvedOwner = meta?.processId
+                ? (processOwners[meta.processId] || finding.owner || finding.audits?.owner || currentOrg?.name || "—")
+                : (finding.owner || finding.audits?.owner || currentOrg?.name || "—");
               
               return (
                 <tr key={finding.id} className="border-t border-border hover:bg-secondary/40 transition-colors">
@@ -265,6 +271,21 @@ export default function Findings() {
             </div>
 
             <div className="space-y-4 text-xs">
+              <div>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Process Owner</label>
+                <input
+                  type="text"
+                  value={(() => {
+                    const meta = parseFindingMeta(selectedFinding?.root_cause);
+                    return meta?.processId
+                      ? (processOwners[meta.processId] || selectedFinding?.owner || "—")
+                      : (selectedFinding?.owner || "—");
+                  })()}
+                  disabled
+                  className="input opacity-65 cursor-not-allowed bg-secondary/30 w-full text-xs"
+                />
+              </div>
+
               <div>
                 <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Objective Evidence/Statement of Problem</label>
                 <textarea

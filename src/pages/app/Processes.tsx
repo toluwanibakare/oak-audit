@@ -31,13 +31,15 @@ const UNIQUE_STANDARD_PROCESSES = Array.from(
 );
 
 
-type Proc = { id: string; key: string; name: string; scope: string | null; is_custom: boolean };
+type Proc = { id: string; key: string; name: string; scope: string | null; is_custom: boolean; process_owner: string | null };
 
 export default function Processes() {
   const { currentOrg } = useOrg();
   const { toast } = useToast();
   const [list, setList] = useState<Proc[]>([]);
-  const [form, setForm] = useState({ name: "", scope: "" });
+  const [form, setForm] = useState({ name: "", scope: "", process_owner: "" });
+  // Tracks the process owner name per standard process key during selection
+  const [standardProcessOwners, setStandardProcessOwners] = useState<Record<string, string>>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [processToDelete, setProcessToDelete] = useState<Proc | null>(null);
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -203,13 +205,14 @@ export default function Processes() {
       // Clear existing non-custom processes from org_processes
       await supabase.from("org_processes").delete().eq("org_id", currentOrg.id).eq("is_custom", false);
       
-      // Insert selected ones
+      // Insert selected ones with their process owner names
       const toInsert = UNIQUE_STANDARD_PROCESSES.filter(sp => selectedStandardKeys.includes(sp.key)).map(sp => ({
         org_id: currentOrg.id,
         key: sp.key,
         name: sp.name,
         scope: sp.scope || "",
-        is_custom: false
+        is_custom: false,
+        process_owner: standardProcessOwners[sp.key]?.trim() || null,
       }));
 
       if (toInsert.length > 0) {
@@ -252,11 +255,12 @@ export default function Processes() {
       name: cleanName,
       scope: form.scope,
       is_custom: isCustom,
+      process_owner: form.process_owner.trim() || null,
     });
 
     if (error) return toast({ title: error.message, variant: "destructive" });
 
-    setForm({ name: "", scope: "" });
+    setForm({ name: "", scope: "", process_owner: "" });
     setIsModalOpen(false);
     await load();
 
@@ -495,33 +499,45 @@ export default function Processes() {
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 max-h-[400px] overflow-y-auto pr-1">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 max-h-[480px] overflow-y-auto pr-1">
             {UNIQUE_STANDARD_PROCESSES.map((sp) => {
               const checked = selectedStandardKeys.includes(sp.key);
               return (
-                <label 
+                <div 
                   key={sp.key} 
-                  className={`flex items-start gap-3 rounded-2xl border p-4 text-sm transition cursor-pointer select-none ${
+                  className={`flex flex-col gap-3 rounded-2xl border p-4 text-sm transition ${
                     checked ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-muted-foreground/30 bg-background/50"
                   }`}
                 >
-                  <input 
-                    type="checkbox" 
-                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary mt-0.5"
-                    checked={checked} 
-                    onChange={() =>
-                      setSelectedStandardKeys(
-                        checked 
-                          ? selectedStandardKeys.filter((k) => k !== sp.key) 
-                          : [...selectedStandardKeys, sp.key]
-                      )
-                    } 
-                  />
-                  <div>
-                    <strong className="block text-foreground">{sp.name}</strong>
-                    <span className="text-xs text-muted-foreground mt-1 block leading-normal">{sp.scope}</span>
-                  </div>
-                </label>
+                  <label className="flex items-start gap-3 cursor-pointer select-none">
+                    <input 
+                      type="checkbox" 
+                      className="h-4 w-4 rounded border-border text-primary focus:ring-primary mt-0.5"
+                      checked={checked} 
+                      onChange={() =>
+                        setSelectedStandardKeys(
+                          checked 
+                            ? selectedStandardKeys.filter((k) => k !== sp.key) 
+                            : [...selectedStandardKeys, sp.key]
+                        )
+                      } 
+                    />
+                    <div>
+                      <strong className="block text-foreground">{sp.name}</strong>
+                      <span className="text-xs text-muted-foreground mt-1 block leading-normal">{sp.scope}</span>
+                    </div>
+                  </label>
+                  {checked && (
+                    <input
+                      type="text"
+                      placeholder="Process Owner name..."
+                      className="input h-8 text-xs w-full"
+                      value={standardProcessOwners[sp.key] ?? ""}
+                      onChange={(e) => setStandardProcessOwners(prev => ({ ...prev, [sp.key]: e.target.value }))}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  )}
+                </div>
               );
             })}
           </div>
@@ -589,6 +605,9 @@ export default function Processes() {
                     )}
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{p.scope || "No description mapped."}</p>
+                  {p.process_owner && (
+                    <p className="mt-1.5 text-xs font-semibold text-foreground/70">Owner: <span className="text-foreground">{p.process_owner}</span></p>
+                  )}
                 </div>
                 <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -652,7 +671,7 @@ export default function Processes() {
                         key={p.key}
                         type="button"
                         onClick={() => {
-                          setForm({ name: p.name, scope: p.scope || "" });
+                          setForm(prev => ({ ...prev, name: p.name, scope: p.scope || "" }));
                         }}
                         className="w-full text-left rounded-lg px-2.5 py-2 hover:bg-secondary text-foreground font-semibold flex flex-col gap-0.5 transition"
                       >
@@ -671,6 +690,16 @@ export default function Processes() {
                   className="input w-full h-11"
                   value={form.scope}
                   onChange={(e) => setForm({ ...form, scope: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Process Owner</label>
+                <input
+                  type="text"
+                  placeholder="e.g. John Doe"
+                  className="input w-full h-11"
+                  value={form.process_owner}
+                  onChange={(e) => setForm({ ...form, process_owner: e.target.value })}
                 />
               </div>
               <div className="flex justify-end gap-3 pt-3">

@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 
 type Audit = { id: string; title: string; standard: string; scope: string | null; status: string; org_id: string; lead_auditor_id: string | null; owner: string | null };
-type Proc = { id: string; key: string; name: string };
+type Proc = { id: string; key: string; name: string; process_owner?: string | null };
 type AuditProc = { process_id: string; auditor_id: string | null };
 type Answer = { id?: string; clause: string; kind: string; q_ref: string; question_text: string | null; note: string | null; status: string };
 type Custom = { id: string; clause: string; text: string };
@@ -174,7 +174,7 @@ export default function RunAudit() {
       }
 
       // 2. Fetch existing organization processes
-      const { data: orgProcs } = await supabase.from("org_processes").select("id,key,name").eq("org_id", currentOrg.id).order("name");
+      const { data: orgProcs } = await supabase.from("org_processes").select("id,key,name,process_owner").eq("org_id", currentOrg.id).order("name");
       let finalProcs = orgProcs ?? [];
 
       const std = currentAudit.standard;
@@ -1371,10 +1371,15 @@ export default function RunAudit() {
               </div>
 
               <div>
-                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Owner</label>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Process Owner</label>
                 <input
                   type="text"
-                  value={audit?.owner ?? currentOrg?.name ?? "Auditee"}
+                  value={
+                    (() => {
+                      const activeProcess = procs.find((p: any) => p.id === modalProcessId);
+                      return activeProcess?.process_owner || audit?.owner || currentOrg?.name || "—";
+                    })()
+                  }
                   disabled
                   className="input opacity-65 cursor-not-allowed bg-secondary/30 w-full"
                 />
@@ -1494,7 +1499,10 @@ export default function RunAudit() {
                     answerStatus: mappedStatus,
                     description: modalDescription,
                     capa: editingFinding.finding?.capa ?? "",
-                    owner: audit?.owner || currentOrg?.name || "Auditee",
+                    owner: (() => {
+                      const activeProcess = procs.find((p: any) => p.id === modalProcessId);
+                      return activeProcess?.process_owner || audit?.owner || currentOrg?.name || "Auditee";
+                    })(),
                     dueDate: modalDueDate,
                     correction: meta?.correction ?? "",
                     rootCauseText: meta?.rootCauseText ?? "",
