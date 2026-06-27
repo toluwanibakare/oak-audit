@@ -198,8 +198,8 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   }, [isIndividual, currentUserAuditor]);
 
   const renderSidebarContent = () => (
-    <div className="flex h-full flex-col justify-between">
-      <div className="flex flex-col overflow-y-auto flex-1">
+    <div className="flex h-full flex-col">
+      <div className="flex flex-col overflow-y-auto flex-1 min-h-0">
         {/* Account header - personal card for individual, workspace for org */}
         <div className="px-4 pt-5 pb-2">
           {isIndividual ? (
@@ -468,7 +468,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
       )}
 
       {/* ── Sidebar (Desktop) ────────────────────────────────────── */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 overflow-hidden border-r border-border/80 bg-card/95 backdrop-blur lg:block">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-border/80 bg-card/95 backdrop-blur lg:flex lg:flex-col">
         {renderSidebarContent()}
       </aside>
 
@@ -482,7 +482,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
 
       {/* ── Mobile Navigation Drawer Sidebar ──────────────────────── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 overflow-hidden border-r border-border/80 bg-card/95 backdrop-blur-md transition-transform duration-300 ease-in-out lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-border/80 bg-card/95 backdrop-blur-md transition-transform duration-300 ease-in-out lg:hidden ${
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
