@@ -151,7 +151,7 @@ export default function Findings() {
             </tr>
           </thead>
           <tbody>
-            {list.map((finding) => {
+            {list.map((finding, index) => {
               const meta = parseFindingMeta(finding.root_cause);
               const procName = meta?.processId ? (processes[meta.processId] || "N/A") : "N/A";
               const severity = finding.type === "major" ? "Major" : finding.type === "minor" ? "Minor" : "Observation";
@@ -159,8 +159,8 @@ export default function Findings() {
               
               return (
                 <tr key={finding.id} className="border-t border-border hover:bg-secondary/40 transition-colors">
-                  <td className="px-4 py-3 font-mono text-[10px] text-muted-foreground truncate max-w-[80px]" title={finding.id}>
-                    #{finding.id.slice(0, 8)}
+                  <td className="px-4 py-3 font-mono text-[11px] font-semibold text-muted-foreground whitespace-nowrap" title={finding.id}>
+                    {`F-${String(list.length - index).padStart(4, "0")}`}
                   </td>
                   <td className="px-4 py-3 font-medium text-foreground">
                     {finding.clause || "-"}
@@ -224,7 +224,7 @@ export default function Findings() {
       {/* CAR / RCA Action Plan Modal */}
       {selectedFinding && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in cursor-pointer"
+          className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in cursor-pointer"
           onClick={() => setSelectedFinding(null)}
         >
           <div 

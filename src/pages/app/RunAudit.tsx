@@ -1285,7 +1285,7 @@ function Row({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalProcessId, setModalProcessId] = useState(processId);
   const [modalDueDate, setModalDueDate] = useState(finding?.due_date ?? "");
-  const [modalDescription, setModalDescription] = useState(finding?.description ?? (answer.question_text || q));
+  const [modalDescription, setModalDescription] = useState(finding?.description ?? "");
 
   const meta = parseFindingMeta(finding?.root_cause ?? null);
   const [severity, setSeverity] = useState(meta?.severity ?? deriveSeverity(finding?.type ?? status));
@@ -1306,7 +1306,7 @@ function Row({
     setEvidence(latest.evidence);
     setModalProcessId(processId);
     setModalDueDate(finding?.due_date ?? "");
-    setModalDescription(finding?.description ?? (answer.question_text || q));
+    setModalDescription(finding?.description ?? "");
     setSeverity(latestMeta?.severity ?? deriveSeverity(finding?.type ?? answer.status));
   }, [answer.id, answer.note, answer.status, finding?.id, q]);
 
@@ -1580,7 +1580,7 @@ function Row({
 
       {isModalOpen && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in cursor-pointer"
+          className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in cursor-pointer"
           onClick={() => setIsModalOpen(false)}
         >
           <div 
