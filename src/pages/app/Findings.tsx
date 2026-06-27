@@ -33,7 +33,8 @@ export default function Findings() {
     });
     setProcesses(pMap);
 
-    const { data } = await supabase.from("findings").select("*,audits(title,standard,owner)").eq("org_id", currentOrg.id).order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("findings").select("*,audits(title,standard)").eq("org_id", currentOrg.id).order("created_at", { ascending: false });
+    if (error) console.error("Findings load error:", error);
     setList(data ?? []);
     const { data: auditList } = await supabase.from("audits").select("id,title").eq("org_id", currentOrg.id).order("created_at", { ascending: false });
     setAudits(auditList ?? []);
