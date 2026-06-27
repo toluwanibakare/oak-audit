@@ -45,7 +45,6 @@ import {
   buildStandardPerformance,
   formatStandard,
 } from "@/lib/auditAnalytics";
-Ommo i want to leave this place as asap as possible
 const AppDashboard = () => {
   const { currentOrg } = useOrg();
   const { user } = useAuth();
@@ -83,6 +82,21 @@ const AppDashboard = () => {
     }
     setShowApprovalNotice(false);
   };
+
+  const [currentUserAuditor, setCurrentUserAuditor] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (!user || !currentOrg) return;
+    supabase
+      .from("auditors")
+      .select("id, role")
+      .eq("org_id", currentOrg.id)
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setCurrentUserAuditor(data));
+  }, [user, currentOrg]);
+
+  const isAuditor = currentUserAuditor?.role === "auditor";
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -226,7 +240,7 @@ const AppDashboard = () => {
                 {loading || credits === null ? <Skeleton className="inline-block h-5 w-12 align-middle" /> : credits}
               </span>
             </div>
-            <Link to="/app/licenses" className="pill-cta">+ New audit</Link>
+            {!isAuditor && <Link to="/app/licenses" className="pill-cta">+ New audit</Link>}
           </div>
         </div>
 

@@ -837,6 +837,10 @@ export default function RunAudit() {
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{audit.standard.toUpperCase()}</span>
           <h1 className="mt-1 font-display text-3xl font-bold">{audit.title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{audit.scope}</p>
+          <div className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-secondary/80 border border-border/50 px-3 py-1 text-[11px] font-semibold text-foreground">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+            <span>Questions: {allAuditQuestions.length - pendingCount}/{allAuditQuestions.length} Answered</span>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           {(audit.standard === "hse" || audit.standard === "ims") && (
@@ -851,25 +855,14 @@ export default function RunAudit() {
           <span className="text-sm text-muted-foreground">Conformity: <strong className="text-foreground">{conformity}%</strong></span>
           {audit.status === "in_progress" && (
             isMR ? (
-              !allProcessesSubmitted ? (
-                <button
-                  disabled
-                  className="pill-secondary cursor-not-allowed opacity-60 flex items-center gap-1.5"
-                  title="All assigned processes must be completed and submitted by auditors first"
-                >
-                  <Lock className="h-3.5 w-3.5" />
-                  Close Audit & Generate Report (Awaiting Auditor Submissions)
-                </button>
-              ) : (
-                <button
-                  onClick={submitAudit}
-                  disabled={isSubmitting}
-                  className="pill-cta animate-pulse flex items-center gap-1.5"
-                >
-                  <Unlock className="h-3.5 w-3.5" />
-                  {isSubmitting ? "Closing Audit..." : "Close Audit & Generate Report"}
-                </button>
-              )
+              <button
+                onClick={submitAudit}
+                disabled={isSubmitting}
+                className="pill-cta animate-pulse flex items-center gap-1.5"
+              >
+                <Unlock className="h-3.5 w-3.5" />
+                {isSubmitting ? "Closing Audit..." : "Close Audit & Generate Report"}
+              </button>
             ) : (
               // Standard auditor
               pendingCount > 0 ? (
