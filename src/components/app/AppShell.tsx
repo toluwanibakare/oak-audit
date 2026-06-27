@@ -533,7 +533,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
                 OakAudix
               </span>
               <span className="text-[8px] sm:text-[9px] text-muted-foreground font-normal tracking-wide mt-0.5 leading-none">
-                Powered By OakAudix
+                Powered By Oak Global International
               </span>
 
             </div>

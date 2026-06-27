@@ -358,7 +358,7 @@ export default function AdminDashboard() {
             </div>
             <h2 className="font-display text-2xl font-extrabold tracking-tight text-white">OakAudix Admin Portal</h2>
             <p className="text-[10px] uppercase font-mono tracking-wider text-slate-500 mt-1 select-none font-bold">
-              Powered By OakAudix
+              Powered By Oak Global International
             </p>
             <p className="mt-2 text-xs text-slate-400">
               Access restricted to corporate compliance administrators
@@ -405,7 +405,7 @@ export default function AdminDashboard() {
           </form>
 
           <div className="text-[10px] text-center text-slate-500 font-medium select-none pt-2 border-t border-slate-800/60 relative z-10">
-            © 2026 OakAudix (Powered By OakAudix). All rights reserved.
+            © 2026 OakAudix (Powered By Oak Global International). All rights reserved.
           </div>
         </div>
       </div>
@@ -426,7 +426,7 @@ export default function AdminDashboard() {
               </div>
               <h1 className="mt-1 font-display text-3xl font-extrabold tracking-tight">OakAudix</h1>
               <p className="text-[10px] uppercase font-mono tracking-wider text-slate-500 font-bold -mt-0.5">
-                Powered By OakAudix
+                Powered By Oak Global International
               </p>
               <p className="mt-1 text-sm text-slate-400">Review workspace registers, assess organizational size, and assign custom credit rates.</p>
             </div>

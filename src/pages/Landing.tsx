@@ -263,7 +263,7 @@ export default function Landing() {
                 OakAudix
               </span>
               <span className="font-display text-[9px] sm:text-[10.5px] text-muted-foreground font-normal leading-none mt-1 tracking-wide block">
-                Powered By OakAudix
+                Powered By Oak Global International
               </span>
 
             </div>
@@ -889,7 +889,7 @@ export default function Landing() {
               <img src={logo} alt="Logo" className="h-9 w-auto shrink-0 object-contain" />
               <div>
                 <span className="font-display text-base font-bold text-foreground block">OakAudix</span>
-                <span className="text-[10px] text-muted-foreground uppercase tracking-widest block">Powered By OakAudix</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-widest block">Powered By Oak Global International</span>
 
               </div>
             </div>

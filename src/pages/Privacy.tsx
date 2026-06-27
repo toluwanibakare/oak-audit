@@ -19,7 +19,7 @@ export default function Privacy() {
                 OakAudix
               </span>
               <span className="font-display text-[8.5px] sm:text-[9.5px] text-muted-foreground font-normal leading-none mt-0.5 tracking-wide block">
-                Powered By OakAudix
+                Powered By Oak Global International
               </span>
             </div>
           </Link>
