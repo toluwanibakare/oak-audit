@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, ClipboardCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
+import { useAuth } from "@/hooks/useAuth";
 import { AppShell } from "@/components/app/AppShell";
 import { Header } from "./Team";
 
@@ -18,7 +19,9 @@ const STD_LABEL: Record<string, string> = {
 
 export default function Audits() {
   const { currentOrg } = useOrg();
+  const { user } = useAuth();
   const [list, setList] = useState<Audit[]>([]);
+  const [currentUserAuditor, setCurrentUserAuditor] = useState<any | null>(null);
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -30,6 +33,19 @@ export default function Audits() {
       .then(({ data }) => setList((data ?? []) as Audit[]));
   }, [currentOrg]);
 
+  useEffect(() => {
+    if (!user || !currentOrg) return;
+    supabase
+      .from("auditors")
+      .select("id, role")
+      .eq("org_id", currentOrg.id)
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setCurrentUserAuditor(data));
+  }, [user, currentOrg]);
+
+  const isAuditor = currentUserAuditor?.role === "auditor";
+
   const statusSummary = useMemo(() => ({
     active: list.filter((audit) => audit.status === "in_progress").length,
     closed: list.filter((audit) => audit.status === "closed").length,
@@ -40,7 +56,7 @@ export default function Audits() {
     <AppShell>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <Header title="Audits" subtitle="All audit runs across your standards." />
-        <Link to="/app/licenses" className="pill-cta">+ New audit</Link>
+        {!isAuditor && <Link to="/app/licenses" className="pill-cta">+ New audit</Link>}
       </div>
 
       <section className="mt-6 grid gap-4 md:grid-cols-3">

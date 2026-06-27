@@ -16,7 +16,14 @@ export default function Findings() {
 
   // CAR Modal States
   const [selectedFinding, setSelectedFinding] = useState<any | null>(null);
-  const [carForm, setCarForm] = useState({ correction: "", rootCauseText: "", capa: "" });
+  const [carForm, setCarForm] = useState({
+    correction: "",
+    rootCauseText: "",
+    capa: "",
+    description: "",
+    nonConformityStatement: "",
+    standardRequirement: "",
+  });
 
   const load = async () => {
     if (!currentOrg) return;
@@ -68,6 +75,9 @@ export default function Findings() {
       correction: meta?.correction ?? "",
       rootCauseText: meta?.rootCauseText ?? "",
       capa: finding.capa ?? "",
+      description: finding.description ?? "",
+      nonConformityStatement: meta?.nonConformityStatement ?? "",
+      standardRequirement: meta?.standardRequirement ?? finding.description ?? "",
     });
   };
 
@@ -79,6 +89,8 @@ export default function Findings() {
       ...meta,
       correction: carForm.correction.trim(),
       rootCauseText: carForm.rootCauseText.trim(),
+      nonConformityStatement: carForm.nonConformityStatement.trim(),
+      standardRequirement: carForm.standardRequirement.trim(),
     };
 
     const rootCausePayload = `AUTO_META:${JSON.stringify(updatedMeta)}`;
@@ -86,6 +98,7 @@ export default function Findings() {
     const { error } = await supabase
       .from("findings")
       .update({
+        description: carForm.description.trim(),
         capa: carForm.capa.trim(),
         root_cause: rootCausePayload,
       })
@@ -246,10 +259,32 @@ export default function Findings() {
 
             <div className="space-y-4 text-xs">
               <div>
-                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Finding Statement</label>
-                <p className="bg-secondary/40 p-3 rounded-xl text-muted-foreground text-xs leading-relaxed border border-border">
-                  {selectedFinding.description}
-                </p>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Objective Evidence/Statement of Problem</label>
+                <textarea
+                  value={carForm.description}
+                  onChange={(e) => setCarForm({ ...carForm, description: e.target.value })}
+                  placeholder="Enter objective evidence or statement of problem..."
+                  className="input min-h-[70px] w-full"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Statement of non-conformity</label>
+                <textarea
+                  value={carForm.nonConformityStatement}
+                  onChange={(e) => setCarForm({ ...carForm, nonConformityStatement: e.target.value })}
+                  placeholder="Enter statement of non-conformity..."
+                  className="input min-h-[70px] w-full"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Requirement/Statement of the Standard not met</label>
+                <textarea
+                  value={carForm.standardRequirement}
+                  disabled
+                  className="input min-h-[50px] w-full opacity-65 cursor-not-allowed bg-secondary/30"
+                />
               </div>
 
               <div>
@@ -325,6 +360,8 @@ function parseFindingMeta(rootCause: string | null) {
       severity?: string;
       correction?: string;
       rootCauseText?: string;
+      nonConformityStatement?: string;
+      standardRequirement?: string;
     };
   } catch {
     return null;

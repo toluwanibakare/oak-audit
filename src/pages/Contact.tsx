@@ -436,7 +436,7 @@ export default function Contact() {
             </div>
             <div className="min-w-0 flex-1">
               <span className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Corporate Affairs & Legal</span>
-              <span className="text-xs md:text-sm font-semibold text-foreground group-hover:text-primary transition block whitespace-nowrap">
+              <span className="text-[10px] sm:text-xs font-semibold text-foreground group-hover:text-primary transition block whitespace-nowrap">
                 o.kolawole@oak-global.com.ng
               </span>
             </div>

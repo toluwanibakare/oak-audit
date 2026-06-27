@@ -118,6 +118,36 @@ export default function Team() {
 
       if (error) throw error;
 
+      // Invoke send-email edge function to dispatch welcome invitation email
+      const websiteUrl = window.location.origin;
+      const emailHtml = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+          <h2 style="color: #6366f1;">Welcome to Oak Audit Portal</h2>
+          <p>Hello ${form.name.trim()},</p>
+          <p>An auditor account has been created for you under <strong>${currentOrg.name}</strong>.</p>
+          <p>Please use the credentials below to log in and start performing audits:</p>
+          <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #e2e8f0;">
+            <p style="margin: 4px 0;"><strong>Login Email:</strong> ${form.email.trim()}</p>
+            <p style="margin: 4px 0;"><strong>Temporary Password:</strong> ${form.password.trim()}</p>
+            <p style="margin: 4px 0;"><strong>Portal URL:</strong> <a href="${websiteUrl}">${websiteUrl}</a></p>
+          </div>
+          <p>Ensure you change your password after logging in for security.</p>
+          <p>Regards,<br>Oak Audit Team</p>
+        </div>
+      `;
+
+      try {
+        await supabase.functions.invoke("send-email", {
+          body: {
+            to: form.email.trim(),
+            subject: "Your Oak Audit Auditor Credentials",
+            html: emailHtml,
+          }
+        });
+      } catch (emailErr) {
+        console.error("Welcome email failed to dispatch:", emailErr);
+      }
+
       setForm({ name: "", email: "", role: "auditor", certifications: "", password: "" });
       toast({ title: "Auditor Account Created", description: `Unique credentials for ${form.name} successfully registered.` });
       load();

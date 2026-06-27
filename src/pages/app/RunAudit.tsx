@@ -63,6 +63,8 @@ export default function RunAudit() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLead, setIsLead] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
+  const [currentUserAuditor, setCurrentUserAuditor] = useState<{ id: string; role: string | null } | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<{ role: string } | null>(null);
 
   const [showHseChecklist, setShowHseChecklist] = useState(false);
   const [hseSearch, setHseSearch] = useState("");
@@ -74,6 +76,7 @@ export default function RunAudit() {
   const [modalProcessId, setModalProcessId] = useState("");
   const [modalDueDate, setModalDueDate] = useState("");
   const [modalDescription, setModalDescription] = useState("");
+  const [modalNonConformity, setModalNonConformity] = useState("");
   const [modalSeverity, setModalSeverity] = useState("Medium");
 
   useEffect(() => {
@@ -82,7 +85,8 @@ export default function RunAudit() {
       setModalDueDate(editingFinding.finding?.due_date ?? "");
       setModalDescription(editingFinding.finding?.description ?? "");
       const meta = parseFindingMeta(editingFinding.finding?.root_cause ?? null);
-      setModalSeverity(meta?.severity ?? (editingFinding.finding?.type === "major" ? "High" : editingFinding.finding?.type === "minor" ? "Medium" : "Low"));
+      setModalNonConformity(meta?.nonConformityStatement ?? "");
+      setModalSeverity(editingFinding.initialSeverity ?? meta?.severity ?? (editingFinding.finding?.type === "major" ? "High" : editingFinding.finding?.type === "minor" ? "Medium" : "Low"));
     }
   }, [editingFinding]);
 
@@ -232,6 +236,9 @@ export default function RunAudit() {
           .eq("user_id", user.id)
           .maybeSingle();
 
+        setCurrentUserRole(userRole as any);
+        setCurrentUserAuditor(auditorRow as any);
+
         if (auditorRow) {
           currentAuditorId = auditorRow.id;
           if (auditorRow.role === "lead_auditor" || auditorRow.id === currentAudit.lead_auditor_id) {
@@ -361,6 +368,8 @@ export default function RunAudit() {
     correction,
     rootCauseText,
     severity,
+    nonConformityStatement,
+    standardRequirement,
   }: {
     processId: string;
     clause: string;
@@ -375,6 +384,8 @@ export default function RunAudit() {
     correction?: string;
     rootCauseText?: string;
     severity?: string;
+    nonConformityStatement?: string;
+    standardRequirement?: string;
   }) => {
     if (!id || !currentOrg) return;
     const key = buildAnswerKey(processId, clause, kind, qRef);
@@ -405,6 +416,8 @@ export default function RunAudit() {
       correction: (correction ?? "").trim(),
       rootCauseText: (rootCauseText ?? "").trim(),
       severity: severity || deriveSeverity(answerStatus),
+      nonConformityStatement: nonConformityStatement ?? "",
+      standardRequirement: standardRequirement ?? questionText ?? "",
     })}`;
 
     const payload = {
@@ -507,7 +520,31 @@ export default function RunAudit() {
 
   const isAssignedToMe = currentAuditor && assignedAuditorId === currentAuditor.id;
   const isUnassigned = !assignedAuditorId;
-  const canEdit = true; // Always allow editing to support collaborative updates and remove view-only locks
+
+  const submittedProcs = useMemo<string[]>(() => {
+    if (!audit?.object) return [];
+    try {
+      const parsed = JSON.parse(audit.object);
+      return parsed.submitted_process_ids || [];
+    } catch {
+      return [];
+    }
+  }, [audit]);
+
+  const isProcSubmitted = activeProc ? submittedProcs.includes(activeProc) : false;
+  const isUserStandardAuditor = currentUserAuditor?.role === "auditor";
+  const canEdit = audit?.status === "in_progress" && (!isProcSubmitted || !isUserStandardAuditor);
+
+  const isMR = useMemo(() => {
+    if (!user) return false;
+    return currentUserAuditor?.role === "management_representative" || currentUserRole?.role === "admin" || currentUserRole?.role === "owner" || !currentUserAuditor;
+  }, [currentUserAuditor, currentUserRole, user]);
+
+  const allProcessesSubmitted = useMemo(() => {
+    const assignedProcIds = auditProcesses.map((ap) => ap.process_id);
+    if (assignedProcIds.length === 0) return false;
+    return assignedProcIds.every((pid) => submittedProcs.includes(pid));
+  }, [auditProcesses, submittedProcs]);
 
   const total = Object.values(answers).length;
   const conformity = total > 0 ? Math.round((Object.values(answers).filter((answer) => answer.status === "conform").length / total) * 100) : 0;
@@ -607,6 +644,24 @@ export default function RunAudit() {
     );
   }
 
+
+  const submitAllocation = async () => {
+    if (!id || procs.length === 0) return;
+    setIsSubmitting(true);
+    const procIdsToSubmit = procs.map((p) => p.id);
+    const nextList = Array.from(new Set([...submittedProcs, ...procIdsToSubmit]));
+    const { error } = await supabase
+      .from("audits")
+      .update({ object: JSON.stringify({ submitted_process_ids: nextList }) })
+      .eq("id", id);
+    setIsSubmitting(false);
+    if (error) {
+      toast({ title: "Failed to submit allocation", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Allocation Submitted Successfully", description: "Your assigned checklists have been submitted and locked." });
+      setAudit((prev: any) => prev ? { ...prev, object: JSON.stringify({ submitted_process_ids: nextList }) } : null);
+    }
+  };
 
   const submitAudit = async () => {
     if (!id) return;
@@ -765,15 +820,15 @@ export default function RunAudit() {
           )}
           <span className="text-sm text-muted-foreground">Conformity: <strong className="text-foreground">{conformity}%</strong></span>
           {audit.status === "in_progress" && (
-            isLead ? (
-              pendingCount > 0 ? (
+            isMR ? (
+              !allProcessesSubmitted ? (
                 <button
                   disabled
                   className="pill-secondary cursor-not-allowed opacity-60 flex items-center gap-1.5"
-                  title="All process audit questions must be completed first"
+                  title="All assigned processes must be completed and submitted by auditors first"
                 >
                   <Lock className="h-3.5 w-3.5" />
-                  Submit & Generate Report ({pendingCount} pending)
+                  Close Audit & Generate Report (Awaiting Auditor Submissions)
                 </button>
               ) : (
                 <button
@@ -782,10 +837,11 @@ export default function RunAudit() {
                   className="pill-cta animate-pulse flex items-center gap-1.5"
                 >
                   <Unlock className="h-3.5 w-3.5" />
-                  {isSubmitting ? "Submitting..." : "Submit & Generate Report"}
+                  {isSubmitting ? "Closing Audit..." : "Close Audit & Generate Report"}
                 </button>
               )
             ) : (
+              // Standard auditor
               pendingCount > 0 ? (
                 <button
                   disabled
@@ -795,18 +851,23 @@ export default function RunAudit() {
                   <Lock className="h-3.5 w-3.5" />
                   Submit My Allocation ({pendingCount} pending)
                 </button>
+              ) : isProcSubmitted ? (
+                <button
+                  disabled
+                  className="pill-secondary cursor-not-allowed opacity-60 flex items-center gap-1.5"
+                  title="This process checklist has been submitted and locked."
+                >
+                  <Lock className="h-3.5 w-3.5" />
+                  Allocation Submitted & Locked
+                </button>
               ) : (
                 <button
-                  onClick={() => {
-                    toast({
-                      title: "Allocation Completed Successfully",
-                      description: "Your assigned processes are complete. The Lead Auditor/Admin will generate the final report when all processes are finished.",
-                    });
-                  }}
+                  onClick={submitAllocation}
+                  disabled={isSubmitting}
                   className="pill-cta bg-primary hover:bg-primary/95 text-white flex items-center gap-1.5"
                 >
                   <Unlock className="h-3.5 w-3.5" />
-                  Submit My Allocation
+                  {isSubmitting ? "Submitting..." : "Submit My Allocation"}
                 </button>
               )
             )
@@ -1311,23 +1372,42 @@ export default function RunAudit() {
                 </select>
               </div>
 
-              <div className="md:col-span-2">
+              <div>
                 <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Due Date</label>
                 <input
                   type="date"
                   value={modalDueDate}
                   onChange={(e) => setModalDueDate(e.target.value)}
-                  className="input w-full md:w-1/2"
+                  className="input w-full"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Finding Statement / Description</label>
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Objective Evidence/Statement of Problem</label>
                 <textarea
                   value={modalDescription}
                   onChange={(e) => setModalDescription(e.target.value)}
                   className="input min-h-[80px] w-full"
-                  placeholder="Describe the discrepancy or compliance gap..."
+                  placeholder="Enter objective evidence or statement of problem..."
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Statement of non-conformity</label>
+                <textarea
+                  value={modalNonConformity}
+                  onChange={(e) => setModalNonConformity(e.target.value)}
+                  className="input min-h-[80px] w-full"
+                  placeholder="Enter statement of non-conformity..."
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-1 block font-bold uppercase tracking-wider text-muted-foreground">Requirement/Statement of the Standard not met</label>
+                <textarea
+                  value={editingFinding.questionText}
+                  disabled
+                  className="input min-h-[60px] w-full opacity-65 cursor-not-allowed bg-secondary/30"
                 />
               </div>
             </div>
@@ -1369,6 +1449,8 @@ export default function RunAudit() {
                     correction: meta?.correction ?? "",
                     rootCauseText: meta?.rootCauseText ?? "",
                     severity: modalSeverity,
+                    nonConformityStatement: modalNonConformity,
+                    standardRequirement: editingFinding.questionText,
                   });
 
                   setEditingFinding(null);
@@ -1478,7 +1560,7 @@ function Row({
     const nextStatus = "minor";
     setStatus(nextStatus);
     await persistAnswer(nextStatus, note);
-    onConfigureFinding({ processId, clause, kind, qRef, questionText: answer.question_text || q, finding });
+    onConfigureFinding({ processId, clause, kind, qRef, questionText: answer.question_text || q, finding, initialSeverity: "Medium" });
   };
 
   const handleCancelFinding = async () => {
@@ -1562,7 +1644,7 @@ function Row({
               setStatus(nextStatus);
               await persistAnswer(nextStatus, note);
               if (NONCONFORMING.has(nextStatus)) {
-                onConfigureFinding({ processId, clause, kind, qRef, questionText: answer.question_text || q, finding });
+                onConfigureFinding({ processId, clause, kind, qRef, questionText: answer.question_text || q, finding, initialSeverity: nextStatus === "major" ? "High" : nextStatus === "minor" ? "Medium" : "Low" });
               } else {
                 await persistFinding(nextStatus);
               }
@@ -1633,7 +1715,7 @@ function Row({
             <span>Finding details declared</span>
           </div>
           <button
-            onClick={() => onConfigureFinding({ processId, clause, kind, qRef, questionText: answer.question_text || q, finding })}
+            onClick={() => onConfigureFinding({ processId, clause, kind, qRef, questionText: answer.question_text || q, finding, initialSeverity: status === "major" ? "High" : status === "minor" ? "Medium" : "Low" })}
             className="pill-secondary py-1.5 px-3.5 text-xs bg-warning/10 border-warning/20 hover:bg-warning/20 text-warning"
           >
             Configure Finding Details
