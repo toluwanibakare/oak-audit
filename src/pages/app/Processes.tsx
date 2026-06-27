@@ -68,6 +68,7 @@ export default function Processes() {
   
   // Custom Question Form
   const [importFromKey, setImportFromKey] = useState("");
+  const [importToStandard, setImportToStandard] = useState("");
   const [importing, setImporting] = useState(false);
   
   const [customQuestion, setCustomQuestion] = useState({
@@ -326,13 +327,15 @@ export default function Processes() {
 
   // Import standard questions for a custom process key
   const handleImportQuestions = async () => {
-    if (!currentOrg || !createdCustomProcessKey || !importFromKey) return;
+    if (!currentOrg || !createdCustomProcessKey || !importFromKey || !importToStandard) {
+      return toast({ title: "Import failed", description: "Please select both a template process and target standard.", variant: "destructive" });
+    }
     if (purchasedLicenses.length === 0) {
       return toast({ title: "Import failed", description: "You do not have any active purchased standards to copy from. Please purchase a standard pack first.", variant: "destructive" });
     }
     setImporting(true);
     try {
-      const std = customQuestion.standard || purchasedLicenses[0];
+      const std = importToStandard;
       const insertRows: any[] = [];
       const userUuid = (await supabase.auth.getUser()).data.user?.id || currentOrg.id;
 
@@ -661,6 +664,7 @@ export default function Processes() {
                           setCreatedCustomProcessKey(p.key);
                           setCreatedCustomProcessName(p.name);
                           setImportFromKey("");
+                          setImportToStandard("");
                           setShowCustomSetupModal(true);
                         }}
                         className="text-xs font-semibold text-primary hover:underline"
@@ -883,12 +887,37 @@ export default function Processes() {
                     ))}
                   </select>
                 </div>
+
+                <div className="flex-1 min-w-[200px]">
+                  <label className="block text-[10px] text-muted-foreground font-semibold uppercase mb-1">Import To Standard</label>
+                  <select
+                    className="input w-full font-sans text-xs font-semibold"
+                    value={importToStandard}
+                    onChange={(e) => setImportToStandard(e.target.value)}
+                  >
+                    <option value="">— Select Target Standard —</option>
+                    {purchasedLicenses.length === 0 ? (
+                      <option value="">No Active Standards</option>
+                    ) : (
+                      purchasedLicenses.map(std => {
+                        let label = std.toUpperCase();
+                        if (std === "9001") label = "ISO 9001 (Quality)";
+                        else if (std === "14001") label = "ISO 14001 (Env)";
+                        else if (std === "45001") label = "ISO 45001 (OH&S)";
+                        else if (std === "27001") label = "ISO 27001 (InfoSec)";
+                        else if (std === "ims") label = "IMS Integrated";
+                        else if (std === "hse") label = "HSE Integrated";
+                        return <option key={std} value={std}>{label}</option>;
+                      })
+                    )}
+                  </select>
+                </div>
                 
                 <button
                   type="button"
                   onClick={handleImportQuestions}
-                  disabled={importing || !importFromKey}
-                  className="pill-cta h-11 shrink-0 font-semibold px-4"
+                  disabled={importing || !importFromKey || !importToStandard}
+                  className="pill-cta h-11 shrink-0 font-semibold px-4 disabled:opacity-50"
                 >
                   {importing ? "Importing..." : "Copy Question Bank"}
                 </button>
