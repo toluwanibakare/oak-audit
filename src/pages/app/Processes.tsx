@@ -125,9 +125,12 @@ export default function Processes() {
     }
   };
 
+  const [purchasedLicenses, setPurchasedLicenses] = useState<string[]>([]);
+
   const load = async () => {
     if (!currentOrg) return;
     try {
+      // Load processes
       const { data } = await supabase
         .from("org_processes")
         .select("*")
@@ -148,12 +151,49 @@ export default function Processes() {
       
       // Pre-fill selection keys with currently selected standard processes (normalized)
       setSelectedStandardKeys(finalProcessesList.filter(p => !p.is_custom).map(p => p.key));
+
+      // Load paid standards/licenses
+      const { data: licenses } = await supabase
+        .from("audit_licenses")
+        .select("pack")
+        .eq("org_id", currentOrg.id)
+        .eq("active", true)
+        .gt("expires_at", new Date().toISOString());
+      
+      const activePacks = (licenses ?? []).map(l => l.pack.toLowerCase());
+      const standardsUnlocked = new Set<string>();
+      activePacks.forEach(pack => {
+        if (pack === "ims") {
+          standardsUnlocked.add("9001");
+          standardsUnlocked.add("14001");
+          standardsUnlocked.add("45001");
+          standardsUnlocked.add("ims");
+        } else if (pack === "hse") {
+          standardsUnlocked.add("14001");
+          standardsUnlocked.add("45001");
+          standardsUnlocked.add("hse");
+        } else {
+          standardsUnlocked.add(pack);
+        }
+      });
+      setPurchasedLicenses(Array.from(standardsUnlocked));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => { load(); }, [currentOrg]);
+
+  // Set default custom question standard select option based on paid licenses
+  useEffect(() => {
+    if (purchasedLicenses.length > 0) {
+      const firstPaid = purchasedLicenses.find(std => ["9001", "14001", "45001"].includes(std));
+      if (firstPaid) {
+        setCustomQuestion(prev => ({ ...prev, standard: firstPaid }));
+      }
+    }
+  }, [purchasedLicenses]);
+
 
 
   const saveStandardSelection = async () => {
@@ -267,9 +307,12 @@ export default function Processes() {
   // Import standard questions for a custom process key
   const handleImportQuestions = async () => {
     if (!currentOrg || !createdCustomProcessKey || !importFromKey) return;
+    if (purchasedLicenses.length === 0) {
+      return toast({ title: "Import failed", description: "You do not have any active purchased standards to copy from. Please purchase a standard pack first.", variant: "destructive" });
+    }
     setImporting(true);
     try {
-      const standardsList: ("9001" | "14001" | "45001")[] = ["9001", "14001", "45001"];
+      const standardsList = ["9001", "14001", "45001"].filter(std => purchasedLicenses.includes(std)) as ("9001" | "14001" | "45001")[];
       const insertRows: any[] = [];
       const userUuid = (await supabase.auth.getUser()).data.user?.id || currentOrg.id;
 
@@ -297,12 +340,12 @@ export default function Processes() {
       if (insertRows.length > 0) {
         const { error } = await supabase.from("custom_questions").insert(insertRows);
         if (error) throw error;
-        toast({ title: "Questions imported successfully", description: `${insertRows.length} questions copied.` });
+        toast({ title: "Questions imported successfully", description: `${insertRows.length} questions copied from paid standards (${standardsList.join(", ")}).` });
         if (createdCustomProcessKey) {
           loadCustomQuestionsForProcess(createdCustomProcessKey);
         }
       } else {
-        toast({ title: "No questions found to import for selected standard process." });
+        toast({ title: "No questions found to import for selected standard process in your paid standards." });
       }
     } catch (err: any) {
       toast({ title: "Import failed", description: err.message, variant: "destructive" });
@@ -778,9 +821,15 @@ export default function Processes() {
                     value={customQuestion.standard}
                     onChange={(e) => setCustomQuestion({ ...customQuestion, standard: e.target.value })}
                   >
-                    <option value="9001">ISO 9001 (Quality)</option>
-                    <option value="14001">ISO 14001 (Env)</option>
-                    <option value="45001">ISO 45001 (OH&S)</option>
+                    {purchasedLicenses.length === 0 ? (
+                      <option value="">No Active Standards</option>
+                    ) : (
+                      <>
+                        {purchasedLicenses.includes("9001") && <option value="9001">ISO 9001 (Quality)</option>}
+                        {purchasedLicenses.includes("14001") && <option value="14001">ISO 14001 (Env)</option>}
+                        {purchasedLicenses.includes("45001") && <option value="45001">ISO 45001 (OH&S)</option>}
+                      </>
+                    )}
                   </select>
                 </div>
                 

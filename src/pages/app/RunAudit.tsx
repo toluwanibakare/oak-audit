@@ -7,6 +7,7 @@ import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
 import { getQuestionsFor, isProcessInStandard, type StandardKey } from "@/data/standards";
 import { useToast } from "@/hooks/use-toast";
+import { getClauseRequirement } from "@/data/isoClauses";
 import { parseAuditNote, serializeAuditNote, safeEvidenceName, type EvidenceItem } from "@/lib/auditEvidence";
 import { HSE_CHECKLIST_DATA } from "@/data/hseInspectionChecklist";
 import { IMS_CHECKLIST_DATA } from "@/data/imsInspectionChecklist";
@@ -409,6 +410,9 @@ export default function RunAudit() {
       return "Low";
     };
 
+    const matchedClause = getClauseRequirement(audit?.standard, clause);
+    const resolvedReq = standardRequirement || (matchedClause ? matchedClause.requirement : (questionText ?? ""));
+
     const rootCausePayload = `${AUTO_FINDING_PREFIX}${JSON.stringify({
       processId,
       kind,
@@ -417,7 +421,7 @@ export default function RunAudit() {
       rootCauseText: (rootCauseText ?? "").trim(),
       severity: severity || deriveSeverity(answerStatus),
       nonConformityStatement: nonConformityStatement ?? "",
-      standardRequirement: standardRequirement ?? questionText ?? "",
+      standardRequirement: resolvedReq,
     })}`;
 
     const payload = {
