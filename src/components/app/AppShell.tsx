@@ -319,8 +319,8 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
           className="relative"
         >
           {userMenuOpen && (
-            <div className="absolute bottom-full left-0 right-0 pb-2 z-30 animate-fade-in">
-              <div className="rounded-2xl border border-border bg-card/95 backdrop-blur-md p-1.5 shadow-elevated space-y-0.5">
+            <div className="absolute bottom-full left-0 right-0 pb-2 z-50 pointer-events-auto animate-fade-in">
+              <div className="rounded-2xl border border-border bg-card shadow-elevated p-1.5 space-y-0.5">
                 <Link
                   to="/app/settings"
                   onClick={() => {
@@ -329,10 +329,11 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
                   }}
                   className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
                 >
-                  <Settings className="h-4 w-4 text-muted-foreground animate-spin-slow" />
-                  <span>Profile Settings</span>
+                  <Settings className="h-4 w-4 text-muted-foreground" />
+                  <span>{isIndividual ? "Profile Settings" : "Settings"}</span>
                 </Link>
                 <button
+                  type="button"
                   onClick={async () => {
                     setUserMenuOpen(false);
                     setIsMobileOpen(false);

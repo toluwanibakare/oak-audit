@@ -242,7 +242,7 @@ export default function Team() {
 
   return (
     <AppShell>
-      <Header title="Audit team" subtitle="Manage your auditors and their roles." />
+      <Header title="Audit Team" subtitle="Manage your auditors and their roles." />
       <div className="mt-6 grid gap-4 rounded-[28px] border border-border bg-card p-5 md:grid-cols-6 items-center">
         <input className="input" placeholder="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         <input className="input" type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />

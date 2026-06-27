@@ -125,7 +125,7 @@ export default function NewAudit() {
 
   return (
     <AppShell>
-      <Header title="New audit" subtitle="Configure scope, processes, and assignments." />
+      <Header title="New Audit" subtitle="Configure scope, processes, and assignments." />
       <div className="mt-6 grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-start">
         <div className="space-y-4 rounded-2xl border border-border bg-card p-6 lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto">
           <Field label="Standard">

@@ -150,7 +150,7 @@ export default function Settings() {
   return (
     <AppShell>
       <Header 
-        title="Profile settings" 
+        title="Profile Settings" 
         subtitle={isIndividual ? "Update your personal profile, professional details, and contact info." : "Update your organization profile, contact info, and business details."} 
       />
       

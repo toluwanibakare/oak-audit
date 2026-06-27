@@ -482,7 +482,7 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
             <section className="grid gap-5 xl:grid-cols-3">
               <AnalyticsBlock
                 id="response-profile-chart"
-                title="Response profile"
+                title="Response Profile"
                 subtitle="See how the audit answers split between conforming items and gaps."
                 icon={<PieChartIcon className="h-4 w-4" />}
               >
@@ -517,7 +517,7 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
 
               <AnalyticsBlock
                 id="finding-categories-chart"
-                title="Finding categories"
+                title="Finding Categories"
                 subtitle="Visual breakdown of the issues raised in this audit."
                 icon={<AlertTriangle className="h-4 w-4" />}
               >
@@ -545,7 +545,7 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
 
               <AnalyticsBlock
                 id="risk-hotspots-chart"
-                title="Risk hotspots"
+                title="Risk Hotspots"
                 subtitle="The process areas and clauses drawing the most exceptions."
                 icon={<Radar className="h-4 w-4" />}
               >
