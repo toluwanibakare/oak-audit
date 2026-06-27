@@ -316,8 +316,6 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
         {/* User card with dropdown on hover */}
         <div 
           className="relative"
-          onMouseEnter={() => setUserMenuOpen(true)}
-          onMouseLeave={() => setUserMenuOpen(false)}
         >
           {userMenuOpen && (
             <div className="absolute bottom-full left-0 right-0 pb-2 z-30 animate-fade-in">
