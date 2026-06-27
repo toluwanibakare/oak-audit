@@ -26,6 +26,7 @@ export default function Findings() {
     nonConformityStatement: "",
     standardRequirement: "",
   });
+  const [auditorComment, setAuditorComment] = useState("");
 
   const load = async () => {
     if (!currentOrg) return;
@@ -45,7 +46,7 @@ export default function Findings() {
     setProcesses(pMap);
     setProcessOwners(oMap);
 
-    const { data, error } = await supabase.from("findings").select("*,audits(title,standard)").eq("org_id", currentOrg.id).order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("findings").select("*,audits(title,standard,auditee_name,auditee_email)").eq("org_id", currentOrg.id).order("created_at", { ascending: false });
     if (error) console.error("Findings load error:", error);
     setList(data ?? []);
     const { data: auditList } = await supabase.from("audits").select("id,title").eq("org_id", currentOrg.id).order("created_at", { ascending: false });
@@ -82,6 +83,7 @@ export default function Findings() {
     const matchedClause = getClauseRequirement(stdKey, clauseNum);
     
     setSelectedFinding(finding);
+    setAuditorComment(finding.auditor_comment || "");
     setCarForm({
       correction: meta?.correction ?? "",
       rootCauseText: meta?.rootCauseText ?? "",
@@ -112,6 +114,7 @@ export default function Findings() {
         description: carForm.description.trim(),
         capa: carForm.capa.trim(),
         root_cause: rootCausePayload,
+        auditor_comment: auditorComment.trim() || null,
       })
       .eq("id", selectedFinding.id);
 
@@ -120,6 +123,90 @@ export default function Findings() {
     }
 
     toast({ title: "CAR and Root Cause details updated successfully." });
+    setSelectedFinding(null);
+    load();
+  };
+
+  const approveAndCloseCar = async () => {
+    if (!selectedFinding) return;
+    const { error } = await supabase
+      .from("findings")
+      .update({
+        status: "closed"
+      })
+      .eq("id", selectedFinding.id);
+
+    if (error) {
+      return toast({ title: "Failed to close finding", description: error.message, variant: "destructive" });
+    }
+
+    toast({ title: "Finding approved and closed successfully." });
+    setSelectedFinding(null);
+    load();
+  };
+
+  const rejectAndResendCar = async () => {
+    if (!selectedFinding) return;
+    if (!auditorComment.trim()) {
+      return toast({
+        title: "Feedback comment required",
+        description: "Please specify why you are returning this CAR so the auditee knows what to fix.",
+        variant: "destructive"
+      });
+    }
+
+    const { error } = await supabase
+      .from("findings")
+      .update({
+        status: "open",
+        auditor_comment: auditorComment.trim()
+      })
+      .eq("id", selectedFinding.id);
+
+    if (error) {
+      return toast({ title: "Failed to return CAR", description: error.message, variant: "destructive" });
+    }
+
+    // Send email to the auditee notifying them that the CAR was returned
+    const auditeeEmail = selectedFinding.audits?.auditee_email;
+    const auditeeName = selectedFinding.audits?.auditee_name || "Auditee";
+    if (auditeeEmail) {
+      const portalUrl = `${window.location.origin}/auditee/car/${selectedFinding.id}`;
+      const emailHtml = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+          <h2 style="color: #ea580c; margin-top: 0;">Corrective Action Plan Returned for Updates</h2>
+          <p>Hello ${auditeeName},</p>
+          <p>The auditor has reviewed your submitted Corrective Action Plan (CAR) for the audit <strong>"${selectedFinding.audits?.title}"</strong> and has requested updates.</p>
+          
+          <div style="background-color: #fef2f2; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #fee2e2;">
+            <p style="margin: 0; color: #991b1b; font-weight: bold;">Auditor Feedback / Rejection Reason:</p>
+            <p style="margin: 8px 0 0 0; color: #7f1d1d; font-family: monospace; white-space: pre-wrap;">${auditorComment.trim()}</p>
+          </div>
+
+          <p>Please click the button below to update your Correction, Root Cause Analysis, and Action Plan:</p>
+          
+          <div style="text-align: center; margin: 25px 0;">
+            <a href="${portalUrl}" style="background-color: #ea580c; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Update CAR Action Plan</a>
+          </div>
+
+          <p style="font-size: 12px; color: #64748b; margin-top: 30px;">This is an automated notification from ISO Audit Management Port. Please do not reply directly to this email.</p>
+        </div>
+      `;
+
+      try {
+        await supabase.functions.invoke("send-email", {
+          body: {
+            to: auditeeEmail.trim(),
+            subject: `Action Required: CAR Returned - ${selectedFinding.audits?.title}`,
+            html: emailHtml,
+          }
+        });
+      } catch (emailErr) {
+        console.error("Failed to send rejection email to auditee:", emailErr);
+      }
+    }
+
+    toast({ title: "CAR returned to auditee and notification email sent." });
     setSelectedFinding(null);
     load();
   };
@@ -172,6 +259,7 @@ export default function Findings() {
               <th className="px-4 py-3 text-left">Owner</th>
               <th className="px-4 py-3 text-left">Due Date</th>
               <th className="px-4 py-3 text-left">Status</th>
+              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -215,15 +303,33 @@ export default function Findings() {
                     {finding.due_date ? new Date(finding.due_date).toLocaleDateString("en-NG", { dateStyle: "medium" }) : "-"}
                   </td>
                   <td className="px-4 py-3">
-                    <select 
-                      value={finding.status} 
-                      onChange={(e) => setStatus(finding.id, e.target.value)} 
-                      className="input py-1 px-2 h-8 text-[11px] font-semibold w-28"
+                    <div className="flex items-center gap-2">
+                      <select 
+                        value={finding.status} 
+                        onChange={(e) => setStatus(finding.id, e.target.value)} 
+                        className={`input py-1 px-2 h-8 text-[11px] font-semibold w-28 ${
+                          finding.status === "under_review" ? "border-amber-500 bg-amber-500/10 text-amber-600 font-bold" : ""
+                        }`}
+                      >
+                        <option value="open">Open</option>
+                        <option value="under_review">Under Review</option>
+                        <option value="closed">Closed</option>
+                      </select>
+                      {finding.status === "under_review" && (
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button 
+                      onClick={() => openCarModal(finding)}
+                      className="text-xs text-primary font-bold hover:underline"
                     >
-                      <option value="open">Open</option>
-                      <option value="in_progress">In progress</option>
-                      <option value="closed">Closed</option>
-                    </select>
+                      Evaluate CAR
+                    </button>
                   </td>
                 </tr>
               );
@@ -350,21 +456,47 @@ export default function Findings() {
                   className="input min-h-[70px] w-full"
                 />
               </div>
+
+              <div className="border-t border-border/80 pt-3 mt-2">
+                <label className="mb-1 block font-bold uppercase tracking-wider text-destructive">Auditor Feedback / Return Comments</label>
+                <textarea
+                  value={auditorComment}
+                  onChange={(e) => setAuditorComment(e.target.value)}
+                  placeholder="Explain why you are returning this CAR for updates, or note review findings..."
+                  className="input min-h-[70px] w-full border-destructive/30 focus:ring-destructive/20"
+                />
+              </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-3 border-t border-border">
+            <div className="flex flex-wrap justify-between items-center gap-3 pt-3 border-t border-border">
               <button
                 onClick={() => setSelectedFinding(null)}
                 className="pill-secondary"
               >
-                Cancel
+                Close
               </button>
-              <button
-                onClick={saveCar}
-                className="pill-cta"
-              >
-                Save Action Plan
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={saveCar}
+                  className="rounded-full bg-secondary hover:bg-secondary/80 text-foreground px-4 py-2 text-xs font-semibold transition"
+                >
+                  Save Draft
+                </button>
+                <button
+                  onClick={rejectAndResendCar}
+                  className="rounded-full bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 text-xs font-semibold transition"
+                  title="Resend to the auditee for corrections"
+                >
+                  Reject & Return
+                </button>
+                <button
+                  onClick={approveAndCloseCar}
+                  className="rounded-full bg-success hover:bg-success/90 text-success-foreground px-4 py-2 text-xs font-semibold transition"
+                  title="Approve corrective action plan and close the finding"
+                >
+                  Approve & Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

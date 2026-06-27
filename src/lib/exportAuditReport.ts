@@ -11,6 +11,8 @@ type ExportAuditMeta = {
   generatedAt?: string;
   orgType?: "individual" | "organization";
   auditorName?: string;
+  criteria?: string | null;
+  object?: string | null;
 };
 
 type ExportAuditAnswer = {
@@ -30,6 +32,7 @@ type ExportAuditFinding = {
   owner?: string | null;
   status: string;
   dueDate?: string | null;
+  root_cause?: string | null;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -40,6 +43,25 @@ const STATUS_LABELS: Record<string, string> = {
   pending: "Pending / Not Assessed",
   na: "Not Applicable",
 };
+
+function parseFindingMeta(rootCause: string | null) {
+  if (!rootCause) return null;
+  if (rootCause.startsWith("AUTO_META:")) {
+    try {
+      return JSON.parse(rootCause.slice("AUTO_META:".length));
+    } catch {
+      return null;
+    }
+  }
+  if (rootCause.startsWith("AUTO_FINDING:")) {
+    try {
+      return JSON.parse(rootCause.slice("AUTO_FINDING:".length));
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
 
 export function exportAuditReport({
   meta,
@@ -499,6 +521,8 @@ export function exportAuditReport({
       }
       <tr><td>Audit Title</td><td>${escape(meta.auditTitle)}</td></tr>
       <tr><td>Standard Reference</td><td>${escape(meta.standard)}</td></tr>
+      <tr><td>Audit Criteria</td><td>${escape(meta.criteria || "All relevant clauses and control requirements.")}</td></tr>
+      <tr><td>Audit Objective</td><td>${escape(meta.object || "Evaluate standard conformity and management system alignment.")}</td></tr>
       <tr><td>Audit Scope</td><td>${escape(meta.scope || "Entire Management System scope mapped across operational units.")}</td></tr>
       <tr><td>Audit Commenced</td><td>${escape(meta.startedAt ? toDate(meta.startedAt) : "-")}</td></tr>
       <tr><td>Audit Concluded</td><td>${escape(meta.closedAt ? toDate(meta.closedAt) : "-")}</td></tr>
@@ -666,6 +690,10 @@ export function exportAuditReport({
       : findings.map((finding, index) => {
           const typeLower = finding.type.toLowerCase();
           const sClass = typeLower.includes("major") ? "major" : typeLower.includes("minor") ? "minor" : "observation";
+          const fMeta = parseFindingMeta(finding.root_cause);
+          const nonConformity = fMeta?.nonConformityStatement || "—";
+          const standardRequirement = fMeta?.standardRequirement || "—";
+
           return `
           <div class="finding-card">
             <div class="finding-header">
@@ -674,12 +702,20 @@ export function exportAuditReport({
             </div>
             <table class="finding-table">
               <tr>
-                <td class="lbl">Requirement / Scope</td>
+                <td class="lbl" style="width: 25%;">Requirement / Scope</td>
                 <td><strong>Clause ${escape(finding.clause || "-")}</strong></td>
               </tr>
               <tr>
                 <td class="lbl">Operational Exception</td>
                 <td>${escape(finding.description)}</td>
+              </tr>
+              <tr>
+                <td class="lbl">Statement of Non-Conformity</td>
+                <td>${escape(nonConformity)}</td>
+              </tr>
+              <tr>
+                <td class="lbl">Standard Requirement Not Met</td>
+                <td>${escape(standardRequirement)}</td>
               </tr>
             </table>
             

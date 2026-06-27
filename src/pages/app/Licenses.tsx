@@ -46,6 +46,8 @@ export default function Licenses() {
   const [endDate, setEndDate] = useState("");
   const [auditOwner, setAuditOwner] = useState("");
   const [selectedAuditorId, setSelectedAuditorId] = useState("");
+  const [auditeeName, setAuditeeName] = useState("");
+  const [auditeeEmail, setAuditeeEmail] = useState("");
   const [auditors, setAuditors] = useState<{ id: string; name: string; role?: string | null }[]>([]);
   const [modalProcs, setModalProcs] = useState<{ id: string; key: string; name: string }[]>([]);
   const [assignmentType, setAssignmentType] = useState<"all" | "some">("all");
@@ -230,6 +232,15 @@ export default function Licenses() {
   const handleUnlockAndLaunch = async () => {
     if (!currentOrg || !configuringPack || !user) return;
 
+    if (!auditeeName.trim() || !auditeeEmail.trim()) {
+      toast({
+        title: "Missing Auditee Information",
+        description: "Please fill in the Auditee Contact Name and Email fields.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Check if there are any active audits in progress
     const { data: openAudits } = await supabase
       .from("audits")
@@ -362,6 +373,8 @@ export default function Licenses() {
         status: "in_progress",
         started_at: new Date().toISOString(),
         created_by: user.id,
+        auditee_name: auditeeName.trim() || null,
+        auditee_email: auditeeEmail.trim() || null,
       })
       .select()
       .single();
@@ -546,6 +559,8 @@ export default function Licenses() {
                           setEndDate("");
                           setAuditOwner("");
                           setSelectedAuditorId("");
+                          setAuditeeName("");
+                          setAuditeeEmail("");
                         }
                       }}
                       disabled={busy !== null || (!active && balance < cost) || !isProfileComplete || hasOpenAudit}
@@ -754,6 +769,30 @@ export default function Licenses() {
                   </div>
 
                   <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Auditee Contact Name <span className="text-destructive">*</span></label>
+                    <input
+                      type="text"
+                      className="input w-full font-sans text-sm"
+                      value={auditeeName}
+                      onChange={(e) => setAuditeeName(e.target.value)}
+                      placeholder="e.g. Samuel Auditee"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Auditee Email <span className="text-destructive">*</span></label>
+                    <input
+                      type="email"
+                      className="input w-full font-sans text-sm"
+                      value={auditeeEmail}
+                      onChange={(e) => setAuditeeEmail(e.target.value)}
+                      placeholder="e.g. auditee@example.com"
+                      required
+                    />
+                  </div>
+
+                  <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Start Date</label>
                     <input
                       type="date"
@@ -788,7 +827,7 @@ export default function Licenses() {
                       return (
                         <button
                           onClick={handleUnlockAndLaunch}
-                          disabled={!auditTitle.trim() || busy !== null || isInsufficient}
+                          disabled={!auditTitle.trim() || !auditeeName.trim() || !auditeeEmail.trim() || busy !== null || isInsufficient}
                           className="pill-cta flex-1 justify-center disabled:opacity-50"
                         >
                           {busy ? "Activating..." : "Launch Audit →"}
@@ -798,8 +837,8 @@ export default function Licenses() {
                   ) : (
                     <button
                       onClick={() => setCurrentStep(3)}
-                      disabled={!auditTitle.trim()}
-                      className="pill-cta flex-1 justify-center"
+                      disabled={!auditTitle.trim() || !auditeeName.trim() || !auditeeEmail.trim()}
+                      className="pill-cta flex-1 justify-center disabled:opacity-50"
                     >
                       Proceed to Assignment →
                     </button>

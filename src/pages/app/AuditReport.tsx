@@ -67,7 +67,7 @@ const AuditReport = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"analytics" | "capa" | "responses">("analytics");
-  const [audit, setAudit] = useState<AnalyticsAudit | null>(null);
+  const [audit, setAudit] = useState<any | null>(null);
   const [answers, setAnswers] = useState<ReportAnswer[]>([]);
   const [findings, setFindings] = useState<ReportFinding[]>([]);
   const [processes, setProcesses] = useState<AnalyticsProcess[]>([]);
@@ -77,6 +77,11 @@ const AuditReport = () => {
   const [emailBody, setEmailBody] = useState("");
   const [emailNotes, setEmailNotes] = useState("");
   const [showDownloadChoice, setShowDownloadChoice] = useState(false);
+  const [reportTitle, setReportTitle] = useState("");
+  const [reportCriteria, setReportCriteria] = useState("");
+  const [reportObject, setReportObject] = useState("");
+  const [reportConclusion, setReportConclusion] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -86,7 +91,7 @@ const AuditReport = () => {
 
     (async () => {
       const [auditResult, answersResult, findingsResult, processesResult] = await Promise.all([
-        supabase.from("audits").select("id, title, standard, status, scope, created_at, started_at, closed_at").eq("id", id).single(),
+        supabase.from("audits").select("id, title, standard, status, scope, created_at, started_at, closed_at, criteria, object, conclusion").eq("id", id).single(),
         supabase.from("audit_answers").select("audit_id, status, process_id, clause, question_text, note, kind, q_ref").eq("audit_id", id),
         supabase.from("findings").select("id, audit_id, type, clause, description, capa, owner, status, created_at, due_date, root_cause").eq("audit_id", id).order("created_at"),
         supabase.from("org_processes").select("id, name").eq("org_id", currentOrg?.id ?? "").limit(100),
@@ -94,7 +99,7 @@ const AuditReport = () => {
 
       if (cancelled) return;
 
-      setAudit((auditResult.data ?? null) as AnalyticsAudit | null);
+      setAudit(auditResult.data ?? null);
       setAnswers((answersResult.data ?? []) as ReportAnswer[]);
       setFindings((findingsResult.data ?? []) as ReportFinding[]);
       setProcesses((processesResult.data ?? []) as AnalyticsProcess[]);
@@ -108,6 +113,37 @@ const AuditReport = () => {
       cancelled = true;
     };
   }, [id, currentOrg]);
+
+  useEffect(() => {
+    if (audit) {
+      setReportTitle(audit.title || "");
+      setReportCriteria(audit.criteria || "");
+      setReportObject(audit.object || "");
+      setReportConclusion(audit.conclusion || "");
+    }
+  }, [audit]);
+
+  const handleSaveChanges = async () => {
+    if (!id) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("audits")
+      .update({
+        title: reportTitle.trim(),
+        criteria: reportCriteria.trim(),
+        object: reportObject.trim(),
+        conclusion: reportConclusion.trim()
+      })
+      .eq("id", id);
+      
+    setSaving(false);
+    if (error) {
+      toast({ title: "Failed to save changes", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Report details updated successfully." });
+      setAudit((prev: any) => prev ? { ...prev, title: reportTitle.trim(), criteria: reportCriteria.trim(), object: reportObject.trim(), conclusion: reportConclusion.trim() } : null);
+    }
+  };
 
   useEffect(() => {
     if (audit) {
@@ -143,7 +179,7 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
     exportAuditReport({
       meta: {
         organization: currentOrg?.name ?? "Organization",
-        auditTitle: audit.title,
+        auditTitle: reportTitle || audit.title,
         standard: formatStandard(audit.standard),
         scope: audit.scope,
         status: audit.status,
@@ -151,6 +187,8 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
         closedAt: audit.closed_at,
         orgType: currentOrg?.type,
         auditorName: user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Auditor",
+        criteria: reportCriteria,
+        object: reportObject,
       },
       answers: answers.map((answer) => ({
         process: processMap[answer.process_id] ?? "-",
@@ -168,6 +206,7 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
         owner: finding.owner,
         status: finding.status,
         dueDate: finding.due_date,
+        root_cause: finding.root_cause,
       })),
       logoUrl: currentOrg?.logo_url || undefined,
     });
@@ -179,7 +218,7 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
     exportCarReport({
       meta: {
         organization: currentOrg?.name ?? "Organization",
-        auditTitle: audit.title,
+        auditTitle: reportTitle || audit.title,
         standard: formatStandard(audit.standard),
         scope: audit.scope,
         status: audit.status,
@@ -485,16 +524,67 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
               <img src={logo} alt="OAK Logo" className="h-14 w-auto object-contain shrink-0" />
               <div>
                 <span className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">OAK Global International - Audit Report</span>
-                <h1 className="mt-1.5 font-display text-3xl sm:text-4xl font-bold">{audit.title}</h1>
-                <p className="mt-1 text-sm text-muted-foreground">{currentOrg?.name} - Standard {formatStandard(audit.standard)}</p>
+                <div className="mt-1.5 space-y-1">
+                  <label className="text-[9px] font-bold text-muted-foreground uppercase block">Report Title</label>
+                  <input
+                    type="text"
+                    className="w-full bg-transparent font-display text-2xl sm:text-3xl font-bold border-b border-dashed border-border/80 focus:border-primary focus:outline-none pb-1 text-foreground"
+                    value={reportTitle}
+                    onChange={(e) => setReportTitle(e.target.value)}
+                  />
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">{currentOrg?.name} - Standard {formatStandard(audit.standard)}</p>
               </div>
             </div>
-          <div className="rounded-2xl bg-secondary px-4 py-3 text-right text-xs text-muted-foreground">
-            <div>Started: {audit.started_at ? new Date(audit.started_at).toLocaleDateString() : "-"}</div>
-            <div>Closed: {audit.closed_at ? new Date(audit.closed_at).toLocaleDateString() : "-"}</div>
-            <div>Status: {audit.status.replace("_", " ")}</div>
+            <div className="rounded-2xl bg-secondary px-4 py-3 text-right text-xs text-muted-foreground">
+              <div>Started: {audit.started_at ? new Date(audit.started_at).toLocaleDateString() : "-"}</div>
+              <div>Closed: {audit.closed_at ? new Date(audit.closed_at).toLocaleDateString() : "-"}</div>
+              <div>Status: {audit.status.replace("_", " ")}</div>
+            </div>
           </div>
-        </div>
+
+          {/* Criteria & Objective Editable Blocks */}
+          <div className="grid gap-5 md:grid-cols-2 mt-6 pb-6 border-b border-border">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Audit Criteria</label>
+              <textarea
+                rows={2}
+                className="input w-full font-sans text-xs"
+                placeholder="List audit criteria (e.g. ISO Standard Clauses, legal requirements...)"
+                value={reportCriteria}
+                onChange={(e) => setReportCriteria(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Audit Objective</label>
+              <textarea
+                rows={2}
+                className="input w-full font-sans text-xs"
+                placeholder="State audit objective (e.g. Evaluate system conformity, identify opportunities...)"
+                value={reportObject}
+                onChange={(e) => setReportObject(e.target.value)}
+              />
+            </div>
+            <div className="md:col-span-2 space-y-1.5 bg-primary/5 border border-primary/20 rounded-2xl p-4">
+              <label className="text-[10px] font-bold text-primary uppercase tracking-wider block">Audit Conclusion</label>
+              <textarea
+                rows={3}
+                className="input w-full font-sans text-xs bg-background"
+                placeholder="State the final summary / audit conclusion..."
+                value={reportConclusion}
+                onChange={(e) => setReportConclusion(e.target.value)}
+              />
+              <div className="flex justify-end pt-1">
+                <button
+                  onClick={handleSaveChanges}
+                  disabled={saving}
+                  className="pill-cta text-xs px-5 py-1.5 flex items-center gap-1.5"
+                >
+                  {saving ? "Saving Changes..." : "Save Report Header & Conclusion"}
+                </button>
+              </div>
+            </div>
+          </div>
 
         <section className="mt-8 grid gap-4 md:grid-cols-5">
           {[
@@ -801,6 +891,24 @@ ${currentOrg?.type === "individual" ? (user?.user_metadata?.full_name || user?.e
                               Clause {clauseVal} of Standard {audit?.standard.toUpperCase()}
                             </div>
                           </div>
+
+                          {meta?.nonConformityStatement && (
+                            <div className="space-y-1">
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">2b. Statement of Non-Conformity</h4>
+                              <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed whitespace-pre-wrap">
+                                {meta.nonConformityStatement}
+                              </div>
+                            </div>
+                          )}
+
+                          {meta?.standardRequirement && (
+                            <div className="space-y-1">
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">2c. Standard Requirement Not Met</h4>
+                              <div className="text-xs text-foreground bg-secondary/10 p-3 rounded-xl border border-border/30 leading-relaxed whitespace-pre-wrap">
+                                {meta.standardRequirement}
+                              </div>
+                            </div>
+                          )}
 
                           <div className="space-y-1">
                             <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">3. Finding Classification</h4>

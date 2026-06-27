@@ -14,7 +14,7 @@ import { IMS_CHECKLIST_DATA } from "@/data/imsInspectionChecklist";
 import { Skeleton } from "@/components/ui/skeleton";
 
 
-type Audit = { id: string; title: string; standard: string; scope: string | null; status: string; org_id: string; lead_auditor_id: string | null; owner: string | null };
+type Audit = { id: string; title: string; standard: string; scope: string | null; status: string; org_id: string; lead_auditor_id: string | null; owner: string | null; auditee_name?: string | null; auditee_email?: string | null; criteria?: string | null; object?: string | null };
 type Proc = { id: string; key: string; name: string; process_owner?: string | null };
 type AuditProc = { process_id: string; auditor_id: string | null };
 type Answer = { id?: string; clause: string; kind: string; q_ref: string; question_text: string | null; note: string | null; status: string };
@@ -464,7 +464,44 @@ export default function RunAudit() {
     }
 
     const { data } = await supabase.from("findings").insert(payload).select().single();
-    if (data) setFindingsMap((prev) => ({ ...prev, [key]: data as FindingRow }));
+    if (data) {
+      setFindingsMap((prev) => ({ ...prev, [key]: data as FindingRow }));
+      if (audit?.auditee_email) {
+        const portalUrl = `${window.location.origin}/auditee/car/${data.id}`;
+        const emailHtml = `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+            <h2 style="color: #e11d48; margin-top: 0;">New Non-Conformity / Finding Detected</h2>
+            <p>Hello ${audit.auditee_name || 'Auditee'},</p>
+            <p>During the audit <strong>"${audit.title}"</strong>, a non-conformity has been identified that requires your attention.</p>
+            
+            <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #e2e8f0;">
+              <p style="margin: 4px 0;"><strong>Clause:</strong> ${clause || 'N/A'}</p>
+              <p style="margin: 4px 0;"><strong>Severity:</strong> ${severity || deriveSeverity(answerStatus)}</p>
+              <p style="margin: 4px 0;"><strong>Description:</strong> ${description || questionText}</p>
+            </div>
+
+            <p>Please click the button below to access the Corrective Action Report (CAR) portal and submit your correction, root cause analysis, and long-term action plan:</p>
+            
+            <div style="text-align: center; margin: 25px 0;">
+              <a href="${portalUrl}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Fill CAR Action Plan</a>
+            </div>
+
+            <p style="font-size: 12px; color: #64748b; margin-top: 30px;">This is an automated notification from ISO Audit Management Port. Please do not reply directly to this email.</p>
+          </div>
+        `;
+        try {
+          await supabase.functions.invoke("send-email", {
+            body: {
+              to: audit.auditee_email.trim(),
+              subject: `Action Required: New Finding Detected in Audit - ${audit.title}`,
+              html: emailHtml,
+            }
+          });
+        } catch (emailErr) {
+          console.error("Failed to send finding notification email to auditee:", emailErr);
+        }
+      }
+    }
   };
 
   const uploadEvidence = async (params: {

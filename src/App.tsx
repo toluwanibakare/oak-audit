@@ -34,6 +34,7 @@ import QuestionBank from "./pages/app/QuestionBank";
 import Settings from "./pages/app/Settings";
 import MrmWorkspace from "./pages/app/MrmWorkspace";
 import AdminDashboard from "./pages/app/AdminDashboard";
+import AuditeeCar from "./pages/app/AuditeeCar";
 import Contact from "./pages/Contact";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
@@ -129,6 +130,7 @@ const App = () => {
               <Route path="/app/findings" element={<ProtectedRoute><Findings /></ProtectedRoute>} />
               <Route path="/app/question-bank" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />
               <Route path="/app/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/auditee/car/:findingId" element={<AuditeeCar />} />
               {/* Legacy local-only audit pages */}
               <Route path="/workspace" element={<ProtectedRoute><Index /></ProtectedRoute>} />
               <Route path="/processes-legacy" element={<ProtectedRoute><ProcessAudit /></ProtectedRoute>} />
