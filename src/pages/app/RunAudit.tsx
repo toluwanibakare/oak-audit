@@ -253,10 +253,12 @@ export default function RunAudit() {
       }
       setIsLead(userIsLead);
 
-      // Filter procs list to only show processes linked to this audit and assigned to this auditor (or all if lead/admin)
+      // Filter procs list to only show processes linked to this audit.
+      // If the user is a standard auditor (not lead/admin/MR), filter to show only processes assigned to them.
+      // Otherwise, show all audit processes so they can see progress.
       const auditProcIds = new Set(
         finalAuditProcs
-          .filter((ap) => userIsLead || !currentAuditorId || ap.auditor_id === currentAuditorId)
+          .filter((ap) => userIsLead || !currentAuditorId || ap.auditor_id === currentAuditorId || currentAuditorId === currentAudit.lead_auditor_id)
           .map((ap) => ap.process_id)
       );
       const activeAuditProcs = visibleProcs.filter((p) => auditProcIds.has(p.id));
@@ -537,12 +539,18 @@ export default function RunAudit() {
 
   const isProcSubmitted = activeProc ? submittedProcs.includes(activeProc) : false;
   const isUserStandardAuditor = currentUserAuditor?.role === "auditor";
-  const canEdit = audit?.status === "in_progress" && (!isProcSubmitted || !isUserStandardAuditor);
-
   const isMR = useMemo(() => {
     if (!user) return false;
     return currentUserAuditor?.role === "management_representative" || currentUserRole?.role === "admin" || currentUserRole?.role === "owner" || !currentUserAuditor;
   }, [currentUserAuditor, currentUserRole, user]);
+
+  const canEdit = useMemo(() => {
+    if (audit?.status !== "in_progress") return false;
+    if (isProcSubmitted && isUserStandardAuditor) return false;
+    // Gating check: if an auditor is assigned to the active process, only the assigned auditor can edit
+    if (assignedAuditorId && currentAuditor?.id !== assignedAuditorId) return false;
+    return true;
+  }, [audit?.status, isProcSubmitted, isUserStandardAuditor, assignedAuditorId, currentAuditor?.id]);
 
   const allProcessesSubmitted = useMemo(() => {
     const assignedProcIds = auditProcesses.map((ap) => ap.process_id);
@@ -1228,7 +1236,8 @@ export default function RunAudit() {
                                       onChange={(e) => {
                                         saveChecklistAnswer(i.id, e.target.value, ans.note, ans.evidence);
                                       }}
-                                      className="input w-32 text-xs py-1 h-8 animate-none"
+                                      disabled={!canEdit}
+                                      className="input w-32 text-xs py-1 h-8 animate-none disabled:opacity-65"
                                     >
                                       <option value="pending">Pending</option>
                                       <option value="done">Done / Conform</option>
@@ -1244,7 +1253,8 @@ export default function RunAudit() {
                                   onChange={(e) => {
                                     saveChecklistAnswer(i.id, ans.status, e.target.value, ans.evidence);
                                   }}
-                                  placeholder="Checklist notes/observations..."
+                                  disabled={!canEdit}
+                                  placeholder={!canEdit ? "No notes recorded." : "Checklist notes/observations..."}
                                   className="input min-h-[50px] text-xs py-1.5 font-sans"
                                 />
 
@@ -1254,21 +1264,23 @@ export default function RunAudit() {
                                       <Link2 className="h-3 w-3" />
                                       Evidence Uploads
                                     </div>
-                                    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground">
-                                      <FileUp className="h-3 w-3" />
-                                      {uploadingChecklistFor === i.id ? "Uploading..." : "Upload File"}
-                                      <input
-                                        type="file"
-                                        multiple
-                                        className="hidden"
-                                        disabled={uploadingChecklistFor !== null}
-                                        onChange={(e) => {
-                                          if (e.target.files && e.target.files.length > 0) {
-                                            uploadChecklistEvidence(i.id, e.target.files, ans.note, ans.status);
-                                          }
-                                        }}
-                                      />
-                                    </label>
+                                    {canEdit && (
+                                      <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground">
+                                        <FileUp className="h-3 w-3" />
+                                        {uploadingChecklistFor === i.id ? "Uploading..." : "Upload File"}
+                                        <input
+                                          type="file"
+                                          multiple
+                                          className="hidden"
+                                          disabled={uploadingChecklistFor !== null}
+                                          onChange={(e) => {
+                                            if (e.target.files && e.target.files.length > 0) {
+                                              uploadChecklistEvidence(i.id, e.target.files, ans.note, ans.status);
+                                            }
+                                          }}
+                                        />
+                                      </label>
+                                    )}
                                   </div>
 
                                   {ans.evidence && ans.evidence.length > 0 && (
@@ -1278,15 +1290,17 @@ export default function RunAudit() {
                                           <a href={file.url} target="_blank" rel="noopener noreferrer" className="max-w-[120px] truncate hover:underline" title={file.name}>
                                             {file.name}
                                           </a>
-                                          <button
-                                            onClick={() => {
-                                              const nextEv = ans.evidence.filter((_: any, idx: number) => idx !== fileIdx);
-                                              saveChecklistAnswer(i.id, ans.status, ans.note, nextEv);
-                                            }}
-                                            className="rounded-full p-0.5 hover:bg-secondary text-muted-foreground hover:text-foreground"
-                                          >
-                                            <X className="h-2.5 w-2.5" />
-                                          </button>
+                                          {canEdit && (
+                                            <button
+                                              onClick={() => {
+                                                const nextEv = ans.evidence.filter((_: any, idx: number) => idx !== fileIdx);
+                                                saveChecklistAnswer(i.id, ans.status, ans.note, nextEv);
+                                              }}
+                                              className="rounded-full p-0.5 hover:bg-secondary text-muted-foreground hover:text-foreground"
+                                            >
+                                              <X className="h-2.5 w-2.5" />
+                                            </button>
+                                          )}
                                         </div>
                                       ))}
                                     </div>
