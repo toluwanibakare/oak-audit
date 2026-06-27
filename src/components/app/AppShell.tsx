@@ -315,6 +315,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
 
         {/* User card with dropdown on hover */}
         <div 
+          ref={userMenuRef}
           className="relative"
         >
           {userMenuOpen && (

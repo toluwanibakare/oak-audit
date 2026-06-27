@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { AppShell } from "@/components/app/AppShell";
@@ -42,6 +42,16 @@ export default function Processes() {
   const [processToDelete, setProcessToDelete] = useState<Proc | null>(null);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedProcIdsMain, setSelectedProcIdsMain] = useState<string[]>([]);
+
+  // Memoized process autocompletion suggestions
+  const suggestions = useMemo(() => {
+    const query = form.name.trim().toLowerCase();
+    if (!query) return [];
+    return UNIQUE_STANDARD_PROCESSES.filter((p) => 
+      p.name.toLowerCase().includes(query) || 
+      p.key.toLowerCase().includes(query)
+    ).slice(0, 5);
+  }, [form.name]);
 
   // Selection states for standard processes
   const [selectedStandardKeys, setSelectedStandardKeys] = useState<string[]>([]);
@@ -582,7 +592,7 @@ export default function Processes() {
               <p className="text-xs text-muted-foreground mt-1">Define your own customized corporate workflow to audit.</p>
             </div>
             <div className="space-y-4">
-              <div>
+              <div className="relative">
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Process Name</label>
                 <input
                   type="text"
@@ -591,6 +601,24 @@ export default function Processes() {
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                 />
+                {suggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-card shadow-elevated p-1 space-y-0.5 animate-in fade-in duration-100 text-xs">
+                    <p className="px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Matching Standard Processes</p>
+                    {suggestions.map((p) => (
+                      <button
+                        key={p.key}
+                        type="button"
+                        onClick={() => {
+                          setForm({ name: p.name, scope: p.scope || "" });
+                        }}
+                        className="w-full text-left rounded-lg px-2.5 py-2 hover:bg-secondary text-foreground font-semibold flex flex-col gap-0.5 transition"
+                      >
+                        <span>{p.name}</span>
+                        {p.scope && <span className="text-[10px] text-muted-foreground font-normal line-clamp-1">{p.scope}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Scope / Description</label>
