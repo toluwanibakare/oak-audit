@@ -42,6 +42,7 @@ export default function Processes() {
   const [standardProcessOwners, setStandardProcessOwners] = useState<Record<string, string>>({});
   const [standardProcessOwnersEmail, setStandardProcessOwnersEmail] = useState<Record<string, string>>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [customSubmitClicked, setCustomSubmitClicked] = useState(false);
   const [processToDelete, setProcessToDelete] = useState<Proc | null>(null);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedProcIdsMain, setSelectedProcIdsMain] = useState<string[]>([]);
@@ -242,7 +243,8 @@ export default function Processes() {
   };
 
   const add = async () => {
-    if (!currentOrg || !form.name.trim()) return;
+    setCustomSubmitClicked(true);
+    if (!currentOrg || !form.name.trim() || !form.process_owner.trim() || !form.process_owner_email.trim()) return;
 
     const cleanName = form.name.trim();
     const cleanNameLower = cleanName.toLowerCase();
@@ -274,6 +276,7 @@ export default function Processes() {
     if (error) return toast({ title: error.message, variant: "destructive" });
 
     setForm({ name: "", scope: "", process_owner: "", process_owner_email: "" });
+    setCustomSubmitClicked(false);
     setIsModalOpen(false);
     await load();
 
@@ -546,35 +549,21 @@ export default function Processes() {
                         <input
                           type="text"
                           placeholder="Process Owner name (required)..."
-                          className={`input h-8 text-xs w-full ${
-                            !(standardProcessOwners[sp.key]?.trim())
-                              ? "border-destructive focus:ring-destructive/30"
-                              : ""
-                          }`}
+                          className="input h-8 text-xs w-full"
                           value={standardProcessOwners[sp.key] ?? ""}
                           onChange={(e) => setStandardProcessOwners(prev => ({ ...prev, [sp.key]: e.target.value }))}
                           onClick={(e) => e.stopPropagation()}
                         />
-                        {!(standardProcessOwners[sp.key]?.trim()) && (
-                          <p className="mt-1 text-[10px] text-destructive font-semibold">Process owner is required</p>
-                        )}
                       </div>
                       <div>
                         <input
                           type="email"
                           placeholder="Process Owner email (required)..."
-                          className={`input h-8 text-xs w-full ${
-                            !(standardProcessOwnersEmail[sp.key]?.trim())
-                              ? "border-destructive focus:ring-destructive/30"
-                              : ""
-                          }`}
+                          className="input h-8 text-xs w-full"
                           value={standardProcessOwnersEmail[sp.key] ?? ""}
                           onChange={(e) => setStandardProcessOwnersEmail(prev => ({ ...prev, [sp.key]: e.target.value }))}
                           onClick={(e) => e.stopPropagation()}
                         />
-                        {!(standardProcessOwnersEmail[sp.key]?.trim()) && (
-                          <p className="mt-1 text-[10px] text-destructive font-semibold">Owner email is required</p>
-                        )}
                       </div>
                     </div>
                   )}
@@ -751,12 +740,12 @@ export default function Processes() {
                   type="text"
                   placeholder="e.g. John Doe"
                   className={`input w-full h-11 ${
-                    !form.process_owner.trim() ? "border-destructive focus:ring-destructive/30" : ""
+                    customSubmitClicked && !form.process_owner.trim() ? "border-destructive focus:ring-destructive/30" : ""
                   }`}
                   value={form.process_owner}
                   onChange={(e) => setForm({ ...form, process_owner: e.target.value })}
                 />
-                {!form.process_owner.trim() && (
+                {customSubmitClicked && !form.process_owner.trim() && (
                   <p className="mt-1 text-[11px] text-destructive">Process owner name is required</p>
                 )}
               </div>
@@ -766,12 +755,12 @@ export default function Processes() {
                   type="email"
                   placeholder="e.g. johndoe@company.com"
                   className={`input w-full h-11 ${
-                    !form.process_owner_email.trim() ? "border-destructive focus:ring-destructive/30" : ""
+                    customSubmitClicked && !form.process_owner_email.trim() ? "border-destructive focus:ring-destructive/30" : ""
                   }`}
                   value={form.process_owner_email}
                   onChange={(e) => setForm({ ...form, process_owner_email: e.target.value })}
                 />
-                {!form.process_owner_email.trim() && (
+                {customSubmitClicked && !form.process_owner_email.trim() && (
                   <p className="mt-1 text-[11px] text-destructive">Process owner email is required</p>
                 )}
               </div>
@@ -926,11 +915,16 @@ export default function Processes() {
                     {purchasedLicenses.length === 0 ? (
                       <option value="">No Active Standards</option>
                     ) : (
-                      <>
-                        {purchasedLicenses.includes("9001") && <option value="9001">ISO 9001 (Quality)</option>}
-                        {purchasedLicenses.includes("14001") && <option value="14001">ISO 14001 (Env)</option>}
-                        {purchasedLicenses.includes("45001") && <option value="45001">ISO 45001 (OH&S)</option>}
-                      </>
+                      purchasedLicenses.map(std => {
+                        let label = std.toUpperCase();
+                        if (std === "9001") label = "ISO 9001 (Quality)";
+                        else if (std === "14001") label = "ISO 14001 (Env)";
+                        else if (std === "45001") label = "ISO 45001 (OH&S)";
+                        else if (std === "27001") label = "ISO 27001 (InfoSec)";
+                        else if (std === "ims") label = "IMS Integrated";
+                        else if (std === "hse") label = "HSE Integrated";
+                        return <option key={std} value={std}>{label}</option>;
+                      })
                     )}
                   </select>
                 </div>
