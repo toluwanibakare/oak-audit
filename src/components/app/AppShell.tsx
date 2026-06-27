@@ -35,7 +35,7 @@ const ORG_NAV = [
   { to: "/app/team", label: "My Team", icon: Users },
   { to: "/app/question-bank", label: "Question Banks", icon: BookOpen },
   { to: "/app/audits", label: "My Audits", icon: ClipboardCheck },
-  { to: "/app/findings", label: "Findings", icon: AlertTriangle },
+  { to: "/app/findings", label: "CAR Management", icon: AlertTriangle },
   { to: "/app/mrm", label: "Management Review", icon: FileText },
   { to: "/contact", label: "Help & Support", icon: LifeBuoy },
 ];
@@ -46,7 +46,7 @@ const INDIVIDUAL_NAV = [
   { to: "/app/processes", label: "Processes", icon: Workflow },
   { to: "/app/question-bank", label: "Question Banks", icon: BookOpen },
   { to: "/app/audits", label: "My Audits", icon: ClipboardCheck },
-  { to: "/app/findings", label: "Findings", icon: AlertTriangle },
+  { to: "/app/findings", label: "CAR Management", icon: AlertTriangle },
   { to: "/contact", label: "Help & Support", icon: LifeBuoy },
 ];
 

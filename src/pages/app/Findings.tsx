@@ -219,7 +219,7 @@ export default function Findings() {
 
   return (
     <AppShell>
-      <Header title="Findings & CAR" subtitle="Non-conformities, observations, and corrective action reports." />
+      <Header title="CAR MANAGEMENT" subtitle="Non-conformities, observations, and corrective action reports." />
 
       <section className="mt-6 grid gap-4 md:grid-cols-3">
         <StatusCard label="Open" value={summary.open} hint="Awaiting action" icon={<AlertTriangle className="h-4 w-4" />} />
