@@ -229,8 +229,17 @@ export default function Licenses() {
     })();
   }, [configuringPack, currentOrg, selectedAuditorId, auditors]);
 
-  const handleUnlockAndLaunch = async () => {
+  const handleUnlockAndCreateDraft = async () => {
     if (!currentOrg || !configuringPack || !user) return;
+
+    if (!auditTitle.trim()) {
+      toast({
+        title: "Missing Audit Title",
+        description: "Please enter a title for the audit.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (!auditeeName.trim() || !auditeeEmail.trim()) {
       toast({
@@ -241,65 +250,18 @@ export default function Licenses() {
       return;
     }
 
-    // Check if there are any active audits in progress
+    // Check if there are any active audits in progress (draft is okay, only check for non-draft / non-closed audits)
     const { data: openAudits } = await supabase
       .from("audits")
       .select("id, title")
       .eq("org_id", currentOrg.id)
-      .neq("status", "closed");
+      .neq("status", "closed")
+      .neq("status", "draft");
 
     if (openAudits && openAudits.length > 0) {
       toast({
         title: "Active Audit in Progress",
         description: `You have an open audit in progress ("${openAudits[0].title}"). You must submit and close it before you can unlock or start another audit.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    let auditorId = selectedAuditorId;
-    if (currentOrg.type === "individual" && !auditorId) {
-      // Retrieve or create on the fly to avoid race conditions
-      const { data: existing } = await supabase
-        .from("auditors")
-        .select("id")
-        .eq("org_id", currentOrg.id)
-        .limit(1)
-        .maybeSingle();
-
-      if (existing?.id) {
-        auditorId = existing.id;
-      } else {
-        const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Auditor";
-        const { data: created } = await supabase
-          .from("auditors")
-          .insert({
-            org_id: currentOrg.id,
-            name: fullName,
-            email: user.email || "",
-            role: "Lead Auditor",
-            user_id: user.id
-          })
-          .select("id")
-          .single();
-        if (created?.id) {
-          auditorId = created.id;
-        }
-      }
-    } else if (currentOrg.type !== "individual" && !auditorId) {
-      // Fallback for organizations: find the first assigned auditor from the processes list, or the first auditor in the team
-      const firstProcessAuditor = Object.values(processAuditorMap).find(id => !!id);
-      if (firstProcessAuditor) {
-        auditorId = firstProcessAuditor;
-      } else if (auditors.length > 0) {
-        auditorId = auditors[0].id;
-      }
-    }
-
-    if (!auditorId) {
-      toast({
-        title: "Auditor required",
-        description: "Please register or select an auditor to assign this audit.",
         variant: "destructive",
       });
       return;
@@ -335,28 +297,7 @@ export default function Licenses() {
       licenseId = spentId;
     }
 
-    // 2. Fetch processes inside the organization
-    const { data: orgProcs } = await supabase
-      .from("org_processes")
-      .select("id,key,name")
-      .eq("org_id", currentOrg.id);
-
-    const finalProcs = orgProcs ?? [];
-    const visibleProcs = finalProcs.filter((p) => {
-      return isProcessInStandard(configuringPack as any, p.key);
-    });
-
-    if (visibleProcs.length === 0) {
-      toast({
-        title: "No processes configured",
-        description: `Please select or add your processes for this standard in Processes settings before starting an audit.`,
-        variant: "destructive",
-      });
-      setBusy(null);
-      return;
-    }
-
-    // 3. Create the audit record directly
+    // 2. Create the audit record directly as "draft" status
     const { data: newAudit, error: auditError } = await supabase
       .from("audits")
       .insert({
@@ -369,9 +310,7 @@ export default function Licenses() {
         start_date: startDate || null,
         end_date: endDate || null,
         owner: currentOrg.type !== "individual" ? currentOrg.name : (auditOwner || null),
-        lead_auditor_id: auditorId,
-        status: "in_progress",
-        started_at: new Date().toISOString(),
+        status: "draft",
         created_by: user.id,
         auditee_name: auditeeName.trim() || null,
         auditee_email: auditeeEmail.trim() || null,
@@ -380,48 +319,20 @@ export default function Licenses() {
       .single();
 
     if (auditError || !newAudit) {
-      toast({ title: "Failed to start audit", description: auditError?.message ?? "Database error", variant: "destructive" });
+      toast({ title: "Failed to create audit draft", description: auditError?.message ?? "Database error", variant: "destructive" });
       setBusy(null);
       return;
     }
 
-    // 4. Seed audit processes and assign them to their default mapped auditors first, falling back to the lead auditor
-    const { data: assignmentsData } = await supabase
-      .from("process_assignments")
-      .select("process_id, auditor_id")
-      .eq("org_id", currentOrg.id);
-
-    const assignmentMap = new Map<string, string>();
-    if (assignmentsData) {
-      assignmentsData.forEach((a) => {
-        assignmentMap.set(a.process_id, a.auditor_id);
-      });
-    }
-
-    // Filter processes to seed if they chose "some"
-    let procsToSeed = visibleProcs;
-    if (currentOrg.type !== "individual" && assignmentType === "some") {
-      procsToSeed = visibleProcs.filter(p => selectedProcIds.includes(p.id));
-    }
-
-    const rows = procsToSeed.map((p) => ({
-      audit_id: newAudit.id,
-      process_id: p.id,
-      auditor_id: processAuditorMap[p.id] || assignmentMap.get(p.id) || auditorId,
-    }));
-
-    if (rows.length > 0) {
-      await supabase.from("audit_processes").insert(rows);
-    }
-
     if (activeLicense) {
-      toast({ title: "Audit launched under active license!", description: "Started audit with zero credit deduction." });
+      toast({ title: "Audit draft created under active license!", description: "Proceeding to processes configuration." });
     } else {
-      toast({ title: "ISO Standard unlocked & launched!", description: `${cost} credit(s) spent. Redirecting you...` });
+      toast({ title: "ISO Standard unlocked & draft created!", description: `${cost} credit(s) spent. Redirecting you...` });
     }
+    
     setBusy(null);
     setConfiguringPack(null);
-    navigate(`/app/audits/${newAudit.id}`);
+    navigate(`/app/processes`);
   };
 
   return (
@@ -638,321 +549,168 @@ export default function Licenses() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
           <div className="w-full max-w-2xl rounded-[32px] border border-border bg-card p-8 shadow-elevated animate-scale-up space-y-6">
             <div>
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-[10px] uppercase tracking-widest text-primary font-bold">Step {currentStep} of {currentOrg?.type === "individual" ? 2 : 3}</span>
-                <h3 className="font-display text-xl font-bold">Configure Audit Setup</h3>
-              </div>
+              <h3 className="font-display text-xl font-bold">Configure Audit Setup</h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                {currentStep === 1 && "Step 1: Review selected processes and questions. Proceeding locks the question bank."}
-                {currentStep === 2 && "Step 2: Enter audit metadata (Scope, Criteria, and Objectives)."}
-                {currentStep === 3 && "Step 3: Assign auditor to each process for this audit workspace."}
+                Enter the audit metadata (Scope, Criteria, Objectives, and Auditee info) to create a draft audit.
               </p>
             </div>
 
-            {/* STEP 1: Question bank lock and process review */}
-            {currentStep === 1 && (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-warning/30 bg-warning/5 p-4 text-xs text-warning leading-relaxed">
-                  <strong>⚠️ Warning - Question Bank Lock:</strong>
-                  <p className="mt-1">
-                    Please review the processes and questions selected below. Once you proceed to the next step, you cannot update the questions or add custom questions to this standard pack again.
-                  </p>
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Title <span className="text-destructive">*</span></label>
+                  <input
+                    className="input w-full font-sans text-sm"
+                    value={auditTitle}
+                    onChange={(e) => setAuditTitle(e.target.value)}
+                    placeholder="e.g. Q3 2026 Internal Audit"
+                    required
+                  />
                 </div>
 
-                <div className="max-h-60 overflow-y-auto border border-border rounded-2xl p-4 bg-secondary/10 space-y-3">
-                  <div className="flex justify-between items-center border-b border-border/50 pb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    <span>Process Name</span>
-                    <span>Questions (Std + Custom)</span>
-                  </div>
-                  {modalProcs.map((p) => {
-                    const stdCount = (() => {
-                      try {
-                        const sets = getQuestionsFor(configuringPack as StandardKey, p.key as any) ?? [];
-                        let sum = 0;
-                        sets.forEach((set) => {
-                          if (set.clause !== "Checklist") {
-                            sum += (set.generic?.length ?? 0) + (set.specific?.length ?? 0);
-                          }
-                        });
-                        return sum;
-                      } catch {
-                        return 0;
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Criteria</label>
+                  <input
+                    className="input w-full font-sans text-sm"
+                    value={auditCriteria}
+                    onChange={(e) => setAuditCriteria(e.target.value)}
+                    placeholder="e.g. ISO 14001:2015 & ISO 45001:2018"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Scope</label>
+                  <input
+                    className="input w-full font-sans text-sm"
+                    value={auditScope}
+                    onChange={(e) => setAuditScope(e.target.value)}
+                    placeholder="e.g. Operations, Warehouse, and HR"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Objective</label>
+                  <input
+                    className="input w-full font-sans text-sm"
+                    value={auditObject}
+                    onChange={(e) => setAuditObject(e.target.value)}
+                    placeholder="e.g. Health, Safety & Environmental Management"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Owner / Auditee (Who the audit is for)</label>
+                  <input
+                    type="text"
+                    className={`input w-full font-sans text-sm ${currentOrg?.type !== "individual" ? "bg-secondary/40 opacity-70 cursor-not-allowed" : ""}`}
+                    value={currentOrg?.type !== "individual" ? (currentOrg?.name || "") : auditOwner}
+                    onChange={(e) => {
+                      if (currentOrg?.type === "individual") {
+                        setAuditOwner(e.target.value);
                       }
-                    })();
-                    const customCount = customQuestionCounts[p.key] || 0;
-                    return (
-                      <div key={p.id} className="flex justify-between items-center text-xs font-semibold py-1">
-                        <span>{p.name}</span>
-                        <span className="font-mono">{stdCount} standard + {customCount} custom</span>
-                      </div>
-                    );
-                  })}
-                  {modalProcs.length === 0 && (
-                    <p className="text-xs text-muted-foreground italic text-center py-4">No active processes for this standard pack.</p>
-                  )}
-                </div>
-
-                <div className="flex justify-between gap-3 pt-4">
-                  <button
-                    onClick={() => {
-                      setConfiguringPack(null);
-                      setCurrentStep(1);
                     }}
-                    className="pill-secondary flex-1 justify-center"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => setCurrentStep(2)}
-                    disabled={modalProcs.length === 0}
-                    className="pill-cta flex-1 justify-center"
-                  >
-                    Proceed →
-                  </button>
+                    disabled={currentOrg?.type !== "individual"}
+                    placeholder={currentOrg?.type === "individual" ? "Type owner/auditee name..." : currentOrg?.name || ""}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                    {currentOrg?.type === "individual" ? "Process Owner (Organization)" : "Auditee Contact Name / Process Owner"} <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className={`input w-full font-sans text-sm ${currentOrg?.type === "individual" ? "bg-secondary/40 opacity-70 cursor-not-allowed" : ""}`}
+                    value={auditeeName}
+                    onChange={(e) => {
+                      if (currentOrg?.type !== "individual") {
+                        setAuditeeName(e.target.value);
+                      }
+                    }}
+                    disabled={currentOrg?.type === "individual"}
+                    placeholder="e.g. Samuel Auditee"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                    {currentOrg?.type === "individual" ? "Process Owner Email" : "Auditee Email"} <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    className={`input w-full font-sans text-sm ${currentOrg?.type === "individual" ? "bg-secondary/40 opacity-70 cursor-not-allowed" : ""}`}
+                    value={auditeeEmail}
+                    onChange={(e) => {
+                      if (currentOrg?.type !== "individual") {
+                        setAuditeeEmail(e.target.value);
+                      }
+                    }}
+                    disabled={currentOrg?.type === "individual"}
+                    placeholder="e.g. auditee@example.com"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Start Date</label>
+                  <input
+                    type="date"
+                    className="input w-full font-sans text-sm"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">End Date</label>
+                  <input
+                    type="date"
+                    className="input w-full font-sans text-sm"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
                 </div>
               </div>
-            )}
 
-            {/* STEP 2: Audit Metadata */}
-            {currentStep === 2 && (
-              <div className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Title</label>
-                    <input
-                      className="input w-full font-sans text-sm"
-                      value={auditTitle}
-                      onChange={(e) => setAuditTitle(e.target.value)}
-                      placeholder="e.g. Q3 2026 Internal Audit"
-                    />
-                  </div>
+              {(() => {
+                const activeCost = customPricing?.[configuringPack] !== undefined 
+                  ? Number(customPricing[configuringPack]) 
+                  : PACK_CREDIT_COST[configuringPack as keyof typeof PACK_CREDIT_COST];
+                const isInsufficient = balance < activeCost;
 
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Criteria</label>
-                    <input
-                      className="input w-full font-sans text-sm"
-                      value={auditCriteria}
-                      onChange={(e) => setAuditCriteria(e.target.value)}
-                      placeholder="e.g. ISO 14001:2015 & ISO 45001:2018"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Scope</label>
-                    <input
-                      className="input w-full font-sans text-sm"
-                      value={auditScope}
-                      onChange={(e) => setAuditScope(e.target.value)}
-                      placeholder="e.g. Operations, Warehouse, and HR"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Audit Objective</label>
-                    <input
-                      className="input w-full font-sans text-sm"
-                      value={auditObject}
-                      onChange={(e) => setAuditObject(e.target.value)}
-                      placeholder="e.g. Health, Safety & Environmental Management"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Owner / Auditee (Who the audit is for)</label>
-                    <input
-                      type="text"
-                      className={`input w-full font-sans text-sm ${currentOrg?.type !== "individual" ? "bg-secondary/40 opacity-70 cursor-not-allowed" : ""}`}
-                      value={currentOrg?.type !== "individual" ? (currentOrg?.name || "") : auditOwner}
-                      onChange={(e) => {
-                        if (currentOrg?.type === "individual") {
-                          setAuditOwner(e.target.value);
-                        }
-                      }}
-                      disabled={currentOrg?.type !== "individual"}
-                      placeholder={currentOrg?.type === "individual" ? "Type owner/auditee name..." : currentOrg?.name || ""}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                      {currentOrg?.type === "individual" ? "Process Owner (Organization)" : "Auditee Contact Name / Process Owner"} <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className={`input w-full font-sans text-sm ${currentOrg?.type === "individual" ? "bg-secondary/40 opacity-70 cursor-not-allowed" : ""}`}
-                      value={auditeeName}
-                      onChange={(e) => {
-                        if (currentOrg?.type !== "individual") {
-                          setAuditeeName(e.target.value);
-                        }
-                      }}
-                      disabled={currentOrg?.type === "individual"}
-                      placeholder="e.g. Samuel Auditee"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                      {currentOrg?.type === "individual" ? "Process Owner Email" : "Auditee Email"} <span className="text-destructive">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      className={`input w-full font-sans text-sm ${currentOrg?.type === "individual" ? "bg-secondary/40 opacity-70 cursor-not-allowed" : ""}`}
-                      value={auditeeEmail}
-                      onChange={(e) => {
-                        if (currentOrg?.type !== "individual") {
-                          setAuditeeEmail(e.target.value);
-                        }
-                      }}
-                      disabled={currentOrg?.type === "individual"}
-                      placeholder="e.g. auditee@example.com"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Start Date</label>
-                    <input
-                      type="date"
-                      className="input w-full font-sans text-sm"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">End Date</label>
-                    <input
-                      type="date"
-                      className="input w-full font-sans text-sm"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-between gap-3 pt-4">
-                  <button onClick={() => setCurrentStep(1)} className="pill-secondary flex-1 justify-center">
-                    ← Back
-                  </button>
-                  {currentOrg?.type === "individual" ? (
-                    (() => {
-                      const activeCost = customPricing?.[configuringPack] !== undefined 
-                        ? Number(customPricing[configuringPack]) 
-                        : PACK_CREDIT_COST[configuringPack as keyof typeof PACK_CREDIT_COST];
-                      const isInsufficient = balance < activeCost;
-
-                      return (
-                        <button
-                          onClick={handleUnlockAndLaunch}
-                          disabled={!auditTitle.trim() || !auditeeName.trim() || !auditeeEmail.trim() || busy !== null || isInsufficient}
-                          className="pill-cta flex-1 justify-center disabled:opacity-50"
-                        >
-                          {busy ? "Activating..." : "Launch Audit →"}
-                        </button>
-                      );
-                    })()
-                  ) : (
-                    <button
-                      onClick={() => setCurrentStep(3)}
-                      disabled={!auditTitle.trim() || !auditeeName.trim() || !auditeeEmail.trim()}
-                      className="pill-cta flex-1 justify-center disabled:opacity-50"
-                    >
-                      Proceed to Assignment →
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* STEP 3: Process Auditor Assignment */}
-            {currentStep === 3 && currentOrg?.type !== "individual" && (
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-border bg-card p-4 space-y-3 font-sans shadow-sm">
-                  <div>
-                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                      Assign Lead Auditor
-                    </label>
-                    <select
-                      className="input w-full font-sans text-xs"
-                      value={selectedAuditorId}
-                      onChange={(e) => setSelectedAuditorId(e.target.value)}
-                    >
-                      <option value="">— Select Lead Auditor —</option>
-                      {auditors.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="max-h-60 overflow-y-auto border border-border rounded-2xl p-4 bg-secondary/10 space-y-4 font-sans">
-                  <div className="flex justify-between items-center border-b border-border/50 pb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    <span>Process Name</span>
-                    <span>Assign Auditor</span>
-                  </div>
-                  {modalProcs.map((p) => (
-                    <div key={p.id} className="flex justify-between items-center gap-4 text-xs font-semibold py-1">
-                      <span>{p.name}</span>
-                      <select
-                        className="input w-48 font-sans text-xs py-1 h-8"
-                        value={processAuditorMap[p.id] || ""}
-                        onChange={(e) => {
-                          setProcessAuditorMap({
-                            ...processAuditorMap,
-                            [p.id]: e.target.value,
-                          });
-                        }}
-                      >
-                        <option value="">— Select Auditor —</option>
-                        {auditors.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-
-                {(() => {
-                  const activeCost = customPricing?.[configuringPack] !== undefined 
-                    ? Number(customPricing[configuringPack]) 
-                    : PACK_CREDIT_COST[configuringPack as keyof typeof PACK_CREDIT_COST];
-                  const isInsufficient = balance < activeCost;
-                  const allAssigned = modalProcs.every((p) => !!processAuditorMap[p.id]) && !!selectedAuditorId;
-
-                  return (
-                    <>
-                      {isInsufficient && (
-                        <div className="rounded-2xl border border-destructive/35 bg-destructive/5 p-4 text-xs text-destructive leading-relaxed">
-                          <strong>⚠️ Insufficient Balance:</strong>
-                          <p className="mt-1">
-                            Your workspace wallet balance ({balance} credit{balance === 1 ? "" : "s"}) is insufficient to activate this audit. This pack requires {activeCost} credit{activeCost === 1 ? "" : "s"}.
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="flex gap-3 pt-4">
-                        <button onClick={() => setCurrentStep(2)} className="pill-secondary flex-1 justify-center">
-                          ← Back
-                        </button>
-                        <button
-                          onClick={handleUnlockAndLaunch}
-                          disabled={!allAssigned || busy !== null || isInsufficient}
-                          className="pill-cta flex-1 justify-center disabled:opacity-50"
-                        >
-                          {busy ? "Activating..." : "Launch Audit →"}
-                        </button>
+                return (
+                  <>
+                    {isInsufficient && (
+                      <div className="rounded-2xl border border-destructive/35 bg-destructive/5 p-4 text-xs text-destructive leading-relaxed">
+                        <strong>⚠️ Insufficient Balance:</strong>
+                        <p className="mt-1">
+                          Your workspace wallet balance ({balance} credit{balance === 1 ? "" : "s"}) is insufficient to activate this audit. This pack requires {activeCost} credit{activeCost === 1 ? "" : "s"}.
+                        </p>
                       </div>
-                    </>
-                  );
-                })()}
-              </div>
-            )}
+                    )}
+
+                    <div className="flex gap-3 pt-4 border-t border-border/50">
+                      <button
+                        onClick={() => {
+                          setConfiguringPack(null);
+                        }}
+                        className="pill-secondary flex-1 justify-center"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleUnlockAndCreateDraft}
+                        disabled={!auditTitle.trim() || !auditeeName.trim() || !auditeeEmail.trim() || busy !== null || isInsufficient}
+                        className="pill-cta flex-1 justify-center disabled:opacity-50"
+                      >
+                        {busy ? "Activating..." : "Select Processes →"}
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
           </div>
         </div>
       )}
