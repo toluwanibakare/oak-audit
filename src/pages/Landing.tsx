@@ -972,13 +972,23 @@ export default function Landing() {
               and with greater confidence.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3.5 max-w-xs mx-auto sm:max-w-none">
-              <Link
-                to="/auth?mode=signup"
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:scale-105 duration-300"
-              >
-                Get Started Free
-                <ArrowRight className="h-4 w-4" />
-              </Link>
+              {isLoggedIn ? (
+                <Link
+                  to="/app"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:scale-105 duration-300"
+                >
+                  Go to Dashboard
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              ) : (
+                <Link
+                  to="/auth?mode=signup"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:scale-105 duration-300"
+                >
+                  Get Started
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              )}
               <button
                 onClick={() => alert("Demo video coming soon!")}
                 className="inline-flex items-center justify-center gap-2.5 rounded-full border border-white/30 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 hover:scale-105 duration-300"

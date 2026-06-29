@@ -377,10 +377,13 @@ export default function Team() {
   );
 }
 
-export const Header = ({ title, subtitle }: { title: string; subtitle?: string }) => (
-  <div className="page-hero">
-    <span className="eyebrow-chip">Workspace page</span>
-    <h1 className="mt-3 font-display text-3xl font-bold tracking-tight">{title}</h1>
-    {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+export const Header = ({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) => (
+  <div className="page-hero flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+      <span className="eyebrow-chip">Workspace page</span>
+      <h1 className="mt-3 font-display text-3xl font-bold tracking-tight">{title}</h1>
+      {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
+    </div>
+    {action && <div className="shrink-0 flex items-center">{action}</div>}
   </div>
 );

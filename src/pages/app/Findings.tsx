@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Clock3, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, X, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { AppShell } from "@/components/app/AppShell";
@@ -219,7 +219,20 @@ export default function Findings() {
 
   return (
     <AppShell>
-      <Header title="CAR Management" subtitle="Non-conformities, observations, and corrective action reports." />
+      <Header 
+        title="CAR Management" 
+        subtitle="Non-conformities, observations, and corrective action reports." 
+        action={
+          <a
+            href="/CAPA_Management_Tool.xlsx"
+            download="CAPA_Management_Tool.xlsx"
+            className="inline-flex items-center gap-2 rounded-2xl bg-primary text-primary-foreground px-4 py-2.5 text-xs font-semibold shadow-card transition hover:bg-primary/90 hover:scale-[1.02] active:scale-95 duration-200"
+          >
+            <Download className="h-4 w-4" />
+            <span>Download CAPA Template</span>
+          </a>
+        }
+      />
 
       <section className="mt-6 grid gap-4 md:grid-cols-3">
         <StatusCard label="Open" value={summary.open} hint="Awaiting action" icon={<AlertTriangle className="h-4 w-4" />} />
