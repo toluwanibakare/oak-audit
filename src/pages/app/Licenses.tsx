@@ -762,7 +762,7 @@ export default function Licenses() {
                         </p>
                       </div>
                       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                        <Zap className="h-6 w-6" />
+                        <Shield className="h-6 w-6" />
                       </div>
                     </div>
                   </div>

@@ -74,7 +74,11 @@ Deno.serve(async (req) => {
     let secret = Deno.env.get("PAYSTACK_SECRET_KEY");
     if (!secret) {
       // Fallback: Query from vault.decrypted_secrets directly
-      const { data: vaultData } = await supabase
+      const adminClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: vaultData } = await adminClient
         .from("decrypted_secrets")
         .select("decrypted_secret")
         .eq("name", "PAYSTACK_SECRET_KEY")
