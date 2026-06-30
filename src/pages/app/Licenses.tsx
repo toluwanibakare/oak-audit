@@ -513,7 +513,7 @@ export default function Licenses() {
             <div className="border-b border-border/50 bg-secondary/30 px-7 py-5">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  {step === 1 ? <FileText className="h-4 w-4" /> : <Zap className="h-4 w-4" />}
+                  {step === 1 ? <FileText className="h-4 w-4" /> : <CreditCard className="h-4 w-4" />}
                 </div>
                 <div>
                   <h3 className="font-display text-lg font-bold">

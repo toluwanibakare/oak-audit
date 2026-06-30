@@ -36,7 +36,12 @@ Deno.serve(async (req) => {
 
     let secret = Deno.env.get("PAYSTACK_SECRET_KEY");
     if (!secret) {
-      const { data: vaultData } = await admin
+      const vaultAdmin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        { db: { schema: "vault" } }
+      );
+      const { data: vaultData } = await vaultAdmin
         .from("decrypted_secrets")
         .select("decrypted_secret")
         .eq("name", "PAYSTACK_SECRET_KEY")
