@@ -253,7 +253,10 @@ export default function Licenses() {
 
     setBusy(configuringPack);
     try {
+      const sessionRes = await supabase.auth.getSession();
+      const token = sessionRes.data.session?.access_token;
       const { data, error } = await supabase.functions.invoke("paystack-initiate", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: {
           org_id: currentOrg.id,
           pack: configuringPack,
