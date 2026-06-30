@@ -79,18 +79,22 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
         { db: { schema: "vault" } }
       );
-      const { data: vaultData } = await adminClient
+      const { data: vaultData, error: vaultErr } = await adminClient
         .from("decrypted_secrets")
         .select("decrypted_secret")
         .eq("name", "PAYSTACK_SECRET_KEY")
         .maybeSingle();
       
+      if (vaultErr) {
+        console.error("Vault lookup error:", vaultErr);
+      }
       if (vaultData?.decrypted_secret) {
         secret = vaultData.decrypted_secret;
       }
     }
 
     if (!secret) {
+      console.error("Payment init failed: PAYSTACK_SECRET_KEY is null or undefined");
       return json({
         error: "Paystack key not configured",
         message: "PAYSTACK_SECRET_KEY is not defined in environment variables or database vault.",
@@ -100,6 +104,7 @@ Deno.serve(async (req) => {
     const origin = req.headers.get("origin") ?? "https://app.oakaudix.com";
     const callback = `${origin}/app/licenses?ref=${reference}`;
 
+    console.log(`Initiating Paystack transaction for email=${email ?? user.email}, amount=${amountKobo} kobo`);
     const psRes = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
       headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
@@ -133,7 +138,10 @@ Deno.serve(async (req) => {
     });
 
     const ps = await psRes.json();
-    if (!ps.status) return json({ error: ps.message ?? "Paystack init failed" }, 502);
+    if (!psRes.ok || !ps.status) {
+      console.error("Paystack API error payload:", ps);
+      return json({ error: ps.message ?? "Paystack init failed" }, 502);
+    }
 
     // Record a pending transaction
     await supabase.from("paystack_transactions").insert({
