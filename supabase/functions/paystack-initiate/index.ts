@@ -79,8 +79,7 @@ Deno.serve(async (req) => {
       // Fallback: Query from vault.decrypted_secrets directly
       const adminClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-        { db: { schema: "vault" } }
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
       const { data: vaultData, error: vaultErr } = await adminClient
         .from("decrypted_secrets")

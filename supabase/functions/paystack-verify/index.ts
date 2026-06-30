@@ -38,8 +38,7 @@ Deno.serve(async (req) => {
     if (!secret) {
       const vaultAdmin = createClient(
         Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-        { db: { schema: "vault" } }
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
       const { data: vaultData } = await vaultAdmin
         .from("decrypted_secrets")
