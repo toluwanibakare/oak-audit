@@ -34,7 +34,18 @@ Deno.serve(async (req) => {
       return json({ ok: true, status: "success", audit_id: existingAuditId, already_verified: true });
     }
 
-    const secret = Deno.env.get("PAYSTACK_SECRET_KEY");
+    let secret = Deno.env.get("PAYSTACK_SECRET_KEY");
+    if (!secret) {
+      const { data: vaultData } = await admin
+        .from("decrypted_secrets")
+        .select("decrypted_secret")
+        .eq("name", "PAYSTACK_SECRET_KEY")
+        .maybeSingle();
+      
+      if (vaultData?.decrypted_secret) {
+        secret = vaultData.decrypted_secret;
+      }
+    }
     if (!secret) return json({ error: "Paystack key not configured" }, 503);
 
     // Verify with Paystack

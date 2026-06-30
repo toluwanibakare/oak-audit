@@ -71,11 +71,24 @@ Deno.serve(async (req) => {
 
     const reference = `oak_audit_${pack}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-    const secret = Deno.env.get("PAYSTACK_SECRET_KEY");
+    let secret = Deno.env.get("PAYSTACK_SECRET_KEY");
+    if (!secret) {
+      // Fallback: Query from vault.decrypted_secrets directly
+      const { data: vaultData } = await supabase
+        .from("decrypted_secrets")
+        .select("decrypted_secret")
+        .eq("name", "PAYSTACK_SECRET_KEY")
+        .maybeSingle();
+      
+      if (vaultData?.decrypted_secret) {
+        secret = vaultData.decrypted_secret;
+      }
+    }
+
     if (!secret) {
       return json({
         error: "Paystack key not configured",
-        message: "Add PAYSTACK_SECRET_KEY in Cloud secrets to enable live checkout.",
+        message: "PAYSTACK_SECRET_KEY is not defined in environment variables or database vault.",
       }, 503);
     }
 
