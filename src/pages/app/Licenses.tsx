@@ -179,7 +179,7 @@ export default function Licenses() {
         });
       } else {
         toast({
-          title: "Payment confirmed! 🎉",
+          title: "Payment confirmed!",
           description: "Your audit has been created. Redirecting to processes setup…",
         });
         await load();
