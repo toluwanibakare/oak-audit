@@ -31,13 +31,16 @@ Deno.serve(async (req) => {
     const jwt = auth.replace("Bearer ", "");
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: `Bearer ${jwt}` } } },
     );
 
-    const { data: userData } = await supabase.auth.getUser(jwt);
+    const { data: userData, error: userErr } = await supabase.auth.getUser(jwt);
     const user = userData?.user;
-    if (!user) return json({ error: "Unauthorized" }, 401);
+    if (userErr || !user) {
+      console.error("Auth verify error in function:", userErr);
+      return json({ error: "Unauthorized", details: userErr?.message }, 401);
+    }
 
     const body = await req.json();
     const {
@@ -143,8 +146,12 @@ Deno.serve(async (req) => {
       return json({ error: ps.message ?? "Paystack init failed" }, 502);
     }
 
-    // Record a pending transaction
-    await supabase.from("paystack_transactions").insert({
+    // Record a pending transaction using service client (bypasses RLS write limitations)
+    const serviceClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    await serviceClient.from("paystack_transactions").insert({
       org_id,
       user_id: user.id,
       reference,
