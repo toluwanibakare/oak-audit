@@ -73,6 +73,9 @@ const Auth = () => {
   const [generatedOtp, setGeneratedOtp] = useState("");
   const [showOtpModal, setShowOtpModal] = useState(false);
 
+  // Remember Me state
+  const [rememberMe, setRememberMe] = useState(true);
+
   // Form states to preserve inputs when navigating back/forth
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -273,6 +276,9 @@ const Auth = () => {
           return;
         }
         
+        localStorage.setItem("oa_remember_me", rememberMe ? "true" : "false");
+        sessionStorage.setItem("oa_session_marker", "true");
+
         const { error } = await supabase.auth.signInWithPassword({
           email: parsed.data.email,
           password: parsed.data.password,
@@ -490,7 +496,16 @@ const Auth = () => {
                         required
                       />
                       {mode === "signin" && (
-                        <div className="flex justify-end -mt-2">
+                        <div className="flex items-center justify-between -mt-2">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={rememberMe}
+                              onChange={(e) => setRememberMe(e.target.checked)}
+                              className="h-4 w-4 rounded border-border text-primary focus:ring-primary/30"
+                            />
+                            <span className="text-xs text-muted-foreground">Remember me</span>
+                          </label>
                           <button
                             type="button"
                             onClick={() => switchMode("forgot")}

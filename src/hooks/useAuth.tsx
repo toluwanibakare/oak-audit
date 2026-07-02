@@ -24,8 +24,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
+      if (s) {
+        const rememberMe = localStorage.getItem("oa_remember_me");
+        if (rememberMe !== "true") {
+          const sessionMarker = sessionStorage.getItem("oa_session_marker");
+          if (!sessionMarker) {
+            supabase.auth.signOut();
+            setSession(null);
+            setUser(null);
+            setLoading(false);
+            return;
+          }
+        }
+        setSession(s);
+        setUser(s?.user ?? null);
+      }
       setLoading(false);
     });
 

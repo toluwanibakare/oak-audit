@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Clock3, X, Download } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, Download, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { AppShell } from "@/components/app/AppShell";
@@ -16,8 +16,8 @@ export default function Findings() {
   const [processOwners, setProcessOwners] = useState<Record<string, string>>({}); // id -> process_owner
   const [form, setForm] = useState({ audit_id: "", type: "minor", clause: "", description: "", capa: "", owner: "", due_date: "" });
 
-  // CAR Modal States
-  const [selectedFinding, setSelectedFinding] = useState<any | null>(null);
+  // CAR Sub-page States
+  const [viewingFinding, setViewingFinding] = useState<any | null>(null);
   const [carForm, setCarForm] = useState({
     correction: "",
     rootCauseText: "",
@@ -74,7 +74,7 @@ export default function Findings() {
     load();
   };
 
-  const openCarModal = (finding: any) => {
+  const openCarView = (finding: any) => {
     const meta = parseFindingMeta(finding.root_cause);
     
     // Look up clause requirement from the standard
@@ -82,7 +82,7 @@ export default function Findings() {
     const clauseNum = finding.clause;
     const matchedClause = getClauseRequirement(stdKey, clauseNum);
     
-    setSelectedFinding(finding);
+    setViewingFinding(finding);
     setAuditorComment(finding.auditor_comment || "");
     setCarForm({
       correction: meta?.correction ?? "",
@@ -95,9 +95,9 @@ export default function Findings() {
   };
 
   const saveCar = async () => {
-    if (!selectedFinding) return;
+    if (!viewingFinding) return;
 
-    const meta = parseFindingMeta(selectedFinding.root_cause) || {};
+    const meta = parseFindingMeta(viewingFinding.root_cause) || {};
     const updatedMeta = {
       ...meta,
       correction: carForm.correction.trim(),
@@ -116,37 +116,37 @@ export default function Findings() {
         root_cause: rootCausePayload,
         auditor_comment: auditorComment.trim() || null,
       })
-      .eq("id", selectedFinding.id);
+      .eq("id", viewingFinding.id);
 
     if (error) {
       return toast({ title: "Failed to save CAR details", description: error.message, variant: "destructive" });
     }
 
     toast({ title: "CAR and Root Cause details updated successfully." });
-    setSelectedFinding(null);
+    setViewingFinding(null);
     load();
   };
 
   const approveAndCloseCar = async () => {
-    if (!selectedFinding) return;
+    if (!viewingFinding) return;
     const { error } = await supabase
       .from("findings")
       .update({
         status: "closed"
       })
-      .eq("id", selectedFinding.id);
+      .eq("id", viewingFinding.id);
 
     if (error) {
       return toast({ title: "Failed to close finding", description: error.message, variant: "destructive" });
     }
 
     toast({ title: "Finding approved and closed successfully." });
-    setSelectedFinding(null);
+    setViewingFinding(null);
     load();
   };
 
   const rejectAndResendCar = async () => {
-    if (!selectedFinding) return;
+    if (!viewingFinding) return;
     if (!auditorComment.trim()) {
       return toast({
         title: "Feedback comment required",
@@ -161,22 +161,22 @@ export default function Findings() {
         status: "open",
         auditor_comment: auditorComment.trim()
       })
-      .eq("id", selectedFinding.id);
+      .eq("id", viewingFinding.id);
 
     if (error) {
       return toast({ title: "Failed to return CAR", description: error.message, variant: "destructive" });
     }
 
     // Send email to the auditee notifying them that the CAR was returned
-    const auditeeEmail = selectedFinding.audits?.auditee_email;
-    const auditeeName = selectedFinding.audits?.auditee_name || "Auditee";
+    const auditeeEmail = viewingFinding.audits?.auditee_email;
+    const auditeeName = viewingFinding.audits?.auditee_name || "Auditee";
     if (auditeeEmail) {
-      const portalUrl = `${window.location.origin}/auditee/car/${selectedFinding.id}`;
+      const portalUrl = `${window.location.origin}/auditee/car/${viewingFinding.id}`;
       const emailHtml = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
           <h2 style="color: #ea580c; margin-top: 0;">Corrective Action Plan Returned for Updates</h2>
           <p>Hello ${auditeeName},</p>
-          <p>The auditor has reviewed your submitted Corrective Action Plan (CAR) for the audit <strong>"${selectedFinding.audits?.title}"</strong> and has requested updates.</p>
+          <p>The auditor has reviewed your submitted Corrective Action Plan (CAR) for the audit <strong>"${viewingFinding.audits?.title}"</strong> and has requested updates.</p>
           
           <div style="background-color: #fef2f2; padding: 15px; border-radius: 8px; margin: 15px 0; border: 1px solid #fee2e2;">
             <p style="margin: 0; color: #991b1b; font-weight: bold;">Auditor Feedback / Rejection Reason:</p>
@@ -197,7 +197,7 @@ export default function Findings() {
         await supabase.functions.invoke("send-email", {
           body: {
             to: auditeeEmail.trim(),
-            subject: `Action Required: CAR Returned - ${selectedFinding.audits?.title}`,
+            subject: `Action Required: CAR Returned - ${viewingFinding.audits?.title}`,
             html: emailHtml,
           }
         });
@@ -207,7 +207,7 @@ export default function Findings() {
     }
 
     toast({ title: "CAR returned to auditee and notification email sent." });
-    setSelectedFinding(null);
+    setViewingFinding(null);
     load();
   };
 
@@ -219,165 +219,22 @@ export default function Findings() {
 
   return (
     <AppShell>
-      <Header 
-        title="CAR Management" 
-        subtitle="Non-conformities, observations, and corrective action reports." 
-        action={
-          <a
-            href="/CAPA_Management_Tool.xlsx"
-            download="CAPA_Management_Tool.xlsx"
-            className="inline-flex items-center gap-2 rounded-2xl bg-primary text-primary-foreground px-4 py-2.5 text-xs font-semibold shadow-card transition hover:bg-primary/90 hover:scale-[1.02] active:scale-95 duration-200"
+      {viewingFinding ? (
+        <>
+          {/* CAR Evaluation Sub-page */}
+          <button
+            onClick={() => setViewingFinding(null)}
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground mb-6"
           >
-            <Download className="h-4 w-4" />
-            <span>Download CAPA Template</span>
-          </a>
-        }
-      />
+            <ArrowLeft className="h-4 w-4" />
+            Back to CAR Management
+          </button>
 
-      <section className="mt-6 grid gap-4 md:grid-cols-3">
-        <StatusCard label="Open" value={summary.open} hint="Awaiting action" icon={<AlertTriangle className="h-4 w-4" />} />
-        <StatusCard label="In progress" value={summary.progress} hint="Currently being worked" icon={<Clock3 className="h-4 w-4" />} />
-        <StatusCard label="Closed" value={summary.closed} hint="Resolved items" icon={<CheckCircle2 className="h-4 w-4" />} />
-      </section>
-
-      <section className="mt-6 rounded-[28px] border border-border bg-card p-5 shadow-card">
-        <h2 className="font-display text-xl font-semibold">Add a finding</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Capture a new issue quickly and keep the CAR register current.</p>
-        <div className="mt-5 grid gap-3 md:grid-cols-7">
-          <select className="input md:col-span-2" value={form.audit_id} onChange={(e) => setForm({ ...form, audit_id: e.target.value })}>
-            <option value="">Select audit...</option>
-            {audits.map((audit) => <option key={audit.id} value={audit.id}>{audit.title}</option>)}
-          </select>
-          <select className="input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-            <option value="major">Major</option>
-            <option value="minor">Minor</option>
-            <option value="observation">Observation</option>
-            <option value="opportunity">Opportunity</option>
-          </select>
-          <input className="input" placeholder="Clause" value={form.clause} onChange={(e) => setForm({ ...form, clause: e.target.value })} />
-          <input className="input md:col-span-2" placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          <button onClick={add} className="pill-cta">Add finding</button>
-        </div>
-      </section>
-
-      <section className="mt-6 overflow-hidden rounded-[28px] border border-border bg-card shadow-card">
-        <table className="w-full text-sm">
-          <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 text-left">ID</th>
-              <th className="px-4 py-3 text-left">Clause</th>
-              <th className="px-4 py-3 text-left">Description</th>
-              <th className="px-4 py-3 text-left">Severity</th>
-              <th className="px-4 py-3 text-left">Process</th>
-              <th className="px-4 py-3 text-left">Owner</th>
-              <th className="px-4 py-3 text-left">Due Date</th>
-              <th className="px-4 py-3 text-left">Status</th>
-              <th className="px-4 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((finding, index) => {
-              const meta = parseFindingMeta(finding.root_cause);
-              const procName = meta?.processId ? (processes[meta.processId] || "N/A") : "N/A";
-              const severity = finding.type === "major" ? "Major" : finding.type === "minor" ? "Minor" : "Observation";
-              const resolvedOwner = meta?.processId
-                ? (processOwners[meta.processId] || finding.owner || finding.audits?.owner || currentOrg?.name || "—")
-                : (finding.owner || finding.audits?.owner || currentOrg?.name || "—");
-              
-              return (
-                <tr key={finding.id} className="border-t border-border hover:bg-secondary/40 transition-colors">
-                  <td className="px-4 py-3 font-mono text-[11px] font-semibold text-muted-foreground whitespace-nowrap" title={finding.id}>
-                    {`F-${String(list.length - index).padStart(4, "0")}`}
-                  </td>
-                  <td className="px-4 py-3 font-medium text-foreground">
-                    {finding.clause || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground leading-normal max-w-sm">
-                    <p className="line-clamp-2" title={finding.description}>{finding.description}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
-                      finding.type === "major" 
-                        ? "bg-destructive/10 text-destructive border border-destructive/20" 
-                        : finding.type === "minor"
-                        ? "bg-warning/10 text-warning border border-warning/20"
-                        : "bg-blue-600/10 text-blue-500 border border-blue-500/20"
-                    }`}>
-                      {severity}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground font-medium">
-                    {procName}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {resolvedOwner}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground font-medium whitespace-nowrap">
-                    {finding.due_date ? new Date(finding.due_date).toLocaleDateString("en-NG", { dateStyle: "medium" }) : "-"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <select 
-                        value={finding.status} 
-                        onChange={(e) => setStatus(finding.id, e.target.value)} 
-                        className={`input py-1 px-2 h-8 text-[11px] font-semibold w-28 ${
-                          finding.status === "under_review" ? "border-amber-500 bg-amber-500/10 text-amber-600 font-bold" : ""
-                        }`}
-                      >
-                        <option value="open">Open</option>
-                        <option value="under_review">Under Review</option>
-                        <option value="closed">Closed</option>
-                      </select>
-                      {finding.status === "under_review" && (
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button 
-                      onClick={() => openCarModal(finding)}
-                      className="text-xs text-primary font-bold hover:underline"
-                    >
-                      Evaluate CAR
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-            {list.length === 0 && (
-              <tr>
-                <td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                  No findings recorded yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </section>
-
-      {/* CAR / RCA Action Plan Modal */}
-      {selectedFinding && (
-        <div 
-          className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in cursor-pointer"
-          onClick={() => setSelectedFinding(null)}
-        >
-          <div 
-            className="relative w-full max-w-xl rounded-3xl border border-border bg-card p-6 shadow-elevated space-y-4 animate-scale-in max-h-[90vh] overflow-y-auto font-sans cursor-default"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="rounded-3xl border border-border bg-card p-6 shadow-card space-y-4 font-sans">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="font-display text-lg font-bold text-foreground">
                 Manage Corrective Actions (CAR / RCA)
               </h3>
-              <button
-                onClick={() => setSelectedFinding(null)}
-                className="rounded-lg p-1.5 hover:bg-secondary text-muted-foreground transition"
-              >
-                <X className="h-4 w-4" />
-              </button>
             </div>
 
             <div className="space-y-4 text-xs">
@@ -386,10 +243,10 @@ export default function Findings() {
                 <input
                   type="text"
                   value={(() => {
-                    const meta = parseFindingMeta(selectedFinding?.root_cause);
+                    const meta = parseFindingMeta(viewingFinding?.root_cause);
                     return meta?.processId
-                      ? (processOwners[meta.processId] || selectedFinding?.owner || "—")
-                      : (selectedFinding?.owner || "—");
+                      ? (processOwners[meta.processId] || viewingFinding?.owner || "—")
+                      : (viewingFinding?.owner || "—");
                   })()}
                   disabled
                   className="input opacity-65 cursor-not-allowed bg-secondary/30 w-full text-xs"
@@ -421,19 +278,19 @@ export default function Findings() {
                 <textarea
                   value={carForm.standardRequirement}
                   onChange={(e) => {
-                    const meta = parseFindingMeta(selectedFinding?.root_cause);
+                    const meta = parseFindingMeta(viewingFinding?.root_cause);
                     if (!meta || meta.kind === "custom") {
                       setCarForm({ ...carForm, standardRequirement: e.target.value });
                     }
                   }}
                   disabled={(() => {
-                    const meta = parseFindingMeta(selectedFinding?.root_cause);
+                    const meta = parseFindingMeta(viewingFinding?.root_cause);
                     return meta ? meta.kind !== "custom" : false;
                   })()}
                   placeholder="Enter standard requirement..."
                   className={`input min-h-[70px] w-full ${
                     (() => {
-                      const meta = parseFindingMeta(selectedFinding?.root_cause);
+                      const meta = parseFindingMeta(viewingFinding?.root_cause);
                       return meta && meta.kind !== "custom" ? "opacity-65 cursor-not-allowed bg-secondary/30" : "";
                     })()
                   }`}
@@ -483,7 +340,7 @@ export default function Findings() {
 
             <div className="flex flex-wrap justify-between items-center gap-3 pt-3 border-t border-border">
               <button
-                onClick={() => setSelectedFinding(null)}
+                onClick={() => setViewingFinding(null)}
                 className="pill-secondary"
               >
                 Close
@@ -512,7 +369,148 @@ export default function Findings() {
               </div>
             </div>
           </div>
-        </div>
+        </>
+      ) : (
+        <>
+          <Header 
+            title="CAR Management" 
+            subtitle="Non-conformities, observations, and corrective action reports." 
+            action={
+              <a
+                href="/CAPA_Management_Tool.xlsx"
+                download="CAPA_Management_Tool.xlsx"
+                className="inline-flex items-center gap-2 rounded-2xl bg-primary text-primary-foreground px-4 py-2.5 text-xs font-semibold shadow-card transition hover:bg-primary/90 hover:scale-[1.02] active:scale-95 duration-200"
+              >
+                <Download className="h-4 w-4" />
+                <span>Download CAPA Tracker</span>
+              </a>
+            }
+          />
+
+          <section className="mt-6 grid gap-4 md:grid-cols-3">
+            <StatusCard label="Open" value={summary.open} hint="Awaiting action" icon={<AlertTriangle className="h-4 w-4" />} />
+            <StatusCard label="In progress" value={summary.progress} hint="Currently being worked" icon={<Clock3 className="h-4 w-4" />} />
+            <StatusCard label="Closed" value={summary.closed} hint="Resolved items" icon={<CheckCircle2 className="h-4 w-4" />} />
+          </section>
+
+          <section className="mt-6 rounded-[28px] border border-border bg-card p-5 shadow-card">
+            <h2 className="font-display text-xl font-semibold">Add a finding</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Capture a new issue quickly and keep the CAR register current.</p>
+            <div className="mt-5 grid gap-3 md:grid-cols-7">
+              <select className="input md:col-span-2" value={form.audit_id} onChange={(e) => setForm({ ...form, audit_id: e.target.value })}>
+                <option value="">Select audit...</option>
+                {audits.map((audit) => <option key={audit.id} value={audit.id}>{audit.title}</option>)}
+              </select>
+              <select className="input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+                <option value="major">Major</option>
+                <option value="minor">Minor</option>
+                <option value="observation">Observation</option>
+                <option value="opportunity">Opportunity</option>
+              </select>
+              <input className="input" placeholder="Clause" value={form.clause} onChange={(e) => setForm({ ...form, clause: e.target.value })} />
+              <input className="input md:col-span-2" placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              <button onClick={add} className="pill-cta">Add finding</button>
+            </div>
+          </section>
+
+          <section className="mt-6 overflow-hidden rounded-[28px] border border-border bg-card shadow-card">
+            <table className="w-full text-sm">
+              <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 text-left">ID</th>
+                  <th className="px-4 py-3 text-left">Clause</th>
+                  <th className="px-4 py-3 text-left">Description</th>
+                  <th className="px-4 py-3 text-left">Severity</th>
+                  <th className="px-4 py-3 text-left">Process</th>
+                  <th className="px-4 py-3 text-left">Owner</th>
+                  <th className="px-4 py-3 text-left">Due Date</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((finding, index) => {
+                  const meta = parseFindingMeta(finding.root_cause);
+                  const procName = meta?.processId ? (processes[meta.processId] || "N/A") : "N/A";
+                  const severity = finding.type === "major" ? "Major" : finding.type === "minor" ? "Minor" : "Observation";
+                  const resolvedOwner = meta?.processId
+                    ? (processOwners[meta.processId] || finding.owner || finding.audits?.owner || currentOrg?.name || "—")
+                    : (finding.owner || finding.audits?.owner || currentOrg?.name || "—");
+                  
+                  return (
+                    <tr key={finding.id} className="border-t border-border hover:bg-secondary/40 transition-colors">
+                      <td className="px-4 py-3 font-mono text-[11px] font-semibold text-muted-foreground whitespace-nowrap" title={finding.id}>
+                        {`F-${String(list.length - index).padStart(4, "0")}`}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-foreground">
+                        {finding.clause || "-"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground leading-normal max-w-sm">
+                        <p className="line-clamp-2" title={finding.description}>{finding.description}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                          finding.type === "major" 
+                            ? "bg-destructive/10 text-destructive border border-destructive/20" 
+                            : finding.type === "minor"
+                            ? "bg-warning/10 text-warning border border-warning/20"
+                            : "bg-blue-600/10 text-blue-500 border border-blue-500/20"
+                        }`}>
+                          {severity}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground font-medium">
+                        {procName}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {resolvedOwner}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground font-medium whitespace-nowrap">
+                        {finding.due_date ? new Date(finding.due_date).toLocaleDateString("en-NG", { dateStyle: "medium" }) : "-"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <select 
+                            value={finding.status} 
+                            onChange={(e) => setStatus(finding.id, e.target.value)} 
+                            className={`input py-1 px-2 h-8 text-[11px] font-semibold w-28 ${
+                              finding.status === "under_review" ? "border-amber-500 bg-amber-500/10 text-amber-600 font-bold" : ""
+                            }`}
+                          >
+                            <option value="open">Open</option>
+                            <option value="under_review">Under Review</option>
+                            <option value="closed">Closed</option>
+                          </select>
+                          {finding.status === "under_review" && (
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button 
+                          onClick={() => openCarView(finding)}
+                          className="text-xs text-primary font-bold hover:underline"
+                        >
+                          Evaluate CAR
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {list.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                      No findings recorded yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </section>
+        </>
       )}
     </AppShell>
   );
