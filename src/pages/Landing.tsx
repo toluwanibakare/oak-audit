@@ -8,6 +8,8 @@ import {
   BadgeCheck,
   BarChart3,
   CheckCircle2,
+  ChevronDown,
+  ClipboardCheck,
   ClipboardList,
   FileText,
   Globe,
@@ -21,6 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { SiteFooter } from "@/components/SiteFooter";
 import heroAudit from "@/assets/hero-audit.jpg";
 import heroSide from "@/assets/hero-side.jpg";
 import heroBg from "@/assets/hero-bg.jpg";
@@ -408,72 +411,62 @@ export default function Landing() {
       <main>
         {/* ── Hero ─────────────────────────────────────────────── */}
         <section className="hero-section">
-          {/* Background image */}
           <div
             className="hero-bg"
             style={{ backgroundImage: `url(${heroBg})` }}
           />
-          {/* Overlay: light blue → light green gradient */}
           <div className="hero-overlay" />
-          
-          {/* Digital Grid Pattern Texture */}
-          <div className="hero-grid-pattern" />
 
-          {/* Content — centered */}
           <div className="relative z-10 mx-auto max-w-4xl px-6 pt-10 pb-16 sm:pt-14 sm:pb-20 md:pt-16 md:pb-24 text-center text-white">
             <div className="animate-fade-in-up">
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-3.5 py-1.5 text-[10px] sm:text-xs font-semibold uppercase tracking-widest text-white/90 backdrop-blur-sm shadow-sm">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-white/80">
                 <BadgeCheck className="h-3.5 w-3.5 text-accent shrink-0" />
                 ISO-Ready Audit Platform
               </span>
             </div>
 
-            <h1 className="animate-fade-in-up-delay-1 mt-4 text-balance font-display text-3xl sm:text-5xl md:text-6xl lg:text-[4.5rem] font-extrabold leading-[1.1] tracking-tight text-white drop-shadow-sm">
+            <h1 className="animate-fade-in-up-delay-1 mt-5 text-balance font-display text-4xl sm:text-5xl md:text-6xl lg:text-[4.5rem] font-extrabold leading-[1.1] tracking-tight text-white">
               Audit operations that feel{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-200 via-sky-100 to-emerald-100 font-extrabold">modern, clear</span>
+              <span className="text-accent">modern, clear</span>
               <br className="hidden sm:block" /> and easy to run.
             </h1>
 
-            <p className="animate-fade-in-up-delay-2 mx-auto mt-4 max-w-2xl text-sm sm:text-base leading-6 sm:leading-7 text-white/85 md:text-lg">
+            <p className="animate-fade-in-up-delay-2 mx-auto mt-5 max-w-2xl text-base leading-7 text-white/80">
               OakAudix gives auditors one clean place to manage processes, run audits,
               collect evidence, track findings, and export polished reports — without the usual friction.
             </p>
 
-            <div className="animate-fade-in-up-delay-3 mt-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3.5 max-w-xs mx-auto sm:max-w-none">
+            <div className="animate-fade-in-up-delay-3 mt-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3.5 max-w-xs mx-auto sm:max-w-none">
               {isLoggedIn ? (
-                <Link to="/app" className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:scale-105 hover:bg-slate-50 duration-300">
+                <Link to="/app" className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-4 text-sm font-bold text-primary shadow-lg transition hover:bg-white/90 hover:scale-[1.03] duration-300">
                   Go To Dashboard
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               ) : (
-                <Link to="/auth?mode=signup" className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:scale-105 hover:bg-slate-50 duration-300">
+                <Link to="/auth?mode=signup" className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-4 text-sm font-bold text-primary shadow-lg transition hover:bg-white/90 hover:scale-[1.03] duration-300">
                   Start Auditing Free
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               )}
-              {/* Watch Demo — placeholder */}
               <button
-                onClick={() => {
-                  alert("Demo video coming soon!");
-                }}
-                className="inline-flex items-center justify-center gap-2.5 rounded-full border border-white/30 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 hover:scale-105 duration-300"
+                onClick={() => alert("Demo video coming soon!")}
+                className="inline-flex items-center justify-center gap-2.5 rounded-full border border-white/20 bg-white/5 px-8 py-4 text-sm font-semibold text-white transition hover:bg-white/15 hover:scale-[1.03] duration-300"
               >
-                <Play className="h-3.5 w-3.5 fill-white text-white shrink-0" />
+                <Play className="h-4 w-4 fill-white text-white shrink-0" />
                 Watch Demo
               </button>
             </div>
 
-            {/* Trust indicators */}
-            <div className="animate-fade-in-up-delay-3 mt-8 flex flex-wrap items-center justify-center gap-6 text-xs font-medium text-white/70">
-              <span className="flex items-center gap-1.5">
+            <div className="animate-fade-in-up-delay-3 mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs font-medium text-white/60">
+              <span className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                 ISO 9001 · 14001 · 45001 · 27001
               </span>
-              <span className="flex items-center gap-1.5">
+              <span className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                 No Credit Card Required
               </span>
-              <span className="flex items-center gap-1.5">
+              <span className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                 Ready In Under 5 Minutes
               </span>
@@ -501,12 +494,8 @@ export default function Landing() {
         </section>
 
         {/* ── Features ─────────────────────────────────────────── */}
-        <section id="features" className="mx-auto max-w-7xl px-6 py-24 lg:px-10 relative overflow-hidden">
-          {/* Glowing background orbs for immersive design */}
-          <div className="glow-orb glow-orb-primary -top-20 -right-20 h-[320px] w-[320px]" />
-          <div className="glow-orb glow-orb-accent -bottom-20 -left-20 h-[320px] w-[320px]" />
-          
-          <div className="text-center relative z-10">
+        <section id="features" className="mx-auto max-w-7xl px-6 py-24 lg:px-10">
+          <div className="text-center">
             <span className="eyebrow-chip-green">
               <LayoutGrid className="h-3.5 w-3.5" />
               Platform Features
@@ -520,13 +509,13 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 relative z-10">
+          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {features.map(({ icon: Icon, color, title, body }) => (
               <div
                 key={title}
-                className="group premium-glass-card p-6"
+                className="group rounded-2xl border border-border bg-card p-6 shadow-sm hover:shadow-md transition-all duration-300"
               >
-                <div className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl card-icon-container shadow-sm ${color}`}>
+                <div className={`inline-flex h-11 w-11 items-center justify-center rounded-xl ${color}`}>
                   <Icon className="h-5 w-5" />
                 </div>
                 <h3 className="mt-5 font-display text-lg font-bold text-foreground">{title}</h3>
@@ -537,10 +526,8 @@ export default function Landing() {
         </section>
 
         {/* ── Feature image split ──────────────────────────────── */}
-        <section className="bg-secondary/40 py-20 relative overflow-hidden">
-          <div className="glow-orb glow-orb-primary top-10 left-10 h-[300px] w-[300px]" />
-          
-          <div className="mx-auto max-w-7xl px-6 lg:px-10 relative z-10">
+        <section className="bg-secondary/40 py-20">
+          <div className="mx-auto max-w-7xl px-6 lg:px-10">
             <div className="grid items-center gap-10 lg:grid-cols-2">
               <div>
                 <span className="eyebrow-chip">
@@ -561,7 +548,7 @@ export default function Landing() {
                     "Analytics ready for management review",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-3 text-sm text-foreground">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent animate-pulse" />
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
                       <span>{item}</span>
                     </li>
                   ))}
@@ -574,14 +561,14 @@ export default function Landing() {
                 </div>
               </div>
               <div className="grid gap-4">
-                <div className="overflow-hidden rounded-[28px] shadow-elevated border border-border/80 transition-transform duration-500 hover:scale-[1.02]">
+                <div className="overflow-hidden rounded-2xl shadow-md border border-border/80 transition-transform duration-500 hover:scale-[1.02]">
                   <img
                     src={heroAudit}
                     alt="Black professional auditor reviewing compliance reports"
                     className="h-[200px] sm:h-[280px] w-full object-cover"
                   />
                 </div>
-                <div className="overflow-hidden rounded-[28px] shadow-elevated hidden sm:block border border-border/80 transition-transform duration-500 hover:scale-[1.02]">
+                <div className="overflow-hidden rounded-2xl shadow-md hidden sm:block border border-border/80 transition-transform duration-500 hover:scale-[1.02]">
                   <img
                     src={heroSide}
                     alt="Black audit team reviewing compliance evidence together"
@@ -594,10 +581,8 @@ export default function Landing() {
         </section>
 
         {/* ── How it works ─────────────────────────────────────── */}
-        <section id="how-it-works" className="mx-auto max-w-7xl px-6 py-24 lg:px-10 relative overflow-hidden">
-          <div className="glow-orb glow-orb-accent -top-10 right-10 h-[300px] w-[300px]" />
-          
-          <div className="text-center relative z-10">
+        <section id="how-it-works" className="mx-auto max-w-7xl px-6 py-24 lg:px-10">
+          <div className="text-center">
             <span className="eyebrow-chip">
               <ClipboardList className="h-3.5 w-3.5 text-primary" />
               How It Works
@@ -611,39 +596,22 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="mt-14 grid gap-y-12 gap-x-6 sm:grid-cols-2 lg:grid-cols-6 relative z-10 items-stretch">
-            {workflow.map(({ step, title, body }, index) => (
-              <div key={step} className="relative group flex flex-col h-full">
-                <div className="workflow-card flex flex-col h-full items-center justify-start p-6 text-center">
-                  <div className="mx-auto grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-primary to-accent text-sm font-bold text-white shadow-card transition-transform duration-500 group-hover:scale-110">
-                    {step}
-                  </div>
-                  <h3 className="mt-4 font-display text-sm sm:text-base font-bold text-foreground min-h-[44px] flex items-center justify-center text-center">{title}</h3>
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground flex-grow">{body}</p>
+          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-6 items-stretch">
+            {workflow.map(({ step, title, body }) => (
+              <div key={step} className="flex flex-col items-center justify-start p-6 text-center rounded-2xl border border-border bg-card shadow-sm hover:shadow-md transition-all duration-300">
+                <div className="mx-auto grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-sm font-bold text-white shadow-sm transition-transform duration-300 group-hover:scale-110">
+                  {step}
                 </div>
-                {index < workflow.length - 1 && (
-                  <>
-                    {/* Desktop/Laptop Arrow */}
-                    <div className="absolute top-1/2 -translate-y-1/2 -right-5.5 z-20 hidden lg:block text-accent transition-transform duration-300 group-hover:translate-x-1">
-                      <ArrowRight className="h-5 w-5" />
-                    </div>
-                    {/* Mobile/Tablet Arrow */}
-                    <div className="absolute left-1/2 -translate-x-1/2 -bottom-8.5 z-20 block lg:hidden text-accent transition-transform duration-300 group-hover:translate-y-1">
-                      <ArrowDown className="h-5 w-5" />
-                    </div>
-                  </>
-                )}
+                <h3 className="mt-4 font-display text-sm sm:text-base font-bold text-foreground min-h-[44px] flex items-center justify-center text-center">{title}</h3>
+                <p className="mt-2 text-xs leading-5 text-muted-foreground flex-grow">{body}</p>
               </div>
             ))}
           </div>
         </section>
 
         {/* ── Pricing Section ─────────────────────────────────────── */}
-        <section id="bundles" className="bg-secondary/40 py-24 relative overflow-hidden border-b border-border">
-          <div className="glow-orb glow-orb-accent -bottom-40 -left-40 h-[380px] w-[380px]" />
-          <div className="glow-orb glow-orb-primary -top-40 -right-40 h-[380px] w-[380px]" />
-
-          <div className="mx-auto max-w-7xl px-6 lg:px-10 relative z-10">
+        <section id="bundles" className="py-20 border-b border-border">
+          <div className="mx-auto max-w-7xl px-6 lg:px-10">
             {/* Header */}
             <div className="text-center">
               <span className="eyebrow-chip-green">
@@ -660,12 +628,12 @@ export default function Landing() {
 
             {/* Tab switcher */}
             <div className="mt-10 flex justify-center">
-              <div className="relative flex items-center rounded-2xl border border-border bg-card/80 p-1.5 shadow-card gap-1">
+              <div className="relative flex items-center rounded-xl border border-border bg-card p-1 gap-1">
                 <button
                   onClick={() => setPricingTab("individual")}
-                  className={`relative px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                  className={`relative px-3 sm:px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
                     pricingTab === "individual"
-                      ? "bg-primary text-white shadow-card"
+                      ? "bg-primary text-white shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -673,9 +641,9 @@ export default function Landing() {
                 </button>
                 <button
                   onClick={() => setPricingTab("organisation")}
-                  className={`relative px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                  className={`relative px-3 sm:px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
                     pricingTab === "organisation"
-                      ? "bg-primary text-white shadow-card"
+                      ? "bg-primary text-white shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -690,36 +658,36 @@ export default function Landing() {
                 <p className="text-center text-sm text-muted-foreground mb-8">
                   Single auditor account · Flat rate per audit run · All features included
                 </p>
-                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {pricingPacks.map((pack) => (
                     <div
                       key={pack.code}
-                      className={`relative flex flex-col rounded-[28px] border bg-card/70 backdrop-blur-md p-6 shadow-card hover:shadow-elevated transition-all duration-500 premium-glass-card ${pack.color}`}
+                      className={`relative flex flex-col rounded-2xl border bg-card p-5 shadow-sm hover:shadow-md transition-all duration-300 ${pack.color}`}
                     >
                       {pack.badge && (
-                        <span className="absolute top-5 right-5 inline-flex items-center rounded-full bg-primary px-3 py-1 text-[9px] font-bold text-white uppercase tracking-wider shadow-sm">
+                        <span className="absolute top-4 right-4 inline-flex items-center rounded-md bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary uppercase tracking-wider">
                           {pack.badge}
                         </span>
                       )}
 
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                          <ShieldCheck className="h-5 w-5" />
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <ShieldCheck className="h-4 w-4" />
                         </div>
                         <div>
-                          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{pack.label}</p>
-                          <h3 className="font-display text-base font-bold text-foreground">{pack.description}</h3>
+                          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{pack.label}</p>
+                          <h3 className="font-display text-sm font-bold text-foreground">{pack.description}</h3>
                         </div>
                       </div>
 
                       {/* Single flat price */}
-                      <div className="mt-5 rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 flex items-center justify-between">
+                      <div className="mt-4 rounded-xl border border-primary/15 bg-primary/[0.03] px-4 py-3 flex items-center justify-between">
                         <div>
-                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Per Audit Run</p>
-                          <p className="font-display text-3xl font-extrabold text-foreground mt-0.5">{pack.tiers[0].price}</p>
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Per Audit Run</p>
+                          <p className="font-display text-2xl font-extrabold text-foreground mt-0.5">{pack.tiers[0].price}</p>
                         </div>
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                          <Users className="h-5 w-5" />
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <Users className="h-4 w-4" />
                         </div>
                       </div>
 
@@ -754,53 +722,36 @@ export default function Landing() {
             {/* ── ORGANISATION VIEW ─────────────────────────────────── */}
             {pricingTab === "organisation" && (
               <div className="mt-10">
-                {/* Tier legend */}
-                <div className="flex flex-wrap justify-center gap-3 mb-8">
-                  {[
-                    { tier: "1 – 5 Users",  desc: "Small teams" },
-                    { tier: "5 – 15 Users", desc: "Mid-size" },
-                    { tier: "16+ Users",    desc: "Large enterprise" },
-                  ].map(({ tier, desc }) => (
-                    <div key={tier} className="flex items-center gap-2.5 rounded-2xl border border-border bg-card/70 backdrop-blur-sm px-4 py-2.5 shadow-sm">
-                      <Users className="h-4 w-4 text-primary shrink-0" />
-                      <div>
-                        <p className="text-xs font-bold text-foreground">{tier}</p>
-                        <p className="text-[10px] text-muted-foreground">{desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {pricingPacks.map((pack) => (
                     <div
                       key={pack.code}
-                      className={`relative flex flex-col rounded-[28px] border bg-card/70 backdrop-blur-md p-6 shadow-card hover:shadow-elevated transition-all duration-500 premium-glass-card ${pack.color}`}
+                      className={`relative flex flex-col rounded-2xl border bg-card p-5 shadow-sm hover:shadow-md transition-all duration-300 ${pack.color}`}
                     >
                       {pack.badge && (
-                        <span className="absolute top-5 right-5 inline-flex items-center rounded-full bg-primary px-3 py-1 text-[9px] font-bold text-white uppercase tracking-wider shadow-sm">
+                        <span className="absolute top-4 right-4 inline-flex items-center rounded-md bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary uppercase tracking-wider">
                           {pack.badge}
                         </span>
                       )}
 
                       <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                          <ShieldCheck className="h-5 w-5" />
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                          <ShieldCheck className="h-4 w-4" />
                         </div>
                         <div>
-                          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">{pack.label}</p>
-                          <h3 className="font-display text-base font-bold text-foreground">{pack.description}</h3>
+                          <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{pack.label}</p>
+                          <h3 className="font-display text-sm font-bold text-foreground">{pack.description}</h3>
                         </div>
                       </div>
 
                       {/* 3-tier pricing table */}
-                      <div className="mt-5 rounded-2xl border border-border/60 bg-secondary/30 overflow-hidden">
-                        <div className="flex items-center justify-between border-b border-border/40 bg-secondary/60 px-3 py-2">
+                      <div className="mt-4 rounded-xl border border-border/50 bg-secondary/40 overflow-hidden">
+                        <div className="flex items-center justify-between border-b border-border/30 bg-secondary/60 px-3 py-2">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Team Size</span>
                           <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Price / Audit</span>
                         </div>
                         {pack.tiers.map(({ tier, price }) => (
-                          <div key={tier} className="flex items-center justify-between px-3 py-2.5 border-b last:border-0 border-border/30">
+                          <div key={tier} className="flex items-center justify-between px-3 py-2.5 border-b last:border-0 border-border/20">
                             <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <Users className="h-3 w-3 shrink-0" />
                               {tier}
@@ -838,42 +789,89 @@ export default function Landing() {
               </div>
             )}
 
-            {/* Bottom note */}
-            <div className="mt-12 rounded-3xl border border-border/60 bg-card/60 backdrop-blur-sm p-6 text-center shadow-sm max-w-2xl mx-auto">
-              <p className="text-sm font-semibold text-foreground">How payment works</p>
-              <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-                {pricingTab === "individual"
-                  ? "As an individual auditor, you pay a flat rate per audit run. No team size calculations — just pick your standard and pay via Paystack."
-                  : "Your team size is automatically detected from your workspace. Pay via Paystack and your audit is activated the moment payment is confirmed."}
+            {/* Payment note */}
+            <div className="mt-8 text-center">
+              <p className="text-xs text-muted-foreground">
+                Pay securely via Paystack · Instant activation · One-time per audit run
               </p>
-              <div className="mt-4 flex flex-wrap justify-center gap-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-accent" /> Secure Paystack Checkout</span>
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-accent" /> Instant Activation</span>
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-accent" /> One-Time Per Audit Run</span>
-              </div>
             </div>
           </div>
         </section>
 
-        <section className="bg-gradient-to-br from-primary/5 to-accent/5 py-20 border-y border-border/80 relative overflow-hidden">
-          <div className="glow-orb glow-orb-primary -top-40 -left-40 h-[400px] w-[400px]" />
-          
-          <div className="mx-auto max-w-7xl px-6 lg:px-10 relative z-10">
-            <div className="grid items-center gap-12 lg:grid-cols-2">
-              <div className="order-2 lg:order-1">
-                <div className="flex flex-col gap-4">
-                  <span className="eyebrow-chip-green w-fit">
-                    <BadgeCheck className="h-3.5 w-3.5 text-accent" />
+        {/* ── FAQ Section ─────────────────────────────────────────── */}
+        <section className="py-20 border-b border-border">
+          <div className="mx-auto max-w-7xl px-6 lg:px-10">
+            <div className="mx-auto max-w-3xl text-center">
+              <span className="eyebrow-chip-green">
+                <BadgeCheck className="h-3.5 w-3.5 text-accent" />
+                Frequently Asked Questions
+              </span>
+              <h2 className="mt-4 font-display text-3xl font-extrabold tracking-tight text-foreground">
+                Got Questions? We Have Answers.
+              </h2>
+            </div>
+
+            <div className="mx-auto max-w-3xl mt-10 space-y-3">
+              {[
+                {
+                  q: "How does pricing work?",
+                  a: "OakAudix uses a pay-per-audit model. You only pay when you run an audit. There are no subscriptions, monthly fees, or credit packs to manage. Your team size determines the price tier, and payment is processed securely via Paystack.",
+                },
+                {
+                  q: "What payment methods do you accept?",
+                  a: "We accept all major Nigerian debit and credit cards via Paystack. This includes Visa, Mastercard, and Verve. International cards processed through Paystack are also supported.",
+                },
+                {
+                  q: "Can I switch from Individual to Organisation later?",
+                  a: "Yes. You can upgrade your account type from your settings page at any time. Your audit history and data remain intact when you switch.",
+                },
+                {
+                  q: "What ISO standards do you support?",
+                  a: "We support ISO 9001 (Quality), ISO 14001 (Environmental), ISO 45001 (Health & Safety), ISO 27001 (Information Security), and combined bundles (HSE for 14001+45001, IMS for 9001+14001+45001).",
+                },
+                {
+                  q: "Is there a free trial?",
+                  a: "We do not offer a free trial, but you can create an account and explore the platform without payment. You only pay when you are ready to run your first audit.",
+                },
+                {
+                  q: "How are team sizes calculated?",
+                  a: "Your team size is determined by the number of active members in your workspace. You can manage team members from your organisation dashboard at any time.",
+                },
+                {
+                  q: "Do you offer refunds?",
+                  a: "Once an audit is activated after payment, it is considered delivered. If you experience technical issues, our support team will work with you to resolve them. Contact us at info@oakaudix.app for assistance.",
+                },
+              ].map((faq) => (
+                <details key={faq.q} className="group rounded-xl border border-border bg-card overflow-hidden">
+                  <summary className="flex items-center justify-between px-5 py-4 cursor-pointer list-none text-sm font-semibold text-foreground hover:text-primary transition-colors">
+                    {faq.q}
+                    <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-300 group-open:rotate-180" />
+                  </summary>
+                  <div className="px-5 pb-4">
+                    <p className="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
+                  </div>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-y border-border/60 bg-card/50 py-20">
+          <div className="mx-auto max-w-7xl px-6 lg:px-10">
+            <div className="grid items-stretch gap-12 lg:grid-cols-2">
+              <div className="order-2 lg:order-1 flex flex-col justify-center">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-fit">
+                    <BadgeCheck className="h-3 w-3 text-accent" />
                     Partner Platform
                   </span>
-                  <h2 className="font-display text-4xl font-extrabold tracking-tight text-foreground">
+                  <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground lg:text-4xl">
                     Try Our Management Assessment Platform: MSAT
                   </h2>
                   <p className="text-base leading-7 text-muted-foreground">
                     Looking for a comprehensive, institution-grade compliance tool? The <strong>MSAT Assessment Tool</strong> is a dedicated Management Assessment System tailored for benchmarking organizations against international standards.
                   </p>
                   
-                  <div className="grid gap-4 sm:grid-cols-2 mt-2">
+                  <div className="grid gap-3 sm:grid-cols-2 mt-2">
                     {[
                       {
                         title: "Dynamic Assessment Builder",
@@ -892,57 +890,49 @@ export default function Landing() {
                         desc: "Keep records secure and verifiable for institutional onboarding.",
                       },
                     ].map((feat) => (
-                      <div key={feat.title} className="bg-card/85 backdrop-blur-sm rounded-2xl border border-border/80 p-4 shadow-sm hover:shadow-card hover:border-primary/30 transition-all duration-300">
-                        <h4 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
-                           <CheckCircle2 className="h-4 w-4 text-accent shrink-0" />
+                      <div key={feat.title} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                        <h4 className="font-display font-semibold text-sm text-foreground">
                           {feat.title}
                         </h4>
-                        <p className="mt-1 text-xs text-muted-foreground leading-normal">{feat.desc}</p>
+                        <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{feat.desc}</p>
                       </div>
                     ))}
                   </div>
-                  
-                  <div className="mt-6">
+              </div>
+              <div className="order-1 lg:order-2 flex">
+                <div className="rounded-2xl border border-border bg-card p-6 shadow-sm w-full">
+                  <div className="flex items-center gap-3 pb-4 border-b border-border/40">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <ClipboardCheck className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">MSAT</p>
+                      <p className="text-sm font-semibold text-foreground">Management Self-Assessment Tool</p>
+                    </div>
+                  </div>
+                  <ul className="mt-4 space-y-3">
+                    {[
+                      "Build custom assessment templates aligned to your management system",
+                      "Score and track compliance maturity across multiple standards",
+                      "Generate presentation-ready PDF action plans and roadmaps",
+                      "Maintain full audit trails for institutional verification",
+                    ].map((item) => (
+                      <li key={item} className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-5 pt-4 border-t border-border/40">
                     <a
                       href="https://assessment.ibmssp.org.ng"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="pill-cta text-sm inline-flex items-center gap-2 transition-transform duration-300 hover:scale-105"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 w-full text-sm font-semibold text-primary-foreground hover:opacity-90 transition-all"
                     >
-                      Explore MSAT Platform
+                      Launch MSAT
                       <ArrowRight className="h-4 w-4" />
                     </a>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="order-1 lg:order-2 flex flex-col justify-center items-center bg-card/75 backdrop-blur-md rounded-[32px] border border-border/80 p-6 sm:p-8 shadow-elevated text-center relative overflow-hidden transition-all duration-500 hover:border-primary/40 hover:shadow-2xl">
-                {/* Decorative gradients */}
-                <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-primary/10 blur-3xl -z-10 animate-pulse" />
-                <div className="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-accent/10 blur-3xl -z-10 animate-pulse" />
-                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4 transition-transform duration-300 hover:scale-110">
-                  <ShieldCheck className="h-6 w-6" />
-                </div>
-                <h3 className="font-display text-xl font-bold text-foreground">MSAT Assessment Tool</h3>
-                <p className="text-xs text-muted-foreground mt-2 max-w-sm">
-                  "It is quality rather than quantity that matters." <br />
-                  <span className="font-semibold block mt-1 text-primary">— Lucius Annaeus Seneca</span>
-                </p>
-                
-                <div className="mt-6 w-full rounded-2xl border border-border bg-secondary/30 p-4 text-left space-y-2">
-                  <div className="flex justify-between items-center text-xs border-b border-border/60 pb-2">
-                    <span className="font-medium text-muted-foreground">System Status</span>
-                    <span className="inline-flex items-center gap-1 font-bold text-accent">
-                      <span className="h-2 w-2 rounded-full bg-accent animate-ping" /> Active
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-muted-foreground flex justify-between">
-                    <span>Contact Assessor:</span>
-                    <a href="tel:+2348023644148" className="font-semibold text-foreground hover:underline">+234 802 364 4148</a>
-                  </div>
-                  <div className="text-[11px] text-muted-foreground flex justify-between">
-                    <span>Inquiries:</span>
-                    <a href="mailto:f.kolawole@ibmssp.org.ng" className="font-semibold text-foreground hover:underline">f.kolawole@ibmssp.org.ng</a>
                   </div>
                 </div>
               </div>
@@ -961,7 +951,6 @@ export default function Landing() {
             }}
           />
           <div className="absolute inset-0 hero-overlay" />
-          <div className="hero-grid-pattern" />
           
           <div className="relative z-10 mx-auto max-w-3xl px-6 text-center text-white">
             <h2 className="font-display text-4xl font-extrabold tracking-tight">
@@ -975,7 +964,7 @@ export default function Landing() {
               {isLoggedIn ? (
                 <Link
                   to="/app"
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:scale-105 duration-300"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-4 text-sm font-bold text-primary shadow-lg transition hover:bg-white/90 hover:scale-[1.03] duration-300"
                 >
                   Go to Dashboard
                   <ArrowRight className="h-4 w-4" />
@@ -983,7 +972,7 @@ export default function Landing() {
               ) : (
                 <Link
                   to="/auth?mode=signup"
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-7 py-3.5 text-sm font-bold text-primary shadow-elevated transition hover:scale-105 duration-300"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-8 py-4 text-sm font-bold text-primary shadow-lg transition hover:bg-white/90 hover:scale-[1.03] duration-300"
                 >
                   Get Started
                   <ArrowRight className="h-4 w-4" />
@@ -991,68 +980,23 @@ export default function Landing() {
               )}
               <button
                 onClick={() => alert("Demo video coming soon!")}
-                className="inline-flex items-center justify-center gap-2.5 rounded-full border border-white/30 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20 hover:scale-105 duration-300"
+                className="inline-flex items-center justify-center gap-2.5 rounded-full border border-white/20 bg-white/5 px-8 py-4 text-sm font-semibold text-white transition hover:bg-white/15 hover:scale-[1.03] duration-300"
               >
-                <Play className="h-3.5 w-3.5 fill-white text-white shrink-0" />
+                <Play className="h-4 w-4 fill-white text-white shrink-0" />
                 Watch Demo
               </button>
             </div>
           </div>
+          {/* Curved transition to footer */}
+          <div className="absolute bottom-0 left-0 right-0 h-24">
+            <svg className="w-full h-full" viewBox="0 0 1440 96" preserveAspectRatio="none">
+              <path d="M0,0 C360,64 1080,64 1440,0 L1440,96 L0,96 Z" fill="currentColor" className="text-background" />
+            </svg>
+          </div>
         </section>
       </main>
 
-      {/* ── Footer ───────────────────────────────────────────────── */}
-      <footer className="border-t border-border bg-card py-12">
-        <div className="mx-auto max-w-7xl px-6 lg:px-10">
-          {/* Top section */}
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between pb-8 border-b border-border/60">
-            <div className="flex items-center gap-3">
-              <img src={logo} alt="Logo" className="h-9 w-auto shrink-0 object-contain" />
-              <div>
-                <span className="font-display text-base font-bold text-foreground block">OakAudix</span>
-                <span className="text-[10px] text-muted-foreground uppercase tracking-widest block">Powered By Oak Global International</span>
-
-              </div>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-semibold text-muted-foreground">
-              <a 
-                href="https://oak-global.com.ng" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-primary hover:underline transition"
-              >
-                Visit Our Corporate Website (oak-global.com.ng)
-              </a>
-              <span className="text-muted-foreground/40 hidden sm:inline">•</span>
-              <Link to="/privacy" className="hover:text-foreground transition">Privacy Policy</Link>
-              <span className="text-muted-foreground/30 hidden sm:inline">•</span>
-              <Link to="/terms" className="hover:text-foreground transition">Terms Of Service</Link>
-              <span className="text-muted-foreground/30 hidden sm:inline">•</span>
-              <Link to="/contact" className="hover:text-foreground transition">Contact Us</Link>
-            </div>
-          </div>
-          
-          {/* Bottom section */}
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row pt-8">
-            <p className="text-xs text-muted-foreground text-center sm:text-left">
-              © {new Date().getFullYear()} OakAudix. All rights reserved.
-            </p>
-            
-            <p className="text-xs text-muted-foreground text-center sm:text-right">
-              Built by{" "}
-              <a 
-                href="http://tmb.it.com" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="font-bold text-primary hover:underline hover:text-accent transition inline-flex items-center gap-0.5"
-              >
-                TMB
-              </a>
-            </p>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
 
       {/* Scroll to Top Button */}
       <button

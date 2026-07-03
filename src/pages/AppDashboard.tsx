@@ -21,7 +21,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
 import { AppShell } from "@/components/app/AppShell";
@@ -45,14 +44,17 @@ import {
   buildStandardPerformance,
   formatStandard,
 } from "@/lib/auditAnalytics";
+import { auditsApi } from "@/api/audits";
+import { findingsApi } from "@/api/findings";
+import { processesApi } from "@/api/processes";
+import { walletApi } from "@/api/wallet";
+import { answersApi } from "@/api/answers";
+import { auditorsApi } from "@/api/auditors";
 const AppDashboard = () => {
   const { currentOrg } = useOrg();
   const { user } = useAuth();
-  const fullName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
-  const displayName = fullName.split(" ")[0];
   const [stats, setStats] = useState({ audits: 0, findings: 0, licenses: 0, conformity: 0 });
-  const [credits, setCredits] = useState<number | null>(null);
-  const [needOnboarding, setNeedOnboarding] = useState(false);
+
   const [audits, setAudits] = useState<AnalyticsAudit[]>([]);
   const [answers, setAnswers] = useState<AnalyticsAnswer[]>([]);
   const [findings, setFindings] = useState<AnalyticsFinding[]>([]);
@@ -87,13 +89,11 @@ const AppDashboard = () => {
 
   useEffect(() => {
     if (!user || !currentOrg) return;
-    supabase
-      .from("auditors")
-      .select("id, role")
-      .eq("org_id", currentOrg.id)
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => setCurrentUserAuditor(data));
+    (async () => {
+      const data = await auditorsApi.list(currentOrg.id);
+      const match = data.find((a) => a.user_id === user.id) ?? null;
+      setCurrentUserAuditor(match);
+    })();
   }, [user, currentOrg]);
 
   const isAuditor = currentUserAuditor?.role === "auditor";
@@ -105,49 +105,48 @@ const AppDashboard = () => {
     setLoading(true);
 
     (async () => {
-      const [auditsResult, findingsResult, licensesResult, processesResult, walletResult] = await Promise.all([
-        supabase
-          .from("audits")
-          .select("id, title, standard, status, scope, created_at")
-          .eq("org_id", currentOrg.id)
-          .order("created_at", { ascending: false }),
-        supabase.from("findings").select("audit_id, type, status").eq("org_id", currentOrg.id),
-        supabase.from("audit_licenses").select("id", { count: "exact", head: true }).eq("org_id", currentOrg.id).eq("active", true),
-        supabase.from("org_processes").select("id, name").eq("org_id", currentOrg.id).order("name"),
-        supabase.from("credit_wallets").select("balance").eq("org_id", currentOrg.id).maybeSingle(),
-      ]);
+      try {
+        const [auditsData, findingsData, licensesData, processesData, walletData] = await Promise.all([
+          auditsApi.list(currentOrg.id),
+          findingsApi.list(currentOrg.id),
+          walletApi.licenses(currentOrg.id),
+          processesApi.list(currentOrg.id),
+          walletApi.get(currentOrg.id),
+        ]);
 
-      const nextAudits = (auditsResult.data ?? []) as AnalyticsAudit[];
-      const auditIds = nextAudits.map((audit) => audit.id);
-      const answersResult = auditIds.length
-        ? await supabase.from("audit_answers").select("audit_id, status, process_id, clause").in("audit_id", auditIds)
-        : { data: [] };
+        const nextAudits = auditsData as AnalyticsAudit[];
+        const auditIds = nextAudits.map((audit) => audit.id);
+        const answersData = auditIds.length
+          ? (await Promise.all(auditIds.map((id) => answersApi.list(id)))).flat()
+          : [];
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      const nextAnswers = (answersResult.data ?? []) as AnalyticsAnswer[];
-      const nextFindings = (findingsResult.data ?? []) as AnalyticsFinding[];
-      const nextProcesses = (processesResult.data ?? []) as AnalyticsProcess[];
-      const conformity = nextAnswers.length
-        ? Math.round((nextAnswers.filter((answer) => answer.status === "conform").length / nextAnswers.length) * 100)
-        : 0;
+        const nextAnswers = answersData as AnalyticsAnswer[];
+        const nextFindings = findingsData as AnalyticsFinding[];
+        const nextProcesses = processesData.filter((p) => p.name) as AnalyticsProcess[];
+        const activeLicenses = licensesData.filter((l) => l.active);
+        const conformity = nextAnswers.length
+          ? Math.round((nextAnswers.filter((answer) => answer.status === "conform").length / nextAnswers.length) * 100)
+          : 0;
 
-      setStats({
-        audits: nextAudits.length,
-        findings: nextFindings.filter((finding) => finding.status !== "closed").length,
-        licenses: licensesResult.count ?? 0,
-        conformity,
-      });
-      setNeedOnboarding(nextProcesses.length === 0);
-      setCredits(walletResult.data?.balance ?? 0);
-      setAudits(nextAudits);
-      setAnswers(nextAnswers);
-      setFindings(nextFindings);
-      setProcesses(nextProcesses);
+        setStats({
+          audits: nextAudits.length,
+          findings: nextFindings.filter((finding) => finding.status !== "closed").length,
+          licenses: activeLicenses.length,
+          conformity,
+        });
+        setAudits(nextAudits);
+        setAnswers(nextAnswers);
+        setFindings(nextFindings);
+        setProcesses(nextProcesses);
 
-      window.setTimeout(() => {
+        window.setTimeout(() => {
+          if (!cancelled) setLoading(false);
+        }, 220);
+      } catch {
         if (!cancelled) setLoading(false);
-      }, 220);
+      }
     })();
 
     return () => {
@@ -177,6 +176,11 @@ const AppDashboard = () => {
 
   return (
     <AppShell>
+      {/* Mobile notice */}
+      <div className="lg:hidden mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-700 dark:text-amber-300 font-medium text-center">
+        This dashboard is optimised for desktop. For the best experience, use a larger screen or rotate your device.
+      </div>
+
       {showApprovalNotice && (
         <div className="mb-6 rounded-[24px] border border-success/30 bg-success/10 p-5 sm:p-6 shadow-sm relative overflow-hidden animate-fade-in">
           {/* Subtle success colored glowing background decoration */}
@@ -223,7 +227,7 @@ const AppDashboard = () => {
           <div className="max-w-2xl">
             <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Workspace</span>
             <h1 className="mt-2 font-display text-4xl font-bold tracking-tight">
-              {currentOrg?.type === "individual" ? `${displayName}'s Workspace` : currentOrg?.name ?? "Loading..."}
+              {currentOrg?.type === "individual" ? "My Workspace" : currentOrg?.name ?? "Loading..."}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
               {currentOrg?.type === "organization" ? `${currentOrg?.industry ?? "Organization"} - audit command center` : "Individual auditor workspace"}
@@ -234,19 +238,11 @@ const AppDashboard = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {!isAuditor && (
-              <div className="rounded-full border border-border bg-background px-4 py-2 text-sm shadow-card">
-                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Credits</span>
-                <span className="ml-2 font-display text-base font-bold">
-                  {loading || credits === null ? <Skeleton className="inline-block h-5 w-12 align-middle" /> : credits}
-                </span>
-              </div>
-            )}
             {!isAuditor && <Link to="/app/licenses" className="pill-cta">+ New audit</Link>}
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
           <MetricCard title="Unlocked packs" value={stats.licenses} hint="Ready to run" loading={loading} />
           <MetricCard title="Audits" value={stats.audits} hint="Across all standards" loading={loading} />
           <MetricCard title="Open findings" value={stats.findings} hint="Pending CAPA" loading={loading} />
@@ -254,23 +250,25 @@ const AppDashboard = () => {
         </div>
       </section>
 
-      {needOnboarding && (
-        <Link to="/app/onboarding" className="mt-6 block rounded-2xl border border-gold bg-gold/5 p-5 transition hover:shadow-elevated">
+      {currentOrg && !currentOrg.industry && (
+        <Link to="/app/settings" className="mt-6 block rounded-2xl border border-gold bg-gold/5 p-4 transition hover:shadow-elevated">
           <div className="flex items-center justify-between gap-4">
-            <div>
-              <strong className="font-display text-base">
-                {currentOrg?.type === "individual" ? "Finish setting up your account ->" : "Finish setting up your organization ->"}
-              </strong>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {currentOrg?.type === "individual" 
-                  ? "Define your processes and checklists before you scale up more audits."
-                  : "Add your audit team, processes, and assignment matrix before you scale up more audits."}
-              </p>
+            <div className="flex items-center gap-3">
+              <span className="rounded-full bg-gold/20 px-2.5 py-0.5 text-[10px] font-bold uppercase text-gold">Profile</span>
+              <div>
+                <strong className="font-display text-sm text-foreground">Complete your profile details</strong>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {currentOrg.type === "individual"
+                    ? "Add your industry, experience, and contact information."
+                    : "Add your industry, company size, and contact information."}
+                </p>
+              </div>
             </div>
-            <span className="rounded-full bg-gold/20 px-3 py-1 text-xs font-medium uppercase text-gold">Onboard</span>
+            <span className="shrink-0 text-xs font-medium text-gold">Settings →</span>
           </div>
         </Link>
       )}
+
 
       <section className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_340px]">
         <div className="analytics-panel rounded-[28px] border border-border bg-card p-6 shadow-card" style={{ animationDelay: "90ms" }}>
@@ -391,7 +389,7 @@ const AppDashboard = () => {
           >
             {chartReady ? (
               <ChartContainer
-                className="h-[340px] w-full"
+                className="h-[220px] sm:h-[280px] xl:h-[340px] w-full"
                 config={{
                   conformity: { label: "Conformity", color: "hsl(var(--success))" },
                   major: { label: "Major NC", color: "hsl(var(--destructive))" },
@@ -434,7 +432,7 @@ const AppDashboard = () => {
             >
               {chartReady ? (
                 <ChartContainer
-                  className="h-[280px] w-full"
+                  className="h-[200px] sm:h-[280px] w-full"
                   config={Object.fromEntries(responseMix.map((item) => [item.status, { label: item.label, color: item.fill }]))}
                 >
                   <PieChart>
@@ -469,7 +467,7 @@ const AppDashboard = () => {
             >
               {chartReady && processHotspots.length > 0 ? (
                 <ChartContainer
-                  className="h-[280px] w-full"
+                  className="h-[200px] sm:h-[280px] w-full"
                   config={{ value: { label: "Issues", color: "hsl(var(--accent))" } }}
                 >
                   <BarChart data={processHotspots} layout="vertical" margin={{ left: 8 }}>
@@ -525,7 +523,7 @@ const AppDashboard = () => {
           >
             {chartReady && findingsMix.length > 0 ? (
               <ChartContainer
-                className="h-[320px] w-full"
+                className="h-[220px] sm:h-[320px] w-full"
                 config={Object.fromEntries(findingsMix.map((item) => [item.key, { label: item.label, color: item.fill }]))}
               >
                 <BarChart data={findingsMix}>

@@ -2,11 +2,15 @@
 import { useParams, Link } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, ClipboardCheck, PieChart as PieChartIcon, Printer, Radar, FileText, X } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from "recharts";
-import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app/AppShell";
 import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { auditsApi } from "@/api/audits";
+import { answersApi } from "@/api/answers";
+import { findingsApi } from "@/api/findings";
+import { processesApi } from "@/api/processes";
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { parseAuditNote } from "@/lib/auditEvidence";
 import { exportAuditReport } from "@/lib/exportAuditReport";
@@ -64,6 +68,7 @@ const AuditReport = () => {
   const { id } = useParams();
   const { currentOrg } = useOrg();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"analytics" | "responses">("analytics");
   const [audit, setAudit] = useState<any | null>(null);
@@ -85,19 +90,23 @@ const AuditReport = () => {
     setLoading(true);
 
     (async () => {
-      const [auditResult, answersResult, findingsResult, processesResult] = await Promise.all([
-        supabase.from("audits").select("id, title, standard, status, scope, created_at, started_at, closed_at, criteria, object, conclusion").eq("id", id).single(),
-        supabase.from("audit_answers").select("audit_id, status, process_id, clause, question_text, note, kind, q_ref").eq("audit_id", id),
-        supabase.from("findings").select("id, audit_id, type, clause, description, capa, owner, status, created_at, due_date, root_cause").eq("audit_id", id).order("created_at"),
-        supabase.from("org_processes").select("id, name").eq("org_id", currentOrg?.id ?? "").limit(100),
-      ]);
+      try {
+        const [auditResult, answersResult, findingsResult, processesResult] = await Promise.all([
+          auditsApi.get(currentOrg?.id ?? "", id!),
+          answersApi.list(id!).catch(() => []),
+          findingsApi.list(currentOrg?.id ?? "", id!).catch(() => []),
+          currentOrg ? processesApi.list(currentOrg.id).catch(() => []) : [],
+        ]).catch((e) => { console.error(e); return [null, [], [], []]; });
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      setAudit(auditResult.data ?? null);
-      setAnswers((answersResult.data ?? []) as ReportAnswer[]);
-      setFindings((findingsResult.data ?? []) as ReportFinding[]);
-      setProcesses((processesResult.data ?? []) as AnalyticsProcess[]);
+        setAudit((auditResult ?? null) as any);
+        setAnswers((answersResult ?? []) as ReportAnswer[]);
+        setFindings((findingsResult ?? []) as ReportFinding[]);
+        setProcesses((processesResult ?? []) as AnalyticsProcess[]);
+      } catch (e) {
+        console.error(e);
+      }
 
       window.setTimeout(() => {
         if (!cancelled) setLoading(false);
@@ -133,22 +142,15 @@ const AuditReport = () => {
     reportConclusion.trim() !== originalData.conclusion;
 
   const handleSaveChanges = async () => {
-    if (!id) return;
+    if (!id || !currentOrg) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("audits")
-      .update({
+    try {
+      await auditsApi.update(currentOrg.id, id, {
         title: reportTitle.trim(),
         criteria: reportCriteria.trim(),
         object: reportObject.trim(),
         conclusion: reportConclusion.trim()
-      })
-      .eq("id", id);
-      
-    setSaving(false);
-    if (error) {
-      toast({ title: "Failed to save changes", description: error.message, variant: "destructive" });
-    } else {
+      });
       toast({ title: "Report details updated successfully." });
       setOriginalData({
         title: reportTitle.trim(),
@@ -157,10 +159,12 @@ const AuditReport = () => {
         conclusion: reportConclusion.trim()
       });
       setAudit((prev: any) => prev ? { ...prev, title: reportTitle.trim(), criteria: reportCriteria.trim(), object: reportObject.trim(), conclusion: reportConclusion.trim() } : null);
+    } catch (err: any) {
+      toast({ title: "Failed to save changes", description: err?.message || "Error", variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
   };
-
-
 
   const processMap = useMemo(() => Object.fromEntries(processes.map((process) => [process.id, process.name])), [processes]);
 
@@ -556,7 +560,7 @@ const AuditReport = () => {
             </section>
 
             <section className="grid gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,0.9fr)]">
-              <div className="rounded-[28px] border border-border bg-background/80 p-5">
+              <div className="rounded-[28px] border border-border bg-background/80 p-5 overflow-x-auto">
                 <h2 className="font-display text-xl font-bold">Findings register</h2>
                 {findings.length === 0 ? (
                   <p className="mt-2 text-sm text-muted-foreground">No findings recorded.</p>
@@ -638,7 +642,8 @@ const AuditReport = () => {
         {activeTab === "responses" && (
           <div className="mt-8 space-y-6 animate-fade-in">
             <h2 className="font-display text-xl font-bold">Detailed responses</h2>
-            <table className="w-full text-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
               <thead className="border-b border-border text-left uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="py-2">Process</th>
@@ -682,9 +687,11 @@ const AuditReport = () => {
                   );
                 })}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         )}
+
         </div>
       </div>
 

@@ -1,12 +1,22 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AlertTriangle, FileUp, Link2, Lock, Unlock, User, RefreshCw, CheckCircle2, Clock, X, Search, ClipboardCheck, Plus } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app/AppShell";
 import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
 import { getQuestionsFor, isProcessInStandard, type StandardKey } from "@/data/standards";
 import { useToast } from "@/hooks/use-toast";
+import { auditsApi } from "@/api/audits";
+import { auditorsApi } from "@/api/auditors";
+import { answersApi } from "@/api/answers";
+import { findingsApi } from "@/api/findings";
+import { processesApi } from "@/api/processes";
+import { questionsApi } from "@/api/questions";
+import { auditProcessesApi } from "@/api/auditProcesses";
+import { processAssignmentsApi } from "@/api/processAssignments";
+import { evidenceApi } from "@/api/evidence";
+import { notificationsApi } from "@/api/notifications";
+import { orgsApi } from "@/api/orgs";
 import { getClauseRequirement } from "@/data/isoClauses";
 import { parseAuditNote, serializeAuditNote, safeEvidenceName, type EvidenceItem } from "@/lib/auditEvidence";
 import { HSE_CHECKLIST_DATA } from "@/data/hseInspectionChecklist";
@@ -125,11 +135,8 @@ export default function RunAudit() {
       const nextEvidence = [...existing];
 
       for (const file of Array.from(files)) {
-        const path = `${currentOrg.id}/${id}/checklist/${itemId}/${Date.now()}-${safeEvidenceName(file.name)}`;
-        const { error } = await supabase.storage.from("audit-evidence").upload(path, file, { upsert: false });
-        if (error) throw error;
-        const { data } = supabase.storage.from("audit-evidence").getPublicUrl(path);
-        nextEvidence.push({ name: file.name, url: data.publicUrl, kind: file.type || "file" });
+        const result = await evidenceApi.upload(id, file, `${currentOrg.id}/checklist/${itemId}`);
+        nextEvidence.push({ name: result.name, url: result.url, kind: file.type || "file" });
       }
 
       saveChecklistAnswer(itemId, currentStatus, currentNote, nextEvidence);
@@ -151,163 +158,149 @@ export default function RunAudit() {
   useEffect(() => {
     if (!id || !currentOrg) return;
     (async () => {
-      // 1. Fetch audit details
-      const { data: auditRow } = await supabase.from("audits").select("*").eq("id", id).single();
-      if (!auditRow) return;
-      const currentAudit = auditRow as Audit;
-      setAudit(currentAudit);
+      try {
+        // 1. Fetch audit details
+        const currentAudit = await auditsApi.get(currentOrg.id, id) as Audit;
+        setAudit(currentAudit);
 
-      // 1b. Fetch ISO clause requirements for this standard from the database
-      const applicableStdsForClauses: string[] = currentAudit.standard === "ims"
-        ? ["9001", "14001", "45001"]
-        : currentAudit.standard === "hse"
-        ? ["14001", "45001"]
-        : [currentAudit.standard];
-      const { data: clauseRows } = await supabase
-        .from("iso_clauses")
-        .select("clause, requirement")
-        .in("standard", applicableStdsForClauses);
-      if (clauseRows) {
-        const reqMap: Record<string, string> = {};
-        clauseRows.forEach((row: any) => { reqMap[row.clause.trim()] = row.requirement; });
-        setClauseRequirementsMap(reqMap);
-      }
+        // 1b. Fetch ISO clause requirements
+        const applicableStdsForClauses: string[] = currentAudit.standard === "ims"
+          ? ["9001", "14001", "45001"]
+          : currentAudit.standard === "hse"
+          ? ["14001", "45001"]
+          : [currentAudit.standard];
+        try {
+          const allClauses = await questionsApi.getIsoClauses();
+          const filtered = allClauses.filter((c) => applicableStdsForClauses.includes(c.standard));
+          const reqMap: Record<string, string> = {};
+          filtered.forEach((row) => { reqMap[row.clause.trim()] = row.requirement; });
+          setClauseRequirementsMap(reqMap);
+        } catch { /* ignore */ }
 
-      // 2. Fetch existing organization processes
-      const { data: orgProcs } = await supabase.from("org_processes").select("id,key,name,process_owner").eq("org_id", currentOrg.id).order("name");
-      let finalProcs = orgProcs ?? [];
+        // 2. Fetch existing organization processes
+        const orgProcs = await processesApi.list(currentOrg.id);
+        let finalProcs = orgProcs ?? [];
 
-      const std = currentAudit.standard;
+        const std = currentAudit.standard;
 
-      // 3. Filter procs by standard to match the active scope
-      const visibleProcs = finalProcs.filter((p) => {
-        return isProcessInStandard(std as StandardKey, p.key);
-      });
+        // 3. Filter procs by standard
+        const visibleProcs = finalProcs.filter((p) =>
+          isProcessInStandard(std as StandardKey, p.key)
+        );
 
-      // 4. Fetch audit processes
-      const { data: auditProcs } = await supabase.from("audit_processes").select("process_id,auditor_id").eq("audit_id", id);
-      let finalAuditProcs = auditProcs ?? [];
-
-      // If no processes are linked to this audit, auto-link ALL visible processes!
-      if (finalAuditProcs.length === 0 && visibleProcs.length > 0) {
-        // Resolve default auditor
-        let auditorId = currentAudit.lead_auditor_id;
-        if (!auditorId) {
-          const { data: team } = await supabase.from("auditors").select("id").eq("org_id", currentOrg.id).limit(1);
-          if (team && team.length > 0) {
-            auditorId = team[0].id;
-          } else if (user) {
-            // Silently seed a default auditor for them
-            const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Auditor";
-            const { data: newAuditor } = await supabase.from("auditors").insert({
-              org_id: currentOrg.id,
-              name: fullName,
-              email: user.email || "",
-              role: "Lead Auditor",
-              user_id: user.id
-            }).select("id").single();
-            if (newAuditor) auditorId = newAuditor.id;
-          }
-        }
-
-        // Query default process assignments from onboarding/settings
-        const { data: assignmentsData } = await supabase
-          .from("process_assignments")
-          .select("process_id, auditor_id")
-          .eq("org_id", currentOrg.id);
-
-        const assignmentMap = new Map<string, string>();
-        if (assignmentsData) {
-          assignmentsData.forEach((a) => {
-            assignmentMap.set(a.process_id, a.auditor_id);
-          });
-        }
-
-        const rowsToInsert = visibleProcs.map((p) => ({
-          audit_id: id,
-          process_id: p.id,
-          auditor_id: assignmentMap.get(p.id) || auditorId || null,
+        // 4. Fetch audit processes
+        let auditProcRecords = await auditProcessesApi.list(id);
+        let finalAuditProcs = auditProcRecords.map((ap) => ({
+          process_id: ap.process_id,
+          auditor_id: ap.auditor_id,
         }));
 
-        if (rowsToInsert.length > 0) {
-          await supabase.from("audit_processes").insert(rowsToInsert);
-          const { data: updatedAuditProcs } = await supabase.from("audit_processes").select("process_id,auditor_id").eq("audit_id", id);
-          if (updatedAuditProcs) finalAuditProcs = updatedAuditProcs;
+        // If no processes are linked, auto-link ALL visible processes
+        if (finalAuditProcs.length === 0 && visibleProcs.length > 0) {
+          let auditorId = currentAudit.lead_auditor_id;
+          if (!auditorId) {
+            const team = await auditorsApi.list(currentOrg.id);
+            if (team && team.length > 0) {
+              auditorId = team[0].id;
+            } else if (user) {
+              const fullName = (user as any).full_name || user.email?.split("@")[0] || "Auditor";
+              const newAuditor = await auditorsApi.create(currentOrg.id, {
+                name: fullName,
+                email: user.email || "",
+                role: "Lead Auditor",
+                user_id: user.id,
+              });
+              if (newAuditor) auditorId = newAuditor.id;
+            }
+          }
+
+          let assignmentMap = new Map<string, string>();
+          try {
+            const assignmentsData = await processAssignmentsApi.list(currentOrg.id);
+            assignmentsData.forEach((a) => assignmentMap.set(a.process_id, a.auditor_id));
+          } catch { /* ignore */ }
+
+          for (const p of visibleProcs) {
+            await auditProcessesApi.create(id, {
+              process_id: p.id,
+              auditor_id: assignmentMap.get(p.id) || auditorId || null,
+            });
+          }
+
+          auditProcRecords = await auditProcessesApi.list(id);
+          finalAuditProcs = auditProcRecords.map((ap) => ({
+            process_id: ap.process_id,
+            auditor_id: ap.auditor_id,
+          }));
         }
-      }
-      setAuditProcesses(finalAuditProcs as any);
+        setAuditProcesses(finalAuditProcs as any);
 
-      // 4.5. Check user's role to see if they are an auditor
-      let currentAuditorId = null;
-      let userIsLead = false;
-      if (user) {
-        const { data: userRole } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .eq("org_id", currentOrg.id)
-          .maybeSingle();
+        // 4.5. Check user's role
+        let currentAuditorId = null;
+        let userIsLead = false;
+        if (user) {
+          let userRole: { role: string } | null = null;
+          try {
+            const roles = await orgsApi.getRoles(currentOrg.id);
+            userRole = (roles ?? []).find((r: any) => r.user_id === user.id) || null;
+          } catch { /* ignore */ }
 
-        const { data: auditorRow } = await supabase
-          .from("auditors")
-          .select("id, role")
-          .eq("org_id", currentOrg.id)
-          .eq("user_id", user.id)
-          .maybeSingle();
+          let auditorRow: { id: string; role: string | null } | null = null;
+          try {
+            const allAuditors = await auditorsApi.list(currentOrg.id);
+            auditorRow = (allAuditors ?? []).find((a: any) => a.user_id === user.id) || null;
+          } catch { /* ignore */ }
 
-        setCurrentUserRole(userRole as any);
-        setCurrentUserAuditor(auditorRow as any);
+          setCurrentUserRole(userRole as any);
+          setCurrentUserAuditor(auditorRow as any);
 
-        if (auditorRow) {
-          currentAuditorId = auditorRow.id;
-          if (auditorRow.role === "lead_auditor" || auditorRow.id === currentAudit.lead_auditor_id) {
+          if (auditorRow) {
+            currentAuditorId = auditorRow.id;
+            if (auditorRow.role === "lead_auditor" || auditorRow.id === currentAudit.lead_auditor_id) {
+              userIsLead = true;
+            }
+          }
+
+          if (userRole?.role === "admin" || userRole?.role === "owner" || !auditorRow) {
             userIsLead = true;
           }
         }
+        setIsLead(userIsLead);
 
-        if (userRole?.role === "admin" || userRole?.role === "owner" || !auditorRow) {
-          userIsLead = true;
-        }
+        // Filter procs
+        const auditProcIds = new Set(
+          finalAuditProcs
+            .filter((ap) => userIsLead || !currentAuditorId || ap.auditor_id === currentAuditorId || currentAuditorId === currentAudit.lead_auditor_id)
+            .map((ap) => ap.process_id)
+        );
+        const activeAuditProcs = visibleProcs.filter((p) => auditProcIds.has(p.id));
+        setProcs(activeAuditProcs);
+        if (activeAuditProcs.length > 0) setActiveProc(activeAuditProcs[0].id);
+
+        // 5. Fetch auditors
+        const auditorsList = await auditorsApi.list(currentOrg.id);
+        setAuditors((auditorsList ?? []) as any);
+
+        // 6. Fetch answer rows
+        const answerRows = await answersApi.list(id);
+        const ansMap: Record<string, Answer> = {};
+        (answerRows ?? []).forEach((row: any) => {
+          ansMap[buildAnswerKey(row.process_id, row.clause, row.kind, row.q_ref)] = row as Answer;
+        });
+        setAnswers(ansMap);
+
+        // 7. Load findings
+        const findings = await findingsApi.list(currentOrg.id, id);
+        const findingMap: Record<string, FindingRow> = {};
+        (findings ?? []).forEach((finding: any) => {
+          const meta = parseFindingMeta(finding.root_cause);
+          if (!meta) return;
+          findingMap[buildAnswerKey(meta.processId, finding.clause ?? "", meta.kind, meta.qRef)] = finding as FindingRow;
+        });
+        setFindingsMap(findingMap);
+      } catch (err) {
+        console.error("Failed to load audit data", err);
       }
-      setIsLead(userIsLead);
-
-      // Filter procs list to only show processes linked to this audit.
-      // If the user is a standard auditor (not lead/admin/MR), filter to show only processes assigned to them.
-      // Otherwise, show all audit processes so they can see progress.
-      const auditProcIds = new Set(
-        finalAuditProcs
-          .filter((ap) => userIsLead || !currentAuditorId || ap.auditor_id === currentAuditorId || currentAuditorId === currentAudit.lead_auditor_id)
-          .map((ap) => ap.process_id)
-      );
-      const activeAuditProcs = visibleProcs.filter((p) => auditProcIds.has(p.id));
-      setProcs(activeAuditProcs);
-      if (activeAuditProcs.length > 0) setActiveProc(activeAuditProcs[0].id);
-
-      // 5. Fetch auditors inside the organization
-      const { data: auditorsList } = await supabase.from("auditors").select("id,name,user_id").eq("org_id", currentOrg.id);
-      setAuditors((auditorsList ?? []) as any);
-
-      // 6. Fetch answer rows
-      const { data: answerRows } = await supabase.from("audit_answers").select("id,clause,kind,q_ref,question_text,note,status,process_id").eq("audit_id", id);
-      const ansMap: Record<string, Answer> = {};
-      (answerRows ?? []).forEach((row: any) => {
-        ansMap[buildAnswerKey(row.process_id, row.clause, row.kind, row.q_ref)] = row as Answer;
-      });
-      setAnswers(ansMap);
-
-      // 7. Load findings
-      const { data: findings } = await supabase
-        .from("findings")
-        .select("id,clause,description,capa,owner,due_date,status,type,root_cause")
-        .eq("audit_id", id);
-      
-      const findingMap: Record<string, FindingRow> = {};
-      (findings ?? []).forEach((finding) => {
-        const meta = parseFindingMeta(finding.root_cause);
-        if (!meta) return;
-        findingMap[buildAnswerKey(meta.processId, finding.clause ?? "", meta.kind, meta.qRef)] = finding as FindingRow;
-      });
-      setFindingsMap(findingMap);
       setPageLoading(false);
     })();
   }, [id, currentOrg, user]);
@@ -317,27 +310,30 @@ export default function RunAudit() {
     const proc = procs.find((process) => process.id === activeProc);
     if (!proc) return;
     const applicableStds = getApplicableStandards(audit.standard);
-    supabase
-      .from("custom_questions")
-      .select("id,clause,text,created_at")
-      .eq("org_id", currentOrg.id)
-      .in("standard", applicableStds)
-      .eq("process_key", proc.key)
-      .eq("active", true)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setCustom((data ?? []) as Custom[]));
+    // Fetch custom questions one standard at a time since the API doesn't support `in`
+    Promise.all(
+      applicableStds.map((std) =>
+        questionsApi.list(currentOrg.id, { standard: std, process_key: proc.key, active: true })
+          .catch(() => [])
+      )
+    ).then((results) => {
+      const merged = results.flat().map((q: any) => ({ id: q.id, clause: q.clause, text: q.text, created_at: q.created_at }));
+      setCustom(merged as Custom[]);
+    });
   }, [currentOrg, audit, activeProc, procs]);
 
   useEffect(() => {
     if (!currentOrg || !audit) return;
     const applicableStds = getApplicableStandards(audit.standard);
-    supabase
-      .from("custom_questions")
-      .select("id,clause,text,process_key,created_at")
-      .eq("org_id", currentOrg.id)
-      .in("standard", applicableStds)
-      .eq("active", true)
-      .then(({ data }) => setAllCustom(data ?? []));
+    Promise.all(
+      applicableStds.map((std) =>
+        questionsApi.list(currentOrg.id, { standard: std, active: true })
+          .catch(() => [])
+      )
+    ).then((results) => {
+      const merged = results.flat();
+      setAllCustom(merged ?? []);
+    });
   }, [currentOrg, audit]);
 
   const activeProcMeta = procs.find((process) => process.id === activeProc);
@@ -357,21 +353,25 @@ export default function RunAudit() {
     const existing = answers[key];
     const notePayload = serializeAuditNote(answer.note ?? "", answer.evidence ?? parseAuditNote(existing?.note).evidence);
 
-    if (existing?.id) {
-      await supabase.from("audit_answers").update({ status: answer.status, note: notePayload, question_text: answer.question_text }).eq("id", existing.id);
-      setAnswers((prev) => ({ ...prev, [key]: { ...prev[key], status: answer.status, note: notePayload, question_text: answer.question_text } }));
-    } else {
-      const { data } = await supabase.from("audit_answers").insert({
-        audit_id: id,
-        process_id: answer.process_id,
-        clause: answer.clause,
-        kind: answer.kind,
-        q_ref: answer.q_ref,
-        question_text: answer.question_text,
-        note: notePayload,
-        status: answer.status,
-      }).select().single();
-      if (data) setAnswers((prev) => ({ ...prev, [key]: data as any }));
+    try {
+      if (existing?.id) {
+        await answersApi.update(id, existing.id, { status: answer.status, note: notePayload, question_text: answer.question_text });
+        setAnswers((prev) => ({ ...prev, [key]: { ...prev[key], status: answer.status, note: notePayload, question_text: answer.question_text } }));
+      } else {
+        const data = await answersApi.upsert(id, {
+          audit_id: id,
+          process_id: answer.process_id,
+          clause: answer.clause,
+          kind: answer.kind,
+          q_ref: answer.q_ref,
+          question_text: answer.question_text,
+          note: notePayload,
+          status: answer.status,
+        });
+        if (data) setAnswers((prev) => ({ ...prev, [key]: data as any }));
+      }
+    } catch (err) {
+      console.error("Failed to save answer", err);
     }
   };
 
@@ -414,7 +414,7 @@ export default function RunAudit() {
 
     if (!NONCONFORMING.has(answerStatus)) {
       if (existing?.id) {
-        await supabase.from("findings").delete().eq("id", existing.id);
+        try { await findingsApi.remove(existing.id); } catch { /* ignore */ }
         setFindingsMap((prev) => {
           const next = { ...prev };
           delete next[key];
@@ -444,7 +444,7 @@ export default function RunAudit() {
       standardRequirement: resolvedReq,
     })}`;
 
-    const payload = {
+    const payload: any = {
       audit_id: id,
       org_id: currentOrg.id,
       clause,
@@ -457,15 +457,16 @@ export default function RunAudit() {
       root_cause: rootCausePayload,
     };
 
-    if (existing?.id) {
-      const { data } = await supabase.from("findings").update(payload).eq("id", existing.id).select().single();
-      if (data) setFindingsMap((prev) => ({ ...prev, [key]: data as FindingRow }));
-      return;
-    }
+    try {
+      if (existing?.id) {
+        const data = await findingsApi.update(existing.id, payload);
+        setFindingsMap((prev) => ({ ...prev, [key]: data as FindingRow }));
+        return;
+      }
 
-    const { data } = await supabase.from("findings").insert(payload).select().single();
-    if (data) {
+      const data = await findingsApi.create(currentOrg.id, payload);
       setFindingsMap((prev) => ({ ...prev, [key]: data as FindingRow }));
+
       if (audit?.auditee_email) {
         const portalUrl = `${window.location.origin}/auditee/car/${data.id}`;
         const emailHtml = `
@@ -490,17 +491,17 @@ export default function RunAudit() {
           </div>
         `;
         try {
-          await supabase.functions.invoke("send-email", {
-            body: {
-              to: audit.auditee_email.trim(),
-              subject: `Action Required: New Finding Detected in Audit - ${audit.title}`,
-              html: emailHtml,
-            }
-          });
+          await notificationsApi.sendEmail(
+            audit.auditee_email.trim(),
+            `Action Required: New Finding Detected in Audit - ${audit.title}`,
+            emailHtml
+          );
         } catch (emailErr) {
           console.error("Failed to send finding notification email to auditee:", emailErr);
         }
       }
+    } catch (err) {
+      console.error("Failed to sync finding", err);
     }
   };
 
@@ -521,11 +522,8 @@ export default function RunAudit() {
       const nextEvidence = [...existing.evidence];
 
       for (const file of Array.from(params.files)) {
-        const path = `${currentOrg.id}/${id}/${params.processId}/${Date.now()}-${safeEvidenceName(file.name)}`;
-        const { error } = await supabase.storage.from("audit-evidence").upload(path, file, { upsert: false });
-        if (error) throw error;
-        const { data } = supabase.storage.from("audit-evidence").getPublicUrl(path);
-        nextEvidence.push({ name: file.name, url: data.publicUrl, kind: file.type || "file" });
+        const result = await evidenceApi.upload(id, file, `${currentOrg.id}/${params.processId}`);
+        nextEvidence.push({ name: result.name, url: result.url, kind: file.type || "file" });
       }
 
       await saveAnswer({
@@ -549,19 +547,14 @@ export default function RunAudit() {
 
   const handleAssignAuditor = async (auditorId: string) => {
     if (!id || !activeProc) return;
-    const { error } = await supabase
-      .from("audit_processes")
-      .update({ auditor_id: auditorId })
-      .eq("audit_id", id)
-      .eq("process_id", activeProc);
-
-    if (error) {
-      toast({ title: "Failed to assign auditor", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await auditProcessesApi.assignAuditor(id, activeProc, auditorId);
       toast({ title: "Auditor assigned successfully" });
       setAuditProcesses((prev) =>
         prev.map((ap) => (ap.process_id === activeProc ? { ...ap, auditor_id: auditorId } : ap))
       );
+    } catch (err: any) {
+      toast({ title: "Failed to assign auditor", description: err?.message || "Error", variant: "destructive" });
     }
   };
 
@@ -717,53 +710,43 @@ export default function RunAudit() {
     setIsSubmitting(true);
     const procIdsToSubmit = procs.map((p) => p.id);
     const nextList = Array.from(new Set([...submittedProcs, ...procIdsToSubmit]));
-    const { error } = await supabase
-      .from("audits")
-      .update({ object: JSON.stringify({ submitted_process_ids: nextList }) })
-      .eq("id", id);
-    setIsSubmitting(false);
-    if (error) {
-      toast({ title: "Failed to submit allocation", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await auditsApi.update(currentOrg!.id, id, { object: JSON.stringify({ submitted_process_ids: nextList }) });
       toast({ title: "Allocation Submitted Successfully", description: "Your assigned checklists have been submitted and locked." });
       setAudit((prev: any) => prev ? { ...prev, object: JSON.stringify({ submitted_process_ids: nextList }) } : null);
+    } catch (err: any) {
+      toast({ title: "Failed to submit allocation", description: err?.message || "Error", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const submitAudit = async () => {
     if (!id) return;
     setIsSubmitting(true);
-    const { error } = await supabase
-      .from("audits")
-      .update({ status: "closed", closed_at: new Date().toISOString() })
-      .eq("id", id);
-      
-    setIsSubmitting(false);
-    if (error) {
-      toast({ title: "Failed to submit", description: error.message, variant: "destructive" });
-      return;
+    try {
+      await auditsApi.update(currentOrg!.id, id, { status: "closed", closed_at: new Date().toISOString() });
+      toast({ title: "Audit Submitted Successfully", description: "Your ISO compliance report has been generated." });
+      setAudit(audit ? { ...audit, status: "closed", closed_at: new Date().toISOString() } : null);
+    } catch (err: any) {
+      toast({ title: "Failed to submit", description: err?.message || "Error", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    toast({ title: "Audit Submitted Successfully", description: "Your ISO compliance report has been generated." });
-    setAudit(audit ? { ...audit, status: "closed", closed_at: new Date().toISOString() } : null);
   };
 
   const closeAudit = async () => {
     if (!id) return;
     setIsSubmitting(true);
-    const { error } = await supabase
-      .from("audits")
-      .update({ status: "closed", closed_at: new Date().toISOString() })
-      .eq("id", id);
-      
-    setIsSubmitting(false);
-    if (error) {
-      toast({ title: "Failed to close audit", description: error.message, variant: "destructive" });
-      return;
+    try {
+      await auditsApi.update(currentOrg!.id, id, { status: "closed", closed_at: new Date().toISOString() });
+      toast({ title: "Audit Closed Successfully", description: "This audit has been closed and archived." });
+      setAudit(audit ? { ...audit, status: "closed", closed_at: new Date().toISOString() } : null);
+    } catch (err: any) {
+      toast({ title: "Failed to close audit", description: err?.message || "Error", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    toast({ title: "Audit Closed Successfully", description: "This audit has been closed and archived." });
-    setAudit(audit ? { ...audit, status: "closed", closed_at: new Date().toISOString() } : null);
   };
 
   if (audit.status === "generating") {
@@ -788,21 +771,22 @@ export default function RunAudit() {
           </div>
 
           <div className="border-t border-border/60 pt-6 flex justify-center gap-3">
-            <button
-              onClick={async () => {
-                setLoading(true);
-                const { error } = await supabase.from("audits").update({ status: "closed" }).eq("id", id);
-                setLoading(false);
-                if (error) {
-                  toast({ title: "Status Check Failed", description: error.message, variant: "destructive" });
-                  return;
-                }
-                setAudit(audit ? { ...audit, status: "closed" } : null);
-                toast({ title: "Compliance Report Compiled!", description: "You can now review your final reports." });
-              }}
-              disabled={loading}
-              className="pill-cta px-6 py-2.5 font-bold flex items-center gap-2"
-            >
+              <button
+                onClick={async () => {
+                  setLoading(true);
+                  try {
+                    await auditsApi.update(currentOrg!.id, id!, { status: "closed" });
+                    setAudit(audit ? { ...audit, status: "closed" } : null);
+                    toast({ title: "Compliance Report Compiled!", description: "You can now review your final reports." });
+                  } catch (err: any) {
+                    toast({ title: "Status Check Failed", description: err?.message || "Error", variant: "destructive" });
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="pill-cta px-6 py-2.5 font-bold flex items-center gap-2"
+              >
               {loading ? "Checking Status..." : "Check Report Status"}
             </button>
             <Link to="/app" className="pill-secondary px-6 py-2.5 font-bold">
@@ -909,7 +893,7 @@ export default function RunAudit() {
                   title="All of your assigned process questions must be completed first"
                 >
                   <Lock className="h-3.5 w-3.5" />
-                  Submit My Allocation ({pendingCount} pending)
+                  {currentOrg?.type === "individual" ? `Submit (${pendingCount} pending)` : `Submit My Allocation (${pendingCount} pending)`}
                 </button>
               ) : isProcSubmitted ? (
                 <button
@@ -918,7 +902,7 @@ export default function RunAudit() {
                   title="This process checklist has been submitted and locked."
                 >
                   <Lock className="h-3.5 w-3.5" />
-                  Allocation Submitted & Locked
+                  {currentOrg?.type === "individual" ? "Submitted & Locked" : "Allocation Submitted & Locked"}
                 </button>
               ) : (
                 <button
@@ -935,8 +919,21 @@ export default function RunAudit() {
         </div>
       </div>
 
+      {/* Mobile process selector */}
+      <div className="mt-4 lg:hidden">
+        <select
+          value={activeProc}
+          onChange={(e) => setActiveProc(e.target.value)}
+          className="input w-full text-sm"
+        >
+          {procs.map((proc) => (
+            <option key={proc.id} value={proc.id}>{proc.name}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="mt-6 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start">
-        <aside className="rounded-2xl border border-border bg-card p-3 lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto">
+        <aside className="hidden lg:block rounded-2xl border border-border bg-card p-3 lg:sticky lg:top-20 lg:h-[calc(100vh-6rem)] lg:overflow-y-auto">
           <div className="flex items-center justify-between px-2 py-2 border-b border-border/40 mb-2">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Processes</h3>
             <Link 
@@ -963,8 +960,8 @@ export default function RunAudit() {
 
         <div className="min-h-0 space-y-4 flex-1">
           {!activeProc && (
-            <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground flex flex-col items-center justify-center gap-3">
-              <span>Pick a process on the left to begin.</span>
+            <div className="rounded-2xl border border-dashed border-border bg-card p-6 sm:p-10 text-center text-sm text-muted-foreground flex flex-col items-center justify-center gap-3">
+              <span>Select a process above to begin.</span>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs">Or manage your organization's processes:</span>
                 <Link 
@@ -989,7 +986,7 @@ export default function RunAudit() {
               </p>
               <div className="mt-5 flex flex-col sm:flex-row items-center gap-3 justify-center">
                 <select
-                  className="input w-64 text-xs font-semibold"
+                  className="input w-full sm:w-64 text-xs font-semibold"
                   value={tempAuditorId}
                   onChange={(e) => setTempAuditorId(e.target.value)}
                 >
@@ -1037,11 +1034,11 @@ export default function RunAudit() {
               )}
 
               {clauseSets.length === 0 && (
-                <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">No questions found for this process under this standard.</div>
+                <div className="rounded-2xl border border-dashed border-border bg-card p-6 sm:p-10 text-center text-sm text-muted-foreground">No questions found for this process under this standard.</div>
               )}
 
               {custom.length > 0 && (
-                <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+                <div className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4">
                   <div className="flex items-center gap-3 border-b border-border pb-3">
                     <span className="font-mono text-base font-bold text-primary">★</span>
                     <h3 className="font-display text-base font-bold text-foreground">Added Custom Questions</h3>
@@ -1076,7 +1073,7 @@ export default function RunAudit() {
               {(() => {
                 let questionIndex = custom.length;
                 return clauseSets.map((clauseSet: any) => (
-                  <div key={clauseSet.clause} className="rounded-2xl border border-border bg-card p-5">
+                  <div key={clauseSet.clause} className="rounded-2xl border border-border bg-card p-4 sm:p-5">
                     <div className="flex items-baseline gap-3">
                       <span className="font-mono text-sm font-semibold">{clauseSet.clause}</span>
                       <h3 className="font-display text-base font-semibold">{clauseSet.title}</h3>
@@ -1168,7 +1165,7 @@ export default function RunAudit() {
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-md animate-fade-in">
-            <div className="flex h-[85vh] w-full max-w-5xl flex-col rounded-[28px] border border-border bg-card shadow-elevated overflow-hidden animate-fade-in-up">
+            <div className="flex h-[85vh] max-h-[90vh] w-full max-w-5xl flex-col rounded-[28px] border border-border bg-card shadow-elevated overflow-hidden animate-fade-in-up">
               
               {/* Modal Header */}
               <div className="border-b border-border/80 px-6 py-4 flex items-center justify-between bg-secondary/30">
@@ -1184,7 +1181,7 @@ export default function RunAudit() {
                 
                 <div className="flex items-center gap-3">
                   {/* Search Bar */}
-                  <div className="relative w-64">
+                  <div className="relative w-full max-w-64">
                     <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                     <input
                       type="text"
@@ -1762,7 +1759,7 @@ function Row({
               }
             }}
             disabled={readOnly}
-            className="input w-32 text-xs animate-none"
+            className="input w-full sm:w-32 text-xs animate-none"
           >
             {STATUSES.map((item) => (
               <option key={item} value={item}>
@@ -1792,7 +1789,7 @@ function Row({
             <p className="mt-1 text-xs text-muted-foreground">Upload records, photos, screenshots, reports, approvals, logs, or signed documents that support this answer.</p>
           </div>
           {!readOnly && (
-            <label className="pill-secondary cursor-pointer animate-none">
+            <label className="pill-secondary cursor-pointer animate-none w-full sm:w-auto justify-center sm:justify-start">
               <input
                 type="file"
                 multiple

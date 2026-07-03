@@ -1,49 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 
-/**
- * AuthCallback
- *
- * Supabase verification emails redirect here with either:
- *   - A PKCE code:  ?code=xxx  (newer flow)
- *   - A token hash: #access_token=xxx&type=signup  (legacy/magic-link flow)
- *
- * We call exchangeCodeForSession() which handles both cases.
- * Once the session is established the user is redirected to /app.
- */
 const AuthCallback = () => {
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleCallback = async () => {
-      try {
-        // exchangeCodeForSession reads the ?code= query param automatically
-        const { error } = await supabase.auth.exchangeCodeForSession(
-          window.location.href
-        );
-
-        if (error) {
-          // If there's no code param (legacy hash flow), Supabase's
-          // onAuthStateChange in useAuth will have already set the session.
-          // Check if we have an active session before showing an error.
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-            navigate("/app", { replace: true });
-            return;
-          }
-          throw error;
-        }
-
-        navigate("/app", { replace: true });
-      } catch (err: any) {
-        console.error("Auth callback error:", err);
-        setError(err?.message ?? "Verification failed. Please try again.");
-      }
-    };
-
-    handleCallback();
+    const token = localStorage.getItem("oa_token");
+    if (token) {
+      navigate("/app", { replace: true });
+    } else {
+      navigate("/auth", { replace: true });
+    }
   }, [navigate]);
 
   if (error) {

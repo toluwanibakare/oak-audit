@@ -3,9 +3,11 @@ import { useNavigate, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { isProcessInStandard } from "@/data/standards";
 import { ArrowRight, ClipboardCheck, Play, Users, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
+import { auditsApi } from "@/api/audits";
+import { auditorsApi } from "@/api/auditors";
+import { processesApi } from "@/api/processes";
 import { AppShell } from "@/components/app/AppShell";
 import { Header } from "./Team";
 
@@ -37,35 +39,24 @@ export default function Audits() {
 
   useEffect(() => {
     if (!currentOrg || !selectedAuditForAssign) return;
-    
-    // Fetch auditors
-    supabase
-      .from("auditors")
-      .select("id, name")
-      .eq("org_id", currentOrg.id)
-      .then(({ data }) => setAuditors(data ?? []));
-      
-    // Fetch org processes
-    supabase
-      .from("org_processes")
-      .select("id, key, name")
-      .eq("org_id", currentOrg.id)
-      .then(({ data }) => {
-        const finalProcs = data ?? [];
-        // Filter to standard matching processes
-        const visible = finalProcs.filter((p) => isProcessInStandard(selectedAuditForAssign.standard as any, p.key));
-        setModalProcs(visible);
-      });
+
+    (async () => {
+      const [auditorsList, procs] = await Promise.all([
+        auditorsApi.list(currentOrg.id),
+        processesApi.list(currentOrg.id),
+      ]);
+      setAuditors(auditorsList.map((a: any) => ({ id: a.id, name: a.name })));
+      const visible = procs.filter((p: any) => isProcessInStandard(selectedAuditForAssign.standard as any, p.key));
+      setModalProcs(visible.map((p: any) => ({ id: p.id, key: p.key, name: p.name })));
+    })();
   }, [selectedAuditForAssign, currentOrg]);
 
-  const loadAudits = () => {
+  const loadAudits = async () => {
     if (!currentOrg) return;
-    supabase
-      .from("audits")
-      .select("*")
-      .eq("org_id", currentOrg.id)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setList((data ?? []) as Audit[]));
+    try {
+      const data = await auditsApi.list(currentOrg.id);
+      setList(data as Audit[]);
+    } catch {}
   };
 
   const handleLaunchAudit = async () => {
@@ -75,28 +66,19 @@ export default function Audits() {
     
     // Fallback for lead auditor if not selected or if individual
     if (!leadAuditorId) {
-      const { data: existing } = await supabase
-        .from("auditors")
-        .select("id")
-        .eq("org_id", currentOrg.id)
-        .limit(1)
-        .maybeSingle();
-
+      const auditorsList = await auditorsApi.list(currentOrg.id);
+      const existing = auditorsList[0];
       if (existing?.id) {
         leadAuditorId = existing.id;
       } else {
-        const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Auditor";
-        const { data: created } = await supabase
-          .from("auditors")
-          .insert({
-            org_id: currentOrg.id,
-            name: fullName,
-            email: user.email || "",
-            role: "Lead Auditor",
-            user_id: user.id
-          })
-          .select("id")
-          .single();
+        const fullName = (user as any).full_name || user.email?.split("@")[0] || "Auditor";
+        const created = await auditorsApi.create(currentOrg.id, {
+          org_id: currentOrg.id,
+          name: fullName,
+          email: user.email || "",
+          role: "Lead Auditor",
+          user_id: user.id,
+        });
         if (created?.id) {
           leadAuditorId = created.id;
         }
@@ -115,29 +97,15 @@ export default function Audits() {
     setLaunching(true);
 
     try {
-      // 1. Create audit process rows in database
-      const rows = modalProcs.map((p) => ({
-        audit_id: selectedAuditForAssign.id,
-        process_id: p.id,
-        auditor_id: processAuditorMap[p.id] || leadAuditorId,
-      }));
-
-      if (rows.length > 0) {
-        const { error: seedError } = await supabase.from("audit_processes").insert(rows);
-        if (seedError) throw seedError;
-      }
-
-      // 2. Update audit status to in_progress
-      const { error: updateError } = await supabase
-        .from("audits")
-        .update({
-          status: "in_progress",
-          started_at: new Date().toISOString(),
-          lead_auditor_id: leadAuditorId
-        })
-        .eq("id", selectedAuditForAssign.id);
-
-      if (updateError) throw updateError;
+      await auditsApi.update(currentOrg.id, selectedAuditForAssign.id, {
+        lead_auditor_id: leadAuditorId,
+        status: "in_progress",
+        started_at: new Date().toISOString(),
+        process_assignments: modalProcs.map(p => ({
+          process_id: p.id,
+          auditor_id: processAuditorMap[p.id] || leadAuditorId,
+        })),
+      });
 
       toast({ title: "Audit launched successfully!", description: "Seeded processes and redirected to audit workspace." });
       setSelectedAuditForAssign(null);
@@ -155,14 +123,34 @@ export default function Audits() {
 
   useEffect(() => {
     if (!user || !currentOrg) return;
-    supabase
-      .from("auditors")
-      .select("id, role")
-      .eq("org_id", currentOrg.id)
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => setCurrentUserAuditor(data));
+    (async () => {
+      const auditorsList = await auditorsApi.list(currentOrg.id);
+      const found = auditorsList.find((a: any) => a.user_id === user.id);
+      setCurrentUserAuditor(found || null);
+    })();
   }, [user, currentOrg]);
+
+  const handleDirectLaunch = async (audit: Audit) => {
+    if (!currentOrg || !user) return;
+    try {
+      const auditorsList = await auditorsApi.list(currentOrg.id);
+      let leadId = auditorsList.find((a: any) => a.user_id === user.id)?.id;
+      if (!leadId) {
+        const fullName = (user as any).full_name || user.email?.split("@")[0] || "Auditor";
+        const created = await auditorsApi.create(currentOrg.id, {
+          org_id: currentOrg.id, name: fullName, email: user.email || "",
+          role: "Lead Auditor", user_id: user.id,
+        });
+        leadId = created.id;
+      }
+      await auditsApi.update(currentOrg.id, audit.id, {
+        lead_auditor_id: leadId, status: "in_progress", started_at: new Date().toISOString(),
+      });
+      navigate(`/app/audits/${audit.id}`);
+    } catch (err: any) {
+      toast({ title: "Failed to launch audit", description: err.message, variant: "destructive" });
+    }
+  };
 
   const isAuditor = currentUserAuditor?.role === "auditor";
 
@@ -174,12 +162,17 @@ export default function Audits() {
 
   return (
     <AppShell>
+      {/* Mobile notice */}
+      <div className="lg:hidden mb-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-700 dark:text-amber-300 font-medium text-center">
+        This page is optimised for desktop. For the best experience, use a larger screen or rotate your device.
+      </div>
+
       <div className="flex flex-wrap items-end justify-between gap-4">
         <Header title="Audits" subtitle="All audit runs across your standards." />
         {!isAuditor && <Link to="/app/licenses" className="pill-cta">+ New audit</Link>}
       </div>
 
-      <section className="mt-6 grid gap-4 md:grid-cols-3">
+      <section className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
         <SummaryCard label="Total audits" value={list.length} hint="All recorded audit runs" />
         <SummaryCard label="In progress" value={statusSummary.active} hint="Open audits still moving" />
         <SummaryCard label="Closed" value={statusSummary.closed} hint="Completed and report-ready" />
@@ -221,10 +214,14 @@ export default function Audits() {
                         draft
                       </span>
                       <button
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          setSelectedAuditForAssign(audit);
+                          if (currentOrg?.type === "individual") {
+                            await handleDirectLaunch(audit);
+                          } else {
+                            setSelectedAuditForAssign(audit);
+                          }
                         }}
                         className="pill-cta text-xs py-1.5 px-4 flex items-center gap-1.5"
                       >
@@ -271,7 +268,7 @@ export default function Audits() {
       {/* Assignment Modal */}
       {selectedAuditForAssign && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-2xl rounded-[32px] border border-border bg-card p-8 shadow-elevated animate-scale-up space-y-6">
+          <div className="w-full max-w-2xl rounded-[32px] border border-border bg-card p-4 sm:p-8 shadow-elevated animate-scale-up space-y-6">
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div>
                 <h3 className="font-display text-xl font-bold">Assign Process Auditors</h3>
@@ -288,25 +285,27 @@ export default function Audits() {
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-2xl border border-border bg-card p-4 space-y-3 font-sans shadow-sm">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
-                    Assign Lead Auditor
-                  </label>
-                  <select
-                    className="input w-full font-sans text-xs"
-                    value={selectedLeadAuditorId}
-                    onChange={(e) => setSelectedLeadAuditorId(e.target.value)}
-                  >
-                    <option value="">— Select Lead Auditor —</option>
-                    {auditors.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                      </option>
-                    ))}
-                  </select>
+              {currentOrg?.type !== "individual" && (
+                <div className="rounded-2xl border border-border bg-card p-4 space-y-3 font-sans shadow-sm">
+                  <div>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+                      Assign Lead Auditor
+                    </label>
+                    <select
+                      className="input w-full font-sans text-xs"
+                      value={selectedLeadAuditorId}
+                      onChange={(e) => setSelectedLeadAuditorId(e.target.value)}
+                    >
+                      <option value="">— Select Lead Auditor —</option>
+                      {auditors.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {currentOrg?.type !== "individual" && (
                 <div className="max-h-60 overflow-y-auto border border-border rounded-2xl p-4 bg-secondary/10 space-y-4 font-sans">
@@ -318,7 +317,7 @@ export default function Audits() {
                     <div key={p.id} className="flex justify-between items-center gap-4 text-xs font-semibold py-1">
                       <span>{p.name}</span>
                       <select
-                        className="input w-48 font-sans text-xs py-1 h-8"
+                        className="input w-full sm:w-48 font-sans text-xs py-1 h-8"
                         value={processAuditorMap[p.id] || ""}
                         onChange={(e) => {
                           setProcessAuditorMap({

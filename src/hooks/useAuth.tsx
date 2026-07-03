@@ -1,55 +1,57 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
+import { authApi } from "@/api/auth";
+
+type User = {
+  id: string;
+  email: string;
+  full_name: string;
+  account_type: string;
+};
 
 type AuthCtx = {
   user: User | null;
-  session: Session | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
 
-const Ctx = createContext<AuthCtx>({ user: null, session: null, loading: true, signOut: async () => {} });
+const Ctx = createContext<AuthCtx>({ user: null, loading: true, signOut: async () => {}, refreshUser: async () => {} });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Set up listener BEFORE getSession (per Lovable Cloud auth guidance)
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-    });
-
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      if (s) {
-        const rememberMe = localStorage.getItem("oa_remember_me");
-        if (rememberMe !== "true") {
-          const sessionMarker = sessionStorage.getItem("oa_session_marker");
-          if (!sessionMarker) {
-            supabase.auth.signOut();
-            setSession(null);
-            setUser(null);
-            setLoading(false);
-            return;
-          }
-        }
-        setSession(s);
-        setUser(s?.user ?? null);
-      }
+  const fetchUser = useCallback(async () => {
+    const token = localStorage.getItem("oa_token");
+    if (!token) {
       setLoading(false);
-    });
-
-    return () => sub.subscription.unsubscribe();
+      return;
+    }
+    try {
+      const data = await authApi.me();
+      setUser(data as User);
+    } catch {
+      localStorage.removeItem("oa_token");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchUser();
+  }, [fetchUser]);
+
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await authApi.logout();
+    } catch {
+      // ignore
+    }
+    localStorage.removeItem("oa_token");
+    setUser(null);
   };
 
-  return <Ctx.Provider value={{ user, session, loading, signOut }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, loading, signOut, refreshUser: fetchUser }}>{children}</Ctx.Provider>;
 };
 
 export const useAuth = () => useContext(Ctx);

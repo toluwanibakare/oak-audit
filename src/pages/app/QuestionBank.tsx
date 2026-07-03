@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { Link } from "react-router-dom";
 import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -7,6 +7,11 @@ import { AppShell } from "@/components/app/AppShell";
 import { Header } from "./Team";
 import { getQuestionsFor, STANDARDS, getProcessesFor, type StandardKey } from "@/data/standards";
 import { ISO_CLAUSES_FOR_AUDIT } from "@/data/processAudit";
+import { walletApi, type AuditLicense } from "@/api/wallet";
+import { auditsApi } from "@/api/audits";
+import { answersApi } from "@/api/answers";
+import { auditProcessesApi } from "@/api/auditProcesses";
+import { questionsApi } from "@/api/questions";
 import { BookOpen, Settings, Search, Plus, Edit2, Check, X, Copy, HelpCircle, Layers, Info } from "lucide-react";
 
 type Audit = {
@@ -55,6 +60,27 @@ export default function QuestionBank() {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const [licenses, setLicenses] = useState<AuditLicense[]>([]);
+  const [loadingLicenses, setLoadingLicenses] = useState(true);
+
+  // Fetch licenses
+  useEffect(() => {
+    if (!currentOrg) return;
+    setLoadingLicenses(true);
+    walletApi.licenses(currentOrg.id)
+      .then((data) => setLicenses(data.filter((l) => l.active)))
+      .catch(() => setLicenses([]))
+      .finally(() => setLoadingLicenses(false));
+  }, [currentOrg]);
+
+  const licensedStandardKeys = useMemo(() => {
+    return new Set(licenses.map((l) => l.pack));
+  }, [licenses]);
+
+  const licensedStandards = useMemo(() => {
+    return STANDARDS.filter((s) => licensedStandardKeys.has(s.key));
+  }, [licensedStandardKeys]);
+
   const [activeTab, setActiveTab] = useState<"browse" | "manage">("browse");
 
   // Tab 1: Browse State
@@ -92,10 +118,10 @@ export default function QuestionBank() {
   const [selectedImportKeys, setSelectedImportKeys] = useState<Set<string>>(new Set());
 
   const filteredStandards = useMemo(() => {
-    if (!selectedAudit) return STANDARDS;
+    if (!selectedAudit) return licensedStandards;
     const allowed = getApplicableStandards(selectedAudit.standard);
-    return STANDARDS.filter((s) => allowed.includes(s.key));
-  }, [selectedAudit]);
+    return licensedStandards.filter((s) => allowed.includes(s.key));
+  }, [selectedAudit, licensedStandards]);
 
   const handleOpenImportModal = () => {
     if (selectedAudit) {
@@ -158,12 +184,12 @@ export default function QuestionBank() {
   // Load basic data
   const loadBasicData = async () => {
     if (!currentOrg) return;
-    const { data: auditData } = await supabase
-      .from("audits")
-      .select("*")
-      .eq("org_id", currentOrg.id)
-      .order("created_at", { ascending: false });
-    setAudits((auditData ?? []) as Audit[]);
+    try {
+      const auditData = await auditsApi.list(currentOrg.id);
+      setAudits((auditData ?? []) as Audit[]);
+    } catch {
+      setAudits([]);
+    }
   };
 
   useEffect(() => {
@@ -179,13 +205,15 @@ export default function QuestionBank() {
     }
 
     const loadAuditProcs = async () => {
-      const { data } = await supabase
-        .from("audit_processes")
-        .select("process_id, org_processes(id, key, name, scope)")
-        .eq("audit_id", selectedAudit.id);
+      let data: any[];
+      try {
+        data = await auditProcessesApi.list(selectedAudit.id);
+      } catch {
+        data = [];
+      }
 
-      const parsedProcs = (data ?? [])
-        .map((ap: any) => ap.org_processes)
+      const parsedProcs = data
+        .map((ap: any) => ap.process)
         .filter(Boolean)
         .map((p: any) => ({ id: p.id, key: p.key, name: p.name }));
 
@@ -227,32 +255,30 @@ export default function QuestionBank() {
 
     // Answers only available in audit mode
     if (selectedAudit && selectedAuditProc) {
-      const { data: answersData } = await supabase
-        .from("audit_answers")
-        .select("id, clause, kind, q_ref, question_text, note, status")
-        .eq("audit_id", selectedAudit.id)
-        .eq("process_id", selectedAuditProc);
+      try {
+        const allAnswers = await answersApi.list(selectedAudit.id);
+        const answersData = allAnswers.filter((a) => a.process_id === selectedAuditProc);
 
-      const amap: Record<string, Answer> = {};
-      (answersData ?? []).forEach((ans: any) => {
-        const key = `${selectedAuditProc}:${ans.clause}:${ans.kind}:${ans.q_ref}`;
-        amap[key] = ans;
-      });
-      setAnswers(amap);
+        const amap: Record<string, Answer> = {};
+        answersData.forEach((ans: any) => {
+          const key = `${selectedAuditProc}:${ans.clause}:${ans.kind}:${ans.q_ref}`;
+          amap[key] = ans;
+        });
+        setAnswers(amap);
+      } catch {
+        setAnswers({});
+      }
     } else {
       setAnswers({});
     }
 
     // Custom questions (includes rephrases stored with REPHRASE: reference prefix)
-    const { data: customData } = await supabase
-      .from("custom_questions")
-      .select("id, clause, kind, text, evidence, reference, active, created_at")
-      .eq("org_id", currentOrg.id)
-      .eq("standard", std)
-      .eq("process_key", procKey)
-      .order("created_at", { ascending: false });
-
-    setCustomQuestions((customData ?? []) as CustomQuestion[]);
+    try {
+      const customData = await questionsApi.list(currentOrg.id, { standard: std, process_key: procKey });
+      setCustomQuestions((customData ?? []) as CustomQuestion[]);
+    } catch {
+      setCustomQuestions([]);
+    }
   };
 
   useEffect(() => {
@@ -419,54 +445,39 @@ export default function QuestionBank() {
     if (!currentOrg || !user) return;
 
     if (item.isCustom) {
-      // Update custom question text directly
-      const { error } = await supabase
-        .from("custom_questions")
-        .update({ text: editingText })
-        .eq("id", item.id);
-
-      if (error) {
-        toast({ title: "Failed to update custom question", description: error.message, variant: "destructive" });
-      } else {
-        // Also sync to audit_answers if in audit mode
+      try {
+        await questionsApi.update(item.id, { text: editingText });
         if (selectedAudit && selectedAuditProc) {
-          await supabase
-            .from("audit_answers")
-            .update({ question_text: editingText })
-            .eq("audit_id", selectedAudit.id)
-            .eq("process_id", selectedAuditProc)
-            .eq("clause", item.clause)
-            .eq("kind", "custom")
-            .eq("q_ref", item.id);
+          const allAnswers = await answersApi.list(selectedAudit.id);
+          const matching = allAnswers.filter(
+            (a) =>
+              a.process_id === selectedAuditProc &&
+              a.clause === item.clause &&
+              a.kind === "custom" &&
+              a.q_ref === item.id
+          );
+          for (const ans of matching) {
+            await answersApi.update(selectedAudit.id, ans.id, { question_text: editingText });
+          }
         }
         toast({ title: "Custom question updated successfully." });
         loadQuestionsData();
+      } catch (err: any) {
+        toast({ title: "Failed to update custom question", description: err?.message || "Error", variant: "destructive" });
       }
     } else {
-      // Standard question rephrase
       const procKey = effectiveProcKey;
       const std = effectiveStd;
 
       if (selectedAudit && selectedAuditProc) {
-        // Audit mode: save to audit_answers
         const key = `${selectedAuditProc}:${item.clause}:${item.kind}:${item.q_ref}`;
         const existing = answers[key];
 
-        if (existing?.id) {
-          const { error } = await supabase
-            .from("audit_answers")
-            .update({ question_text: editingText })
-            .eq("id", existing.id);
-          if (error) {
-            toast({ title: "Failed to save rephrase", description: error.message, variant: "destructive" });
+        try {
+          if (existing?.id) {
+            await answersApi.update(selectedAudit.id, existing.id, { question_text: editingText });
           } else {
-            toast({ title: "Question rephrased for this audit." });
-            loadQuestionsData();
-          }
-        } else {
-          const { error } = await supabase
-            .from("audit_answers")
-            .insert({
+            await answersApi.upsert(selectedAudit.id, {
               audit_id: selectedAudit.id,
               process_id: selectedAuditProc,
               clause: item.clause,
@@ -475,47 +486,33 @@ export default function QuestionBank() {
               question_text: editingText,
               status: "pending",
             });
-          if (error) {
-            toast({ title: "Failed to save rephrase", description: error.message, variant: "destructive" });
-          } else {
-            toast({ title: "Question rephrased for this audit." });
-            loadQuestionsData();
           }
+          toast({ title: "Question rephrased for this audit." });
+          loadQuestionsData();
+        } catch (err: any) {
+          toast({ title: "Failed to save rephrase", description: err?.message || "Error", variant: "destructive" });
         }
       } else {
-        // Template mode: save rephrase to custom_questions with special reference marker
-        if (item.rephraseOverrideId) {
-          // Update existing rephrase override
-          const { error } = await supabase
-            .from("custom_questions")
-            .update({ text: editingText })
-            .eq("id", item.rephraseOverrideId);
-          if (error) {
-            toast({ title: "Failed to save rephrase", description: error.message, variant: "destructive" });
+        try {
+          if (item.rephraseOverrideId) {
+            await questionsApi.update(item.rephraseOverrideId, { text: editingText });
           } else {
-            toast({ title: "Template rephrase saved.", description: "This wording will be pre-filled when a new audit uses this process." });
-            loadQuestionsData();
+            await questionsApi.create(currentOrg.id, {
+              org_id: currentOrg.id,
+              standard: std,
+              process_key: procKey,
+              clause: item.clause,
+              kind: "rephrase",
+              text: editingText,
+              evidence: item.evidence || null,
+              reference: item.rephraseRef,
+              active: true,
+            });
           }
-        } else {
-          // Insert new rephrase override
-          const { error } = await supabase.from("custom_questions").insert({
-            org_id: currentOrg.id,
-            created_by: user.id,
-            standard: std,
-            process_key: procKey,
-            clause: item.clause,
-            kind: "rephrase",
-            text: editingText,
-            evidence: item.evidence || null,
-            reference: item.rephraseRef, // e.g. "REPHRASE:9001:management_review:generic:g0"
-            active: true,
-          });
-          if (error) {
-            toast({ title: "Failed to save rephrase", description: error.message, variant: "destructive" });
-          } else {
-            toast({ title: "Template rephrase saved.", description: "This wording will be pre-filled when a new audit uses this process." });
-            loadQuestionsData();
-          }
+          toast({ title: "Template rephrase saved.", description: "This wording will be pre-filled when a new audit uses this process." });
+          loadQuestionsData();
+        } catch (err: any) {
+          toast({ title: "Failed to save rephrase", description: err?.message || "Error", variant: "destructive" });
         }
       }
     }
@@ -540,24 +537,22 @@ export default function QuestionBank() {
       return toast({ title: "Please fill in Clause and Question text", variant: "destructive" });
     }
 
-    const { error } = await supabase.from("custom_questions").insert({
-      org_id: currentOrg.id,
-      created_by: user.id,
-      standard: std,
-      process_key: procKey,
-      clause: newQuestion.clause,
-      text: newQuestion.text,
-      evidence: newQuestion.evidence || null,
-      reference: newQuestion.reference || null,
-      active: true,
-    });
-
-    if (error) {
-      toast({ title: "Failed to add question", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await questionsApi.create(currentOrg.id, {
+        org_id: currentOrg.id,
+        standard: std,
+        process_key: procKey,
+        clause: newQuestion.clause,
+        text: newQuestion.text,
+        evidence: newQuestion.evidence || null,
+        reference: newQuestion.reference || null,
+        active: true,
+      });
       toast({ title: "Custom question added successfully." });
       setNewQuestion({ clause: "", text: "", evidence: "", reference: "" });
       loadQuestionsData();
+    } catch (err: any) {
+      toast({ title: "Failed to add question", description: err?.message || "Error", variant: "destructive" });
     }
   };
 
@@ -566,12 +561,12 @@ export default function QuestionBank() {
     if (isAuditLocked) {
       return toast({ title: "Audit in progress", description: "You cannot delete custom questions while the audit is active.", variant: "destructive" });
     }
-    const { error } = await supabase.from("custom_questions").delete().eq("id", id);
-    if (error) {
-      toast({ title: "Failed to delete question", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await questionsApi.remove(id);
       toast({ title: "Question deleted successfully." });
       loadQuestionsData();
+    } catch (err: any) {
+      toast({ title: "Failed to delete question", description: err?.message || "Error", variant: "destructive" });
     }
   };
 
@@ -592,19 +587,19 @@ export default function QuestionBank() {
     }
 
     const srcQuestions = getQuestionsFor(importSrcStd, importSrcProc as any) ?? [];
-    const importPromises: any[] = [];
+    const importPromises: Promise<any>[] = [];
 
     srcQuestions.forEach((clauseSet) => {
       clauseSet.generic.forEach((question, index) => {
         const key = `generic:${clauseSet.clause}:g${index}`;
         if (selectedImportKeys.has(key)) {
           importPromises.push(
-            supabase.from("custom_questions").insert({
+            questionsApi.create(currentOrg.id, {
               org_id: currentOrg.id,
-              created_by: user.id,
               standard: std,
               process_key: procKey,
               clause: clauseSet.clause,
+              kind: "custom",
               text: `[Imported from ${importSrcStd.toUpperCase()}/${importSrcProc}] ${question}`,
               evidence: clauseSet.evidence?.join(" · ") || null,
               reference: `Copied from standard bank ${importSrcStd}`,
@@ -618,12 +613,12 @@ export default function QuestionBank() {
         const key = `specific:${clauseSet.clause}:s${index}`;
         if (selectedImportKeys.has(key)) {
           importPromises.push(
-            supabase.from("custom_questions").insert({
+            questionsApi.create(currentOrg.id, {
               org_id: currentOrg.id,
-              created_by: user.id,
               standard: std,
               process_key: procKey,
               clause: clauseSet.clause,
+              kind: "custom",
               text: `[Imported from ${importSrcStd.toUpperCase()}/${importSrcProc}] ${question}`,
               evidence: clauseSet.evidence?.join(" · ") || null,
               reference: `Copied from standard bank ${importSrcStd}`,
@@ -641,7 +636,7 @@ export default function QuestionBank() {
       setSelectedImportKeys(new Set());
       loadQuestionsData();
     } catch (err: any) {
-      toast({ title: "Import failed", description: err.message, variant: "destructive" });
+      toast({ title: "Import failed", description: err.message || "Error", variant: "destructive" });
     }
   };
 
@@ -652,25 +647,24 @@ export default function QuestionBank() {
       return toast({ title: "Please fill in target process and clause", variant: "destructive" });
     }
 
-    const { error } = await supabase.from("custom_questions").insert({
-      org_id: currentOrg.id,
-      created_by: user.id,
-      standard: copyDestStd,
-      process_key: copyDestProc,
-      clause: copyDestClause,
-      text: copyTargetQuestion.text,
-      evidence: copyTargetQuestion.evidence || null,
-      reference: `Copied from another standard/process`,
-      active: true,
-    });
-
-    if (error) {
-      toast({ title: "Failed to copy question", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await questionsApi.create(currentOrg.id, {
+        org_id: currentOrg.id,
+        standard: copyDestStd,
+        process_key: copyDestProc,
+        clause: copyDestClause,
+        kind: "custom",
+        text: copyTargetQuestion.text,
+        evidence: copyTargetQuestion.evidence || null,
+        reference: `Copied from another standard/process`,
+        active: true,
+      });
       toast({ title: "Question successfully copied to destination." });
       setIsCopyModalOpen(false);
       setCopyTargetQuestion(null);
       loadQuestionsData();
+    } catch (err: any) {
+      toast({ title: "Failed to copy question", description: err?.message || "Error", variant: "destructive" });
     }
   };
 
@@ -724,8 +718,16 @@ export default function QuestionBank() {
           </button>
         </div>
 
-        {/* Tab 1: Pre-Audit Question Viewer */}
-        {activeTab === "browse" && (
+        {!loadingLicenses && licensedStandards.length === 0 && (
+          <div className="mt-8 rounded-2xl border border-dashed border-border bg-card p-12 text-center">
+            <BookOpen className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
+            <h3 className="font-display text-base font-semibold text-foreground mb-1">No standards unlocked</h3>
+            <p className="text-sm text-muted-foreground mb-4">Purchase an ISO standard from the ISO Library to access its question bank.</p>
+            <Link to="/app/licenses" className="pill-cta inline-flex">Go to ISO Library</Link>
+          </div>
+        )}
+
+        {licensedStandards.length > 0 && activeTab === "browse" && (
           <div className="mt-6 space-y-6">
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm max-w-3xl">
               <h3 className="font-display text-sm font-semibold text-foreground">Select Standard &amp; Process</h3>
@@ -738,7 +740,7 @@ export default function QuestionBank() {
                     onChange={(e) => setBrowseStd(e.target.value as StandardKey)}
                     className="input w-full h-11"
                   >
-                    {STANDARDS.map((s) => (
+                    {licensedStandards.map((s) => (
                       <option key={s.key} value={s.key}>{s.code} - {s.name}</option>
                     ))}
                   </select>
@@ -826,7 +828,7 @@ export default function QuestionBank() {
         )}
 
         {/* Tab 2: Manage Audit Questions */}
-        {activeTab === "manage" && (
+        {licensedStandards.length > 0 && activeTab === "manage" && (
           <div className="mt-6 space-y-6">
             <div className="rounded-2xl border border-border bg-card p-5 shadow-sm max-w-4xl space-y-4">
               <div>
@@ -893,7 +895,7 @@ export default function QuestionBank() {
                         }}
                         className="input w-full h-11"
                       >
-                        {STANDARDS.map((s) => (
+                        {licensedStandards.map((s) => (
                           <option key={s.key} value={s.key}>{s.code} - {s.name}</option>
                         ))}
                       </select>
@@ -1158,7 +1160,7 @@ export default function QuestionBank() {
         {/* Copy Target Question Modal Overlay */}
         {isCopyModalOpen && copyTargetQuestion && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-elevated animate-in zoom-in-95 duration-200">
+            <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-elevated animate-in zoom-in-95 duration-200">
               <button
                 onClick={() => {
                   setIsCopyModalOpen(false);
@@ -1255,7 +1257,7 @@ export default function QuestionBank() {
               </button>
 
               {/* Modal Header */}
-              <div className="p-6 border-b border-border">
+              <div className="p-4 sm:p-6 border-b border-border">
                 <h3 className="font-display text-lg font-semibold text-foreground">Import Questions</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Select a source standard and process to pull questions into the current active process.</p>
 
@@ -1290,7 +1292,7 @@ export default function QuestionBank() {
               </div>
 
               {/* Modal List Body */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                 {importSrcProc && importModalQuestions.map((clauseSet: any) => (
                   <div key={`import-${clauseSet.clause}`} className="space-y-2.5">
                     <div className="font-mono text-xs font-bold text-primary border-b border-border pb-1">

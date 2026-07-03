@@ -1,6 +1,9 @@
 import { useEffect, useState, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
+import { useAuth } from "@/hooks/useAuth";
+import { processesApi } from "@/api/processes";
+import { questionsApi } from "@/api/questions";
+import { walletApi } from "@/api/wallet";
 import { AppShell } from "@/components/app/AppShell";
 import { Header } from "./Team";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +38,7 @@ type Proc = { id: string; key: string; name: string; scope: string | null; is_cu
 
 export default function Processes() {
   const { currentOrg } = useOrg();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [list, setList] = useState<Proc[]>([]);
   const [form, setForm] = useState({ name: "", scope: "", process_owner: "", process_owner_email: "" });
@@ -88,15 +92,8 @@ export default function Processes() {
     if (!currentOrg) return;
     setLoadingQuestions(true);
     try {
-      const { data, error } = await supabase
-        .from("custom_questions")
-        .select("id,standard,clause,text,evidence")
-        .eq("org_id", currentOrg.id)
-        .eq("process_key", processKey)
-        .eq("active", true)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      setCustomQuestions(data ?? []);
+      const data = await questionsApi.list(currentOrg.id, { process_key: processKey, active: true });
+      setCustomQuestions(data.map((q: any) => ({ id: q.id, standard: q.standard, clause: q.clause, text: q.text, evidence: q.evidence })));
     } catch (err: any) {
       console.error("Failed to load custom questions:", err);
     } finally {
@@ -115,12 +112,7 @@ export default function Processes() {
   const handleDeleteCustomQuestion = async (qId: string) => {
     if (!window.confirm("Are you sure you want to delete this custom question?")) return;
     try {
-      const { error } = await supabase
-        .from("custom_questions")
-        .update({ active: false })
-        .eq("id", qId);
-
-      if (error) throw error;
+      await questionsApi.remove(qId, true);
       toast({ title: "Question deleted successfully" });
       if (createdCustomProcessKey) {
         loadCustomQuestionsForProcess(createdCustomProcessKey);
@@ -136,14 +128,7 @@ export default function Processes() {
     if (!currentOrg) return;
     try {
       // Load processes
-      const { data } = await supabase
-        .from("org_processes")
-        .select("*")
-        .eq("org_id", currentOrg.id)
-        .order("is_custom")
-        .order("name");
-      
-      const processesList = (data ?? []) as Proc[];
+      const processesList = await processesApi.list(currentOrg.id) as Proc[];
       const uniqueListMap = new Map<string, Proc>();
       processesList.forEach((p) => {
         const normKey = p.is_custom ? p.key : normalizeProcessKey(p.key);
@@ -168,14 +153,8 @@ export default function Processes() {
       setStandardProcessOwnersEmail(emailsMap);
 
       // Load paid standards/licenses
-      const { data: licenses } = await supabase
-        .from("audit_licenses")
-        .select("pack")
-        .eq("org_id", currentOrg.id)
-        .eq("active", true)
-        .gt("expires_at", new Date().toISOString());
-      
-      const activePacks = (licenses ?? []).map(l => l.pack.toLowerCase());
+      const licenses = await walletApi.licenses(currentOrg.id);
+      const activePacks = (licenses ?? []).map((l: any) => l.pack.toLowerCase());
       const standardsUnlocked = new Set<string>();
       activePacks.forEach(pack => {
         if (pack === "ims") {
@@ -215,24 +194,25 @@ export default function Processes() {
     if (!currentOrg) return;
     setSaving(true);
     try {
-      // Clear existing non-custom processes from org_processes
-      await supabase.from("org_processes").delete().eq("org_id", currentOrg.id).eq("is_custom", false);
-      
-      // Insert selected ones with their process owner names
-      const toInsert = UNIQUE_STANDARD_PROCESSES.filter(sp => selectedStandardKeys.includes(sp.key)).map(sp => ({
-        org_id: currentOrg.id,
-        key: sp.key,
-        name: sp.name,
-        scope: sp.scope || "",
-        is_custom: false,
-        process_owner: standardProcessOwners[sp.key]?.trim() || null,
-        process_owner_email: standardProcessOwnersEmail[sp.key]?.trim() || null,
-      }));
+      // Clear existing non-custom processes
+      const existing = await processesApi.list(currentOrg.id);
+      await Promise.all(
+        existing.filter((p: any) => !p.is_custom).map((p: any) => processesApi.remove(currentOrg.id, p.id))
+      );
 
-      if (toInsert.length > 0) {
-        const { error } = await supabase.from("org_processes").insert(toInsert);
-        if (error) throw error;
-      }
+      // Insert selected ones with their process owner names
+      const toInsert = UNIQUE_STANDARD_PROCESSES.filter(sp => selectedStandardKeys.includes(sp.key));
+      await Promise.all(toInsert.map(sp =>
+        processesApi.create(currentOrg.id, {
+          org_id: currentOrg.id,
+          key: sp.key,
+          name: sp.name,
+          scope: sp.scope || "",
+          is_custom: false,
+          process_owner: standardProcessOwners[sp.key]?.trim() || null,
+          process_owner_email: standardProcessOwnersEmail[sp.key]?.trim() || null,
+        })
+      ));
 
       toast({ title: "Processes list updated successfully!" });
       load();
@@ -264,17 +244,20 @@ export default function Processes() {
       isCustom = true;
     }
 
-    const { error } = await supabase.from("org_processes").insert({
-      org_id: currentOrg.id,
-      key,
-      name: cleanName,
-      scope: form.scope,
-      is_custom: isCustom,
-      process_owner: form.process_owner.trim() || null,
-      process_owner_email: form.process_owner_email.trim() || null,
-    });
-
-    if (error) return toast({ title: error.message, variant: "destructive" });
+    try {
+      await processesApi.create(currentOrg.id, {
+        org_id: currentOrg.id,
+        key,
+        name: cleanName,
+        scope: form.scope,
+        is_custom: isCustom,
+        process_owner: form.process_owner.trim() || null,
+        process_owner_email: form.process_owner_email.trim() || null,
+      });
+    } catch (err: any) {
+      const msg = err?.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(". ") : err?.message || "Failed";
+      return toast({ title: msg, variant: "destructive" });
+    }
 
     setForm({ name: "", scope: "", process_owner: "", process_owner_email: "" });
     setCustomSubmitClicked(false);
@@ -291,9 +274,12 @@ export default function Processes() {
     }
   };
 
-  const remove = async (id: string) => { 
-    await supabase.from("org_processes").delete().eq("id", id); 
-    load(); 
+  const remove = async (id: string) => {
+    if (!currentOrg) return;
+    try {
+      await processesApi.remove(currentOrg.id, id);
+      load();
+    } catch {}
   };
 
   const toggleSelectMode = () => {
@@ -308,14 +294,10 @@ export default function Processes() {
   };
 
   const handleBulkDelete = async () => {
-    if (selectedProcIdsMain.length === 0) return;
+    if (!currentOrg || selectedProcIdsMain.length === 0) return;
     if (!window.confirm(`Are you sure you want to remove the ${selectedProcIdsMain.length} selected processes?`)) return;
     try {
-      const { error } = await supabase
-        .from("org_processes")
-        .delete()
-        .in("id", selectedProcIdsMain);
-      if (error) throw error;
+      await Promise.all(selectedProcIdsMain.map(id => processesApi.remove(currentOrg.id, id)));
       toast({ title: `${selectedProcIdsMain.length} processes removed successfully` });
       setIsSelectMode(false);
       setSelectedProcIdsMain([]);
@@ -337,7 +319,7 @@ export default function Processes() {
     try {
       const std = importToStandard;
       const insertRows: any[] = [];
-      const userUuid = (await supabase.auth.getUser()).data.user?.id || currentOrg.id;
+      const userUuid = user?.id || currentOrg.id;
 
       const qSets = getQuestionsFor(std as any, importFromKey as any);
       if (qSets && qSets.length > 0) {
@@ -359,8 +341,7 @@ export default function Processes() {
       }
 
       if (insertRows.length > 0) {
-        const { error } = await supabase.from("custom_questions").insert(insertRows);
-        if (error) throw error;
+        await Promise.all(insertRows.map(row => questionsApi.create(currentOrg.id, row)));
         toast({ title: "Questions imported successfully", description: `${insertRows.length} questions copied from standard ${std.toUpperCase()} (Process: ${importFromKey}).` });
         if (createdCustomProcessKey) {
           loadCustomQuestionsForProcess(createdCustomProcessKey);
@@ -381,8 +362,7 @@ export default function Processes() {
     if (!currentOrg || !createdCustomProcessKey || !customQuestion.text.trim()) return;
     setAddingQuestion(true);
     try {
-      const userUuid = (await supabase.auth.getUser()).data.user?.id || currentOrg.id;
-      const { error } = await supabase.from("custom_questions").insert({
+      await questionsApi.create(currentOrg.id, {
         org_id: currentOrg.id,
         standard: customQuestion.standard,
         process_key: createdCustomProcessKey,
@@ -390,11 +370,9 @@ export default function Processes() {
         kind: "specific",
         text: customQuestion.text.trim(),
         evidence: customQuestion.evidence.trim() || null,
-        created_by: userUuid,
-        active: true
+        created_by: user?.id || currentOrg.id,
+        active: true,
       });
-
-      if (error) throw error;
       toast({ title: "Custom question added successfully" });
       setCustomQuestion({ ...customQuestion, text: "", evidence: "" });
       if (createdCustomProcessKey) {
@@ -493,7 +471,7 @@ export default function Processes() {
       </div>
 
       {showSelectionGrid ? (
-        <section className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-card space-y-6 animate-fade-in-up">
+        <section className="mt-6 rounded-3xl border border-border bg-card p-4 sm:p-6 shadow-card space-y-6 animate-fade-in-up">
           <div className="flex justify-between items-center pb-4 border-b border-border">
             <div>
               <h3 className="font-display text-lg font-bold">Standard Processes Checklist</h3>
@@ -516,7 +494,7 @@ export default function Processes() {
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 max-h-[480px] overflow-y-auto pr-1">
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 max-h-[480px] overflow-y-auto pr-1">
             {UNIQUE_STANDARD_PROCESSES.map((sp) => {
               const checked = selectedStandardKeys.includes(sp.key);
               return (
@@ -597,7 +575,7 @@ export default function Processes() {
           </div>
         </section>
       ) : (
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
           {list.map((p) => {
             const isChecked = selectedProcIdsMain.includes(p.id);
             return (
@@ -608,7 +586,7 @@ export default function Processes() {
                     handleToggleSelectMain(p.id);
                   }
                 }}
-                className={`rounded-2xl border bg-card p-5 shadow-sm transition flex flex-col justify-between ${
+                className={`rounded-2xl border bg-card p-4 sm:p-5 shadow-sm transition flex flex-col justify-between ${
                   isSelectMode ? "cursor-pointer select-none" : ""
                 } ${
                   isChecked ? "border-primary ring-2 ring-primary/20 bg-primary/5" : "border-border hover:shadow-card hover:border-muted-foreground/20"
@@ -684,7 +662,7 @@ export default function Processes() {
       {/* Add Custom Process Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-elevated animate-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-md rounded-3xl border border-border bg-card p-4 sm:p-8 shadow-elevated animate-in zoom-in-95 duration-200">
             <button
               onClick={() => setIsModalOpen(false)}
               className="absolute top-5 right-5 rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition"
@@ -789,7 +767,7 @@ export default function Processes() {
       {/* Remove Process Warning Modal */}
       {processToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-elevated animate-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-sm rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-elevated animate-in zoom-in-95 duration-200">
             <h3 className="font-display text-lg font-bold text-foreground">Remove Process</h3>
             <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
               Are you sure you want to remove the process <strong>{processToDelete.name}</strong>? This action cannot be undone.
@@ -818,10 +796,10 @@ export default function Processes() {
       {/* Custom Process Setup Helper Popup Modal */}
       {showCustomSetupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-xl rounded-[32px] border border-border bg-card p-8 shadow-elevated animate-in zoom-in-95 duration-200 space-y-6 max-h-[90vh] overflow-y-auto">
+          <div className="relative w-full max-w-xl rounded-[32px] border border-border bg-card p-4 sm:p-8 shadow-elevated animate-in zoom-in-95 duration-200 space-y-6 max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowCustomSetupModal(false)}
-              className="absolute top-6 right-6 rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition"
+              className="absolute top-4 sm:top-6 right-4 sm:right-6 rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition"
             >
               <X className="h-4 w-4" />
             </button>

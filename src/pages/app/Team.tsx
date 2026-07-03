@@ -1,10 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
 import { useToast } from "@/hooks/use-toast";
 import { AppShell } from "@/components/app/AppShell";
 import { useAuth } from "@/hooks/useAuth";
 import { X, Pencil, Trash2 } from "lucide-react";
+import { auditorsApi } from "@/api/auditors";
+import { orgsApi } from "@/api/orgs";
+import { notificationsApi } from "@/api/notifications";
 
 type Auditor = { id: string; name: string; email: string | null; role: string | null; certifications: string | null; user_id: string | null };
 
@@ -23,29 +25,28 @@ export default function Team() {
   const load = async () => {
     if (!currentOrg) return;
 
-    // Check if the current logged-in user is already in the auditors directory
-    if (user) {
-      const { data: existing } = await supabase
-        .from("auditors")
-        .select("id")
-        .eq("org_id", currentOrg.id)
-        .eq("user_id", user.id)
-        .maybeSingle();
+    try {
+      // Check if the current logged-in user is already in the auditors directory
+      if (user) {
+        const existing = await auditorsApi.list(currentOrg.id);
+        const found = existing.find((a: any) => a.user_id === user.id);
 
-      if (!existing) {
-        const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Admin/Organization";
-        await supabase.from("auditors").insert({
-          org_id: currentOrg.id,
-          name: fullName,
-          email: user.email || "",
-          role: "lead_auditor",
-          user_id: user.id
-        });
+        if (!found) {
+          const fullName = (user as any).full_name || user.email?.split("@")[0] || "Admin/Organization";
+          await auditorsApi.create(currentOrg.id, {
+            name: fullName,
+            email: user.email || "",
+            role: "lead_auditor",
+            user_id: user.id
+          });
+        }
       }
-    }
 
-    const { data } = await supabase.from("auditors").select("*").eq("org_id", currentOrg.id).order("created_at");
-    setList((data ?? []) as Auditor[]);
+      const data = await auditorsApi.list(currentOrg.id);
+      setList(data as Auditor[]);
+    } catch (err) {
+      console.error("Failed to load auditors", err);
+    }
   };
 
   useEffect(() => {
@@ -62,53 +63,32 @@ export default function Team() {
 
     setBusy(true);
     try {
-      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://retlzhncvxiicmgmdgtk.supabase.co";
-      const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJldGx6aG5jdnhpaWNtZ21kZ3RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1MjEyMTMsImV4cCI6MjA5NTA5NzIxM30.5VM0sUHMiZ_Q2cBMt8yW5qpEj1uVNQu2z73286eLCMg";
+      const apiUrl = import.meta.env.VITE_API_URL || "";
 
-      const signupRes = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+      // Register the user via Laravel auth
+      const signupRes = await fetch(`${apiUrl}/auth/register`, {
         method: "POST",
-        headers: {
-          "apikey": SUPABASE_PUBLISHABLE_KEY,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          full_name: form.name.trim(),
           email: form.email.trim(),
           password: form.password.trim(),
-          data: {
-            full_name: form.name.trim(),
-            account_type: "auditor",
-            org_id: currentOrg.id,
-          }
+          password_confirmation: form.password.trim(),
+          account_type: "auditor",
         })
       });
 
       const signupData = await signupRes.json();
-      if (!signupRes.ok) {
-        throw new Error(signupData.message ?? "Could not register auditor account.");
-      }
+      if (!signupRes.ok) throw new Error(signupData.errors?.email?.[0] || signupData.errors?.full_name?.[0] || signupData.message || "Could not register auditor account.");
 
-      const userUuid = signupData.id || signupData.user?.id;
-      if (!userUuid) {
-        throw new Error("Failed to retrieve user identifier.");
-      }
+      const userUuid = signupData.user?.id || signupData.id;
+      if (!userUuid) throw new Error("Failed to retrieve user identifier.");
 
-      // Add auditor to organization members and assign roles
-      const { error: memberError } = await supabase.from("organization_members").insert({
-        org_id: currentOrg.id,
-        user_id: userUuid,
-        status: "active",
-      });
-      if (memberError) throw memberError;
+      // Add auditor to organization members
+      await orgsApi.addMember(currentOrg.id, { user_id: userUuid, status: "active" });
 
-      const { error: roleError } = await supabase.from("user_roles").insert({
-        user_id: userUuid,
-        org_id: currentOrg.id,
-        role: form.role,
-      });
-      if (roleError) throw roleError;
-
-      const { error } = await supabase.from("auditors").insert({
-        org_id: currentOrg.id,
+      // Create auditor record
+      await auditorsApi.create(currentOrg.id, {
         name: form.name.trim(),
         email: form.email.trim(),
         role: form.role,
@@ -116,9 +96,7 @@ export default function Team() {
         user_id: userUuid,
       });
 
-      if (error) throw error;
-
-      // Invoke send-email edge function to dispatch welcome invitation email
+      // Send welcome email
       const websiteUrl = window.location.origin;
       const emailHtml = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
@@ -135,15 +113,8 @@ export default function Team() {
           <p>Regards,<br>Oak Audit Team</p>
         </div>
       `;
-
       try {
-        await supabase.functions.invoke("send-email", {
-          body: {
-            to: form.email.trim(),
-            subject: "Your Oak Audit Auditor Credentials",
-            html: emailHtml,
-          }
-        });
+        await notificationsApi.sendEmail(form.email.trim(), "Your Oak Audit Auditor Credentials", emailHtml);
       } catch (emailErr) {
         console.error("Welcome email failed to dispatch:", emailErr);
       }
@@ -175,19 +146,18 @@ export default function Team() {
     const confirmed = window.confirm("Are you sure you want to remove this team member?");
     if (!confirmed) return;
 
-    // Fetch user_id first to clean up workspace access
-    const { data: auditorData } = await supabase
-      .from("auditors")
-      .select("user_id")
-      .eq("id", id)
-      .maybeSingle();
+    try {
+      const existingList = await auditorsApi.list(currentOrg!.id);
+      const auditorData = existingList.find((a: any) => a.id === id);
 
-    if (auditorData?.user_id && currentOrg) {
-      await supabase.from("user_roles").delete().eq("user_id", auditorData.user_id).eq("org_id", currentOrg.id);
-      await supabase.from("organization_members").delete().eq("user_id", auditorData.user_id).eq("org_id", currentOrg.id);
+      if (auditorData?.user_id && currentOrg) {
+        await orgsApi.removeMember(currentOrg.id, auditorData.user_id);
+      }
+
+      await auditorsApi.remove(currentOrg!.id, id);
+    } catch (err) {
+      console.error("Failed to remove auditor", err);
     }
-
-    await supabase.from("auditors").delete().eq("id", id);
     load();
   };
 
@@ -206,28 +176,16 @@ export default function Team() {
       return toast({ title: "Name is required", variant: "destructive" });
     }
 
-    const { error } = await supabase
-      .from("auditors")
-      .update({
+    try {
+      await auditorsApi.update(currentOrg.id, editingAuditor.id, {
         name: editForm.name.trim(),
         role: editForm.role,
         certifications: editForm.certifications.trim() || null,
-      })
-      .eq("id", editingAuditor.id);
-
-    if (error) {
-      return toast({ title: "Failed to update auditor", description: error.message, variant: "destructive" });
+      });
+      toast({ title: "Auditor updated successfully." });
+    } catch (err: any) {
+      return toast({ title: "Failed to update auditor", description: err?.message || "Error", variant: "destructive" });
     }
-
-    if (editingAuditor.user_id && currentOrg) {
-      await supabase
-        .from("user_roles")
-        .update({ role: editForm.role })
-        .eq("user_id", editingAuditor.user_id)
-        .eq("org_id", currentOrg.id);
-    }
-
-    toast({ title: "Auditor updated successfully." });
     setEditingAuditor(null);
     load();
   };
@@ -243,7 +201,7 @@ export default function Team() {
   return (
     <AppShell>
       <Header title="Audit Team" subtitle="Manage your auditors and their roles." />
-      <div className="mt-6 grid gap-4 rounded-[28px] border border-border bg-card p-5 md:grid-cols-6 items-center">
+      <div className="mt-6 grid gap-3 rounded-[28px] border border-border bg-card p-4 sm:p-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-6 items-center">
         <input className="input" placeholder="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         <input className="input" type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         <input className="input" type="password" placeholder="Password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
@@ -255,7 +213,7 @@ export default function Team() {
         <button onClick={add} disabled={busy} className="pill-cta w-full">{busy ? "Creating..." : "Add auditor"}</button>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-[28px] border border-border bg-card shadow-card">
+      <div className="mt-6 overflow-x-auto rounded-[28px] border border-border bg-card shadow-card">
         <table className="w-full text-sm">
           <thead className="bg-secondary text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
@@ -309,7 +267,7 @@ export default function Team() {
       {/* Edit Auditor Modal */}
       {editingAuditor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-elevated space-y-4 animate-scale-in font-sans">
+          <div className="relative w-full max-w-md rounded-3xl border border-border bg-card p-4 sm:p-6 shadow-elevated space-y-4 animate-scale-in font-sans">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <h3 className="font-display text-lg font-bold text-foreground">
                 Edit Team Member
@@ -356,16 +314,16 @@ export default function Team() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-3 border-t border-border">
+            <div className="flex flex-col sm:flex-row justify-end gap-3 pt-3 border-t border-border">
               <button
                 onClick={() => setEditingAuditor(null)}
-                className="pill-secondary"
+                className="pill-secondary justify-center"
               >
                 Cancel
               </button>
               <button
                 onClick={saveEdit}
-                className="pill-cta"
+                className="pill-cta justify-center"
               >
                 Save Changes
               </button>

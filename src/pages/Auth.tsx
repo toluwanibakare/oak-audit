@@ -1,7 +1,8 @@
-﻿import { useEffect, useState, type InputHTMLAttributes } from "react";
+import { useEffect, useState, type InputHTMLAttributes } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
+import { authApi } from "@/api/auth";
+import { orgsApi } from "@/api/orgs";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { SiteNav } from "@/components/SiteNav";
@@ -23,10 +24,33 @@ import {
 } from "lucide-react";
 
 // Validation schemas
+const passwordRules = [
+  { id: "length", label: "At least 8 characters", test: (p: string) => p.length >= 8 },
+  { id: "upper", label: "One uppercase letter (A-Z)", test: (p: string) => /[A-Z]/.test(p) },
+  { id: "lower", label: "One lowercase letter (a-z)", test: (p: string) => /[a-z]/.test(p) },
+  { id: "number", label: "One number (0-9)", test: (p: string) => /[0-9]/.test(p) },
+  { id: "symbol", label: "One special character (!@#$…)", test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+];
+
+const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .max(100)
+  .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+  .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+  .regex(/[0-9]/, "Password must contain at least one number")
+  .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character");
+
 const step1Schema = z.object({
   full_name: z.string().trim().min(2, "Full name must be at least 2 characters").max(100),
   email: z.string().trim().email("Please enter a valid email address").max(255),
-  password: z.string().min(8, "Password must be at least 8 characters").max(100),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .max(100)
+    .regex(/[A-Z]/, "Password must contain an uppercase letter")
+    .regex(/[a-z]/, "Password must contain a lowercase letter")
+    .regex(/[0-9]/, "Password must contain a number")
+    .regex(/[^A-Za-z0-9]/, "Password must contain a symbol"),
 });
 
 const step2Schema = z.object({
@@ -52,7 +76,7 @@ const INDUSTRIES = [
 const Auth = () => {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { toast } = useToast();
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">(
     params.get("mode") === "signup" ? "signup" : (params.get("mode") === "forgot" ? "forgot" : "signin"),
@@ -63,15 +87,30 @@ const Auth = () => {
   const [accountType, setAccountType] = useState<"individual" | "organization">("individual");
   const [busy, setBusy] = useState(false);
   const [registered, setRegistered] = useState(false);
+  const [signupOtp, setSignupOtp] = useState("");
 
   // Forgot password flow states
   const [forgotEmail, setForgotEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
-  const [otpVerified, setOtpVerified] = useState(false);
   const [newPassword, setNewPassword] = useState("");
-  const [generatedOtp, setGeneratedOtp] = useState("");
-  const [showOtpModal, setShowOtpModal] = useState(false);
+
+  // Resend countdown timer
+  const [resendTimer, setResendTimer] = useState(0);
+  const [resending, setResending] = useState(false);
+  const RESEND_COOLDOWN = 60;
+  const startResendTimer = () => {
+    setResendTimer(RESEND_COOLDOWN);
+    const interval = setInterval(() => {
+      setResendTimer((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   // Remember Me state
   const [rememberMe, setRememberMe] = useState(true);
@@ -107,6 +146,7 @@ const Auth = () => {
 
   // Switch mode and keep URL in sync so SiteNav reads the correct state
   const switchMode = (newMode: "signin" | "signup" | "forgot") => {
+    setRegistered(false);
     setMode(newMode);
     if (newMode === "forgot") {
       navigate("/auth?mode=forgot", { replace: true });
@@ -140,47 +180,51 @@ const Auth = () => {
       return toast({ title: "Email is required", variant: "destructive" });
     }
     setBusy(true);
-    // Simulate sending OTP
-    setTimeout(() => {
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedOtp(otp);
+    try {
+      await authApi.forgotPassword({ email: forgotEmail });
       setOtpSent(true);
-      setShowOtpModal(true);
+      startResendTimer();
+      toast({ title: "OTP sent", description: "Check your email for the 6-digit code." });
+    } catch (err: any) {
+      const msg = err?.response?.data?.errors
+        ? Object.values(err.response.data.errors).flat().join(". ")
+        : err?.response?.data?.error || err?.message || "Failed to send OTP";
+      toast({ title: "Failed to send OTP", description: msg, variant: "destructive" });
+    } finally {
       setBusy(false);
-      toast({ title: "Simulated OTP code generated!" });
-    }, 800);
-  };
-
-  const handleVerifyForgotPasswordOtp = () => {
-    if (otpCode.trim() === generatedOtp) {
-      setOtpVerified(true);
-      setShowOtpModal(false);
-      toast({ title: "OTP verified!", description: "Please enter your new password." });
-    } else {
-      toast({ title: "Invalid OTP code", description: "Please check the code and try again.", variant: "destructive" });
     }
   };
 
   const handleResetPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword.length < 8) {
-      return toast({ title: "Password must be at least 8 characters long", variant: "destructive" });
+    if (otpCode.length !== 6) {
+      return toast({ title: "Please enter the 6-digit OTP", variant: "destructive" });
+    }
+    const pwdCheck = passwordSchema.safeParse(newPassword);
+    if (!pwdCheck.success) {
+      return toast({ title: "Weak password", description: pwdCheck.error.issues[0].message, variant: "destructive" });
     }
     setBusy(true);
-    
-    // Simulate password reset
-    setTimeout(() => {
-      setBusy(false);
+
+    try {
+      await authApi.resetPassword({
+        email: forgotEmail,
+        otp: otpCode,
+        password: newPassword,
+        password_confirmation: newPassword,
+      });
+
       toast({ title: "Password reset successful", description: "You can now log in with your new password." });
       setMode("signin");
-      // reset states
       setForgotEmail("");
       setOtpSent(false);
       setOtpCode("");
-      setOtpVerified(false);
       setNewPassword("");
-      setGeneratedOtp("");
-    }, 1000);
+    } catch (err: any) {
+      toast({ title: "Reset failed", description: err?.message, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -246,22 +290,32 @@ const Auth = () => {
           });
         }
 
-        const { error } = await supabase.auth.signUp({
+        const regResponse = await authApi.register({
           email: parsedStep1.data.email,
           password: parsedStep1.data.password,
-          options: {
-            emailRedirectTo: "https://oakaudix.app/auth/callback",
-            data: {
-              full_name: parsedStep1.data.full_name,
-              account_type: accountType,
-              org_name: finalOrgName,
-              industry: finalIndustry,
-              address: serializedAddress || undefined,
-            },
-          },
+          password_confirmation: parsedStep1.data.password,
+          full_name: parsedStep1.data.full_name,
+          account_type: accountType,
         });
-        
-        if (error) throw error;
+
+        // If the backend returned a token, the account already existed — log in directly
+        if (regResponse.access_token) {
+          localStorage.setItem("oa_token", regResponse.access_token);
+          await refreshUser();
+          navigate("/app", { replace: true });
+          setBusy(false);
+          return;
+        }
+
+        if (accountType === "organization" && finalOrgName) {
+          // Org will be created after email verification
+          sessionStorage.setItem("oa_pending_org", JSON.stringify({
+            name: finalOrgName,
+            industry: finalIndustry,
+            address: serializedAddress,
+          }));
+        }
+
         setRegistered(true);
       } else {
         // Sign-in
@@ -279,25 +333,35 @@ const Auth = () => {
         localStorage.setItem("oa_remember_me", rememberMe ? "true" : "false");
         sessionStorage.setItem("oa_session_marker", "true");
 
-        const { error } = await supabase.auth.signInWithPassword({
+        const result = await authApi.login({
           email: parsed.data.email,
           password: parsed.data.password,
         });
         
-        if (error) throw error;
+        localStorage.setItem("oa_token", result.access_token);
+        await refreshUser();
         navigate("/app", { replace: true });
       }
     } catch (err: any) {
+      // If login fails because email is unverified, redirect to OTP page
+      if (err?.response?.data?.needs_verification && err?.response?.data?.email) {
+        setEmail(err.response.data.email);
+        setRegistered(true);
+        setBusy(false);
+        return;
+      }
+      const msg = err?.response?.data?.errors
+        ? Object.values(err.response.data.errors).flat().join(". ")
+        : err?.response?.data?.error || err?.message || "Try again";
       toast({ 
         title: "Authentication failed", 
-        description: err.message ?? "Try again", 
+        description: msg, 
         variant: "destructive" 
       });
     } finally {
       setBusy(false);
     }
   };
-
 
 
   // Determine width of our visual step progress bar
@@ -317,42 +381,104 @@ const Auth = () => {
       
       <main className="mx-auto flex max-w-lg flex-col px-6 py-10">
           {registered ? (
-            <div className="text-center py-6 space-y-6">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Mail className="h-8 w-8" />
-              </div>
-              <div className="space-y-2">
-                <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">Sign Up Successful</h1>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  A verification link has been sent to your email address (<strong>{email}</strong>). Please check your email inbox and click the link to confirm your email address, then log in.
-                </p>
-              </div>
-              <div className="pt-2 space-y-3">
+            <div className="mt-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+              <div className="text-center space-y-5">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Mail className="h-7 w-7" />
+                </div>
+                <div className="space-y-1">
+                  <h1 className="font-display text-xl font-bold tracking-tight text-foreground">Verify Your Email</h1>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Enter the 6-digit code sent to{" "}
+                    <span className="font-semibold text-foreground">{email}</span>
+                  </p>
+                </div>
+
+                <div className="max-w-[200px] mx-auto">
+                  <input
+                    type="text"
+                    maxLength={6}
+                    placeholder="000000"
+                    className="input w-full text-center font-mono font-bold text-2xl tracking-[8px] h-14"
+                    value={signupOtp}
+                    onChange={(e) => setSignupOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && signupOtp.length === 6 && !busy) {
+                        document.getElementById("verify-otp-btn")?.click();
+                      }
+                    }}
+                  />
+                </div>
+
+                {signupOtp.length < 6 && signupOtp.length > 0 && (
+                  <p className="text-xs text-muted-foreground -mt-2">
+                    {6 - signupOtp.length} digit(s) remaining
+                  </p>
+                )}
+
                 <button
+                  id="verify-otp-btn"
+                  disabled={signupOtp.length !== 6 || busy}
                   onClick={async () => {
-                    const { error } = await supabase.auth.resend({
-                      type: 'signup',
-                      email: email,
-                    });
-                    if (error) {
-                      toast({ title: "Failed to resend", description: error.message, variant: "destructive" });
-                    } else {
-                      toast({ title: "Verification link sent!", description: "Please check your inbox again." });
+                    setBusy(true);
+                    try {
+                      const result = await authApi.verifyOtp({ email, otp: signupOtp });
+                      localStorage.setItem("oa_token", result.token);
+                      await refreshUser();
+
+                      const pendingOrg = sessionStorage.getItem("oa_pending_org");
+                      if (pendingOrg) {
+                        try {
+                          await orgsApi.create(JSON.parse(pendingOrg));
+                        } catch (orgErr) {
+                          console.error("Org creation after verification failed", orgErr);
+                        }
+                        sessionStorage.removeItem("oa_pending_org");
+                      }
+
+                      navigate("/app", { replace: true });
+                    } catch (err: any) {
+                      const vMsg = err?.response?.data?.errors
+                        ? Object.values(err.response.data.errors).flat().join(". ")
+                        : err?.response?.data?.error || err?.message || "Invalid OTP";
+                      toast({ title: "Verification failed", description: vMsg, variant: "destructive" });
+                      setSignupOtp("");
+                    } finally {
+                      setBusy(false);
                     }
                   }}
-                  className="w-full rounded-full border border-border px-5 py-2.5 text-sm font-semibold hover:bg-secondary transition"
+                  className="pill-cta w-full py-2.5 text-sm font-semibold disabled:opacity-50"
                 >
-                  Resend Confirmation Link
+                  {busy ? "Verifying..." : "Verify & Continue"}
                 </button>
-                <button
-                  onClick={() => {
-                    setRegistered(false);
-                    switchMode("signin");
-                  }}
-                  className="pill-cta w-full py-2.5 text-sm font-semibold"
-                >
-                  Go To Sign In
-                </button>
+
+                <div className="text-center">
+                  {resendTimer > 0 ? (
+                    <span className="text-xs text-muted-foreground">
+                      Resend available in {resendTimer}s
+                    </span>
+                    ) : (
+                      <button
+                        disabled={resending}
+                        onClick={async () => {
+                          setResending(true);
+                          try {
+                            await authApi.forgotPassword({ email });
+                            toast({ title: "OTP resent", description: "Please check your inbox." });
+                            startResendTimer();
+                          } catch (err: any) {
+                            const rMsg = err?.response?.data?.error || "Failed to resend";
+                            toast({ title: "Failed to resend", description: rMsg, variant: "destructive" });
+                          } finally {
+                            setResending(false);
+                          }
+                        }}
+                        className="text-xs font-medium text-primary hover:underline transition disabled:opacity-50"
+                      >
+                        {resending ? "Sending..." : "Resend Code"}
+                      </button>
+                    )}
+                </div>
               </div>
             </div>
           ) : (
@@ -411,8 +537,8 @@ const Auth = () => {
               )}
 
               {mode === "forgot" ? (
-                <form onSubmit={otpVerified ? handleResetPasswordSubmit : handleSendForgotPasswordOtp} className="mt-6 space-y-4 animate-in fade-in duration-350">
-                  {!otpVerified ? (
+                <form onSubmit={otpSent ? handleResetPasswordSubmit : handleSendForgotPasswordOtp} className="mt-6 space-y-4 animate-in fade-in duration-350">
+                  {!otpSent ? (
                     <>
                       <Field 
                         label="Account Email Address" 
@@ -428,14 +554,22 @@ const Auth = () => {
                         disabled={busy} 
                         className="pill-cta w-full h-11 text-sm font-semibold flex items-center justify-center gap-1.5 transition duration-200 disabled:opacity-60 mt-2"
                       >
-                        {busy ? "Sending Verification OTP..." : "Send Reset OTP"}
+                        {busy ? "Sending OTP..." : "Send Reset OTP"}
                       </button>
                     </>
                   ) : (
                     <>
-                      <div className="rounded-xl border border-success/35 bg-success/5 p-4 text-xs text-success leading-relaxed mb-4">
-                        ✓ OTP Verified. Please enter your new password below.
-                      </div>
+                      <p className="text-xs text-muted-foreground text-center">
+                        Enter the OTP sent to <strong>{forgotEmail}</strong> and choose a new password.
+                      </p>
+                      <Field
+                        label="OTP Code"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        icon={Lock}
+                        placeholder="000000"
+                        required
+                      />
                       <PasswordField
                         label="New Password"
                         value={newPassword}
@@ -448,8 +582,37 @@ const Auth = () => {
                         disabled={busy} 
                         className="pill-cta w-full h-11 text-sm font-semibold flex items-center justify-center gap-1.5 transition duration-200 disabled:opacity-60 mt-2"
                       >
-                        {busy ? "Updating Password..." : "Update Password & Sign In"}
+                        {busy ? "Resetting..." : "Reset Password & Sign In"}
                       </button>
+
+                      <div className="text-center">
+                        {resendTimer > 0 ? (
+                          <span className="text-xs text-muted-foreground">
+                            Resend OTP available in {resendTimer}s
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={resending}
+                            onClick={async () => {
+                              setResending(true);
+                              try {
+                                await authApi.forgotPassword({ email: forgotEmail });
+                                toast({ title: "OTP resent", description: "Please check your inbox." });
+                                startResendTimer();
+                              } catch (err: any) {
+                                const rMsg = err?.response?.data?.error || "Failed to resend";
+                                toast({ title: "Failed to resend", description: rMsg, variant: "destructive" });
+                              } finally {
+                                setResending(false);
+                              }
+                            }}
+                            className="text-xs font-medium text-primary hover:underline transition disabled:opacity-50"
+                          >
+                            {resending ? "Sending..." : "Resend OTP"}
+                          </button>
+                        )}
+                      </div>
                     </>
                   )}
                   
@@ -494,6 +657,7 @@ const Auth = () => {
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
                         required
+                        showRules={mode === "signup"}
                       />
                       {mode === "signin" && (
                         <div className="flex items-center justify-between -mt-2">
@@ -666,54 +830,6 @@ const Auth = () => {
         </Link>
       </main>
 
-      {showOtpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="w-full max-w-sm rounded-[24px] border border-border bg-card p-6 shadow-elevated animate-scale-up space-y-4">
-            <div className="text-center">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Simulated OTP Delivery</span>
-              <h3 className="font-display text-lg font-bold text-foreground mt-1">Check Your Phone/Inbox</h3>
-              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                An verification OTP code has been simulated for your workspace email account.
-              </p>
-              <div className="my-4 p-3 bg-secondary/80 rounded-xl border border-border font-mono text-2xl font-extrabold tracking-widest text-primary animate-pulse">
-                {generatedOtp}
-              </div>
-            </div>
-            
-            <div className="space-y-3">
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Enter 6-Digit OTP</label>
-                <input
-                  type="text"
-                  maxLength={6}
-                  placeholder="e.g. 123456"
-                  className="input w-full text-center font-mono font-bold text-lg tracking-widest h-11"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
-                />
-              </div>
-              
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowOtpModal(false)}
-                  className="pill-secondary flex-grow justify-center"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleVerifyForgotPasswordOtp}
-                  disabled={otpCode.length !== 6}
-                  className="pill-cta flex-grow justify-center disabled:opacity-50"
-                >
-                  Verify Code
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -801,34 +917,60 @@ const TextareaField = ({
 
 const PasswordField = ({
   label,
+  showRules,
+  value,
   ...rest
 }: {
   label: string;
+  showRules?: boolean;
 } & Omit<React.InputHTMLAttributes<HTMLInputElement>, "type">) => {
   const [show, setShow] = useState(false);
+  const pwd = typeof value === "string" ? value : "";
+  const hasFocus = pwd.length > 0;
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
-      <div className="relative rounded-xl shadow-sm">
-        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
-          <Lock className="h-4 w-4 text-muted-foreground/80" />
+    <div className="block">
+      <label>
+        <span className="mb-1.5 block text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
+        <div className="relative rounded-xl shadow-sm">
+          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+            <Lock className="h-4 w-4 text-muted-foreground/80" />
+          </div>
+          <input
+            {...rest}
+            value={value}
+            type={show ? "text" : "password"}
+            className="h-11 w-full rounded-xl border border-border bg-background/50 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 pl-10 pr-11"
+          />
+          <button
+            type="button"
+            onClick={() => setShow((v) => !v)}
+            className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-muted-foreground hover:text-foreground transition-colors"
+            tabIndex={-1}
+            aria-label={show ? "Hide password" : "Show password"}
+          >
+            {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
-        <input
-          {...rest}
-          type={show ? "text" : "password"}
-          className="h-11 w-full rounded-xl border border-border bg-background/50 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 pl-10 pr-11"
-        />
-        <button
-          type="button"
-          onClick={() => setShow((v) => !v)}
-          className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-muted-foreground hover:text-foreground transition-colors"
-          tabIndex={-1}
-          aria-label={show ? "Hide password" : "Show password"}
-        >
-          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-        </button>
-      </div>
-    </label>
+      </label>
+      {showRules && hasFocus && (
+        <div className="mt-2.5 rounded-lg border border-border/60 bg-muted/40 px-3.5 py-2.5 space-y-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Password requirements</p>
+          {passwordRules.map((rule) => {
+            const passed = rule.test(pwd);
+            return (
+              <div key={rule.id} className={`flex items-center gap-2 text-xs transition-colors ${passed ? "text-emerald-500" : "text-muted-foreground/70"}`}>
+                <span className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border text-[9px] font-bold transition-all ${
+                  passed ? "border-emerald-500 bg-emerald-500 text-white" : "border-border"
+                }`}>
+                  {passed ? "✓" : ""}
+                </span>
+                {rule.label}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 };
 

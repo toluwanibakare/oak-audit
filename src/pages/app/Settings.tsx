@@ -1,16 +1,23 @@
 ﻿import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { AppShell } from "@/components/app/AppShell";
 import { Header } from "./Team";
+import { orgsApi } from "@/api/orgs";
+import { authApi } from "@/api/auth";
+
+const SKIP_ONBOARDING_KEY = "oak.skip_onboarding";
 
 export default function Settings() {
   const { currentOrg, refresh } = useOrg();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
   const isIndividual = currentOrg?.type === "individual";
+  const isForced = !currentOrg?.industry && !localStorage.getItem(SKIP_ONBOARDING_KEY);
   
   // Structured form states
   const [name, setName] = useState("");
@@ -26,7 +33,7 @@ export default function Settings() {
     if (!currentOrg) return false;
     
     const initialName = currentOrg.type === "individual"
-      ? currentOrg.name.replace(/'s workspace$/, "")
+      ? (user?.full_name || currentOrg.name)
       : currentOrg.name;
       
     const initialIndustry = currentOrg.industry ?? "";
@@ -61,12 +68,12 @@ export default function Settings() {
       address.trim() !== initialAddress.trim() ||
       description.trim() !== initialDescription.trim()
     );
-  }, [currentOrg, name, industry, website, size, phone, address, description]);
+  }, [currentOrg, user, name, industry, website, size, phone, address, description]);
 
   useEffect(() => {
     if (!currentOrg) return;
     const initialName = currentOrg.type === "individual"
-      ? currentOrg.name.replace(/'s workspace$/, "")
+      ? (user?.full_name || currentOrg.name)
       : currentOrg.name;
     setName(initialName);
     setIndustry(currentOrg.industry ?? "");
@@ -111,22 +118,17 @@ export default function Settings() {
       reviewStatus: parsedAddr?.reviewStatus || "pending"
     });
 
-    const finalName = currentOrg.type === "individual"
-      ? `${name.trim()}'s workspace`
-      : name;
+    const finalName = name;
 
-    const { error } = await supabase.from("organizations").update({
-      name: finalName,
-      industry,
-      address: serializedAddress,
-    }).eq("id", currentOrg.id);
-
-    if (error) return toast({ title: error.message, variant: "destructive" });
-    
-    if (currentOrg.type === "individual") {
-      await supabase.auth.updateUser({
-        data: { full_name: name.trim() }
+    try {
+      await orgsApi.update(currentOrg.id, {
+        name: finalName,
+        industry,
+        address: serializedAddress,
       });
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err.message || "Failed to save";
+      return toast({ title: msg, variant: "destructive" });
     }
 
     toast({ title: "Profile settings saved successfully." });
@@ -136,14 +138,14 @@ export default function Settings() {
   const uploadLogo = async (file: File) => {
     if (!currentOrg) return;
     setUploading(true);
-    const path = `${currentOrg.id}/${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("logos").upload(path, file, { upsert: true });
-    if (!error) {
-      const { data } = supabase.storage.from("logos").getPublicUrl(path);
-      await supabase.from("organizations").update({ logo_url: data.publicUrl }).eq("id", currentOrg.id);
-      refresh();
+    try {
+      await orgsApi.uploadLogo(currentOrg.id, file);
+      await refresh();
       toast({ title: isIndividual ? "Profile photo updated successfully." : "Logo updated successfully." });
-    } else toast({ title: error.message, variant: "destructive" });
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err.message || "Upload failed";
+      toast({ title: "Upload failed", description: msg, variant: "destructive" });
+    }
     setUploading(false);
   };
 
@@ -153,10 +155,30 @@ export default function Settings() {
         title="Profile Settings" 
         subtitle={isIndividual ? "Update your personal profile, professional details, and contact info." : "Update your organization profile, contact info, and business details."} 
       />
+
+      {isForced && (
+        <div className="mt-4 rounded-2xl border border-gold bg-gold/5 p-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="rounded-full bg-gold/20 px-2.5 py-0.5 text-[10px] font-bold uppercase text-gold">Required</span>
+            <p className="text-sm text-foreground">
+              Please complete your profile details before using the workspace.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              localStorage.setItem(SKIP_ONBOARDING_KEY, "true");
+              navigate("/app");
+            }}
+            className="shrink-0 rounded-xl border border-border bg-card px-3.5 py-1.5 text-xs font-semibold hover:bg-secondary transition"
+          >
+            Skip for now
+          </button>
+        </div>
+      )}
       
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         {/* Left column: Profile Details Form */}
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-6 lg:col-span-2 shadow-card">
+        <div className="space-y-4 rounded-2xl border border-border bg-card p-4 sm:p-6 lg:col-span-2 shadow-card">
           <h3 className="font-display text-lg font-bold text-foreground">
             {isIndividual ? "Personal Profile" : "Company Profile"}
           </h3>
@@ -265,10 +287,22 @@ export default function Settings() {
             >
               Save changes
             </button>
+            {isForced && (
+              <button
+                onClick={() => {
+                  localStorage.setItem(SKIP_ONBOARDING_KEY, "true");
+                  navigate("/app");
+                }}
+                className="rounded-2xl border border-border bg-background/50 hover:bg-secondary px-5 py-2.5 text-xs font-semibold text-muted-foreground transition duration-200"
+              >
+                Cancel
+              </button>
+            )}
             <button
               onClick={async () => {
-                await supabase.auth.signOut();
-                window.location.href = "/auth";
+                try { await authApi.logout(); } catch {}
+                signOut();
+                navigate("/auth");
               }}
               className="rounded-2xl border border-destructive/30 hover:border-destructive/60 bg-background/50 hover:bg-destructive/10 px-5 py-2.5 text-xs font-semibold text-destructive transition duration-200"
             >
@@ -301,16 +335,21 @@ export default function Settings() {
               </div>
             )}
             
-            <label className="pill-secondary text-xs cursor-pointer">
-              <input 
-                type="file" 
-                accept="image/*" 
-                disabled={uploading} 
-                onChange={(e) => e.target.files?.[0] && uploadLogo(e.target.files[0])} 
-                className="hidden" 
-              />
+            <input 
+              id="logo-upload"
+              type="file" 
+              accept="image/*" 
+              disabled={uploading} 
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadLogo(f); }} 
+              className="hidden" 
+            />
+            <button
+              disabled={uploading}
+              onClick={() => document.getElementById("logo-upload")?.click()}
+              className="pill-secondary text-xs disabled:opacity-50"
+            >
               {uploading ? "Uploading..." : isIndividual ? "Upload profile photo" : "Upload new logo"}
-            </label>
+            </button>
           </div>
         </div>
       </div>

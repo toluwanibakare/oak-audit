@@ -20,7 +20,6 @@ import Iso27001Audit from "./pages/Iso27001Audit.tsx";
 import { AuthProvider } from "./hooks/useAuth";
 import { OrgProvider } from "./hooks/useOrg";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import Onboarding from "./pages/app/Onboarding";
 import Team from "./pages/app/Team";
 import Processes from "./pages/app/Processes";
 import Licenses from "./pages/app/Licenses";
@@ -97,10 +96,10 @@ const App = () => {
     
     console.log("%cSTOP! Proprietary Software Notice", warningStyle);
     console.log(
-      "%cThis platform and all its source files, database schemas, question checklists, and design systems are the highly confidential, proprietary intellectual property of OakAudix.\n\nUnauthorized inspection, duplication, decompilation, scraping, or usage is strictly prohibited under international copyright law and subject to immediate civil and criminal prosecution.",
+      "%cThis platform and all its source files, database schemas, question checklists, and design systems are the highly confidential, proprietary intellectual property of OAK GLOBAL INTERNATIONAL.\n\nUnauthorized inspection, duplication, decompilation, scraping, or usage is strictly prohibited under international copyright law and subject to immediate civil and criminal prosecution.",
       "font-size: 1.1em; color: #cbd5e1; line-height: 1.4; margin-bottom: 12px; font-weight: 500;"
     );
-    console.log("%cFor licensing inquiries: o.kolawole@oak-global.com.ng", infoStyle);
+    console.log("%c\u00A9 OAK GLOBAL INTERNATIONAL | www.oak-global.com.ng", infoStyle);
 
     return () => {
       document.removeEventListener("contextmenu", handleContextMenu);
@@ -123,7 +122,6 @@ const App = () => {
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/app" element={<ProtectedRoute><AppDashboard /></ProtectedRoute>} />
-              <Route path="/app/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
               <Route path="/app/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
               <Route path="/app/processes" element={<ProtectedRoute><Processes /></ProtectedRoute>} />
               <Route path="/app/licenses" element={<ProtectedRoute><Licenses /></ProtectedRoute>} />

@@ -1,4 +1,5 @@
-﻿import { Link } from "react-router-dom";
+﻿import { SiteFooter } from "@/components/SiteFooter";
+import { Link } from "react-router-dom";
 import { ArrowLeft, Shield, Lock, Eye, RefreshCw, Clock } from "lucide-react";
 import logo from "@/assets/logo.png";
 
@@ -112,23 +113,7 @@ export default function Privacy() {
         </div>
       </main>
 
-      {/* Guest footer */}
-      <footer className="border-t border-border bg-card/80 py-5 relative z-10">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} OakAudix. All rights reserved.</span>
-          <span>
-            Built by{" "}
-            <a 
-              href="http://tmb.it.com" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="font-bold text-primary hover:underline transition"
-            >
-              TMB
-            </a>
-          </span>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { SiteFooter } from "@/components/SiteFooter";
+import { supportTicketsApi } from "@/api/supportTickets";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrg } from "@/hooks/useOrg";
 import { useToast } from "@/hooks/use-toast";
@@ -45,7 +46,7 @@ export default function Contact() {
   // Load user data if authenticated
   useEffect(() => {
     if (user) {
-      setName(user.user_metadata?.full_name || "");
+      setName((user as any).full_name || "");
       setEmail(user.email || "");
     }
   }, [user]);
@@ -54,11 +55,7 @@ export default function Contact() {
     if (!user) return;
     setLoadingTickets(true);
     try {
-      const { data, error } = await supabase
-        .from("support_tickets")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
+      const data = await supportTicketsApi.list();
       setUserTickets(data ?? []);
     } catch (err: any) {
       console.error("Error fetching tickets:", err.message);
@@ -87,7 +84,7 @@ export default function Contact() {
     setSubmitting(true);
 
     try {
-      const ticketData = {
+      const result = await supportTicketsApi.submit({
         org_id: currentOrg?.id || null,
         user_id: user?.id || null,
         name: name.trim(),
@@ -95,20 +92,10 @@ export default function Contact() {
         subject: subject.trim(),
         category,
         message: message.trim(),
-        status: "open",
-      };
+      });
 
-      const { data, error } = await supabase
-        .from("support_tickets")
-        .insert(ticketData)
-        .select("id")
-        .single();
-
-      if (error) throw error;
-
-      // Generate a short professional reference from the ID
-      const shortRef = `TKT-${(data?.id || "").slice(0, 8).toUpperCase()}`;
-      setSubmittedTicket({ id: data?.id, ref: shortRef });
+      const shortRef = `TKT-${(result?.id || "").slice(0, 8).toUpperCase()}`;
+      setSubmittedTicket({ id: result?.id, ref: shortRef });
       
       toast({
         title: "Ticket Submitted Successfully!",
@@ -556,23 +543,7 @@ export default function Contact() {
         </div>
       </main>
 
-      {/* Guest footer */}
-      <footer className="border-t border-border bg-card/80 py-5 relative z-10">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} OakAudix. All rights reserved.</span>
-          <span>
-            Built by{" "}
-            <a 
-              href="http://tmb.it.com" 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="font-bold text-primary hover:underline transition"
-            >
-              TMB
-            </a>
-          </span>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

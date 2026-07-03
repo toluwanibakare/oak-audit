@@ -3,7 +3,7 @@ import { ReactNode, useEffect, useRef, useState, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrg } from "@/hooks/useOrg";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { auditorsApi } from "@/api/auditors";
 import {
   AlertTriangle,
   BookOpen,
@@ -84,13 +84,13 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!user || !currentOrg) return;
     (async () => {
-      const { data } = await supabase
-        .from("auditors")
-        .select("*")
-        .eq("org_id", currentOrg.id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      setCurrentUserAuditor(data);
+      try {
+        const auditors = await auditorsApi.list(currentOrg.id);
+        const found = auditors.find((a: any) => a.user_id === user.id) || null;
+        setCurrentUserAuditor(found);
+      } catch {
+        setCurrentUserAuditor(null);
+      }
     })();
   }, [user, currentOrg]);
 
@@ -140,8 +140,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
 
   const isIndividual = currentOrg?.type === "individual";
 
-  const fullName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
-  const displayName = fullName.split(" ")[0];
+  const fullName = user?.full_name || user?.user_metadata?.full_name || "User";
   const displayEmail = user?.email ?? "";
   const NAV = useMemo(() => {
     if (isIndividual) return INDIVIDUAL_NAV;
@@ -157,16 +156,16 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
 
   const renderSidebarContent = () => (
     <div className="flex h-full flex-col">
-      <div className="flex flex-col overflow-y-auto flex-1 min-h-0">
+      <div className="flex flex-col overflow-hidden flex-1 min-h-0">
         {/* Account header - personal card for individual, workspace for org */}
-        <div className="px-4 pt-5 pb-2">
+        <div className="px-4 pt-4 pb-1">
           {isIndividual ? (
             <div className="rounded-2xl border border-primary/20 bg-primary/5 px-3 py-2.5 flex items-center gap-3">
               <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
                 <User className="h-4 w-4" />
               </div>
               <div className="min-w-0">
-                <div className="truncate text-sm font-bold text-foreground">{displayName}</div>
+                <div className={"truncate font-bold text-foreground " + (fullName.length > 20 ? "text-xs" : "text-sm")}>{fullName}</div>
                 <div className="text-[11px] text-muted-foreground">Personal Account</div>
               </div>
             </div>
@@ -181,10 +180,9 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
               )}
               <div className="min-w-0 flex-1">
                 <div className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">Current Workspace</div>
-                <div className="mt-0.5 truncate text-sm font-bold text-foreground">
+                <div className={"mt-0.5 truncate font-bold text-foreground " + (currentOrg?.name ? (currentOrg.name.length > 30 ? "text-[10px]" : currentOrg.name.length > 20 ? "text-xs" : "text-sm") : "text-sm")}>
                   {currentOrg?.name ?? "Loading..."}
                 </div>
-                <div className="text-[11px] text-muted-foreground font-medium">Team Audit Command</div>
               </div>
             </div>
           )}
@@ -295,15 +293,15 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
             onClick={() => setUserMenuOpen(!userMenuOpen)}
             className="rounded-2xl border border-border bg-background/70 px-3.5 py-2.5 flex items-center gap-3 cursor-pointer hover:bg-secondary transition group"
           >
-            {!isIndividual && currentOrg?.logo_url ? (
-              <img src={currentOrg.logo_url} alt="Company Logo" className="h-8 w-8 rounded-full object-cover shrink-0 border border-border" />
+            {currentOrg?.logo_url ? (
+              <img src={currentOrg.logo_url} alt="Profile" className="h-8 w-8 rounded-full object-cover shrink-0 border border-border" />
             ) : (
               <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-primary transition-colors duration-200 group-hover:bg-primary group-hover:text-primary-foreground">
                 <User className="h-4 w-4" />
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold text-foreground group-hover:text-primary transition-colors duration-150">{displayName}</div>
+              <div className={"truncate font-semibold text-foreground group-hover:text-primary transition-colors duration-150 " + (fullName.length > 20 ? "text-xs" : "text-sm")}>{fullName}</div>
               <div className="truncate text-[11px] text-muted-foreground">{displayEmail}</div>
             </div>
             <ChevronRight className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-300 ${userMenuOpen ? "-rotate-90" : "rotate-90"}`} />
@@ -389,41 +387,11 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
 
             </div>
             
-            <div className="flex items-center gap-1.5 min-w-0">
-              {orgs.length > 1 ? (
-                <div className="flex items-center gap-1 min-w-0">
-                  <span className="text-xs text-muted-foreground shrink-0">·</span>
-                  <select
-                    value={currentOrg?.id ?? ""}
-                    onChange={(e) => setCurrentOrg(e.target.value)}
-                    className="rounded-xl border border-border/80 bg-background/50 px-1.5 py-0.5 sm:px-2.5 sm:py-1 text-[11px] sm:text-xs font-medium text-foreground focus:outline-none transition hover:bg-secondary truncate max-w-[90px] sm:max-w-none"
-                  >
-                    {orgs.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : isIndividual ? (
-                <>
-                  <span className="text-xs text-muted-foreground shrink-0">·</span>
-                  <span className="text-xs font-medium text-muted-foreground truncate max-w-[85px] sm:max-w-none">{displayName}</span>
-                </>
-              ) : (
-                currentOrg?.name && (
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-xs text-muted-foreground shrink-0">·</span>
-                    <span className="text-xs font-medium text-muted-foreground truncate max-w-[85px] sm:max-w-none">{currentOrg.name}</span>
-                  </div>
-                )
-              )}
-            </div>
           </div>
 
         </header>
 
-        <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-10">
+        <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-10 overflow-x-hidden">
           {children}
         </main>
       </div>

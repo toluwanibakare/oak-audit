@@ -9,8 +9,11 @@ import {
   Zap,
   AlertTriangle,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useOrg } from "@/hooks/useOrg";
+import { walletApi } from "@/api/wallet";
+import { auditorsApi } from "@/api/auditors";
+import { paystackApi } from "@/api/paystack";
+import { auditsApi } from "@/api/audits";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { AppShell } from "@/components/app/AppShell";
@@ -89,26 +92,15 @@ export default function Licenses() {
   const load = async () => {
     if (!currentOrg) return;
 
-    const [licResult, auditResult, memberResult] = await Promise.all([
-      supabase
-        .from("audit_licenses")
-        .select("*")
-        .eq("org_id", currentOrg.id)
-        .order("purchased_at", { ascending: false }),
-      supabase
-        .from("audits")
-        .select("id, standard")
-        .eq("org_id", currentOrg.id)
-        .neq("status", "closed"),
-      supabase
-        .from("auditors")
-        .select("id", { count: "exact", head: true })
-        .eq("org_id", currentOrg.id),
+    const [licenses, audits, auditors] = await Promise.all([
+      walletApi.licenses(currentOrg.id).catch(() => []),
+      auditsApi.list(currentOrg.id).catch(() => []),
+      auditorsApi.list(currentOrg.id).catch(() => []),
     ]);
 
-    setList((licResult.data ?? []) as License[]);
-    setOpenAudits((auditResult.data ?? []) as { id: string; standard: string }[]);
-    setMemberCount(memberResult.count ?? 1);
+    setList(licenses as License[]);
+    setOpenAudits(audits.filter((a: any) => a.status !== "closed").map((a: any) => ({ id: a.id, standard: a.standard })));
+    setMemberCount(auditors.length || 1);
   };
 
   useEffect(() => {
@@ -120,39 +112,22 @@ export default function Licenses() {
   useEffect(() => {
     if (!currentOrg || !user) return;
     (async () => {
-      const { data: userAuditor } = await supabase
-        .from("auditors")
-        .select("id,name")
-        .eq("org_id", currentOrg.id)
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const allList = await auditorsApi.list(currentOrg.id).catch(() => []);
 
-      let finalId = userAuditor?.id;
+      let userAuditor = allList.find((a: any) => a.user_id === user.id);
       if (!userAuditor) {
-        const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "Admin";
-        const { data: na } = await supabase
-          .from("auditors")
-          .insert({
-            org_id: currentOrg.id,
-            name: fullName,
-            email: user.email || "",
-            role: "lead_auditor",
-            user_id: user.id,
-          })
-          .select("id,name")
-          .maybeSingle();
-        finalId = na?.id;
+        const created = await auditorsApi.create(currentOrg.id, {
+          org_id: currentOrg.id,
+          name: (user as any).full_name || user.email?.split("@")[0] || "Admin",
+          email: user.email || "",
+          role: "lead_auditor",
+          user_id: user.id,
+        }).catch(() => null);
+        userAuditor = created;
       }
 
-      const { data: all } = await supabase
-        .from("auditors")
-        .select("id,name,role")
-        .eq("org_id", currentOrg.id)
-        .order("name");
-
-      const allList = (all ?? []) as { id: string; name: string; role?: string | null }[];
       setAuditors(allList);
-      const found = allList.find((a) => a.id === finalId) || allList[0];
+      const found = allList.find((a: any) => a.id === userAuditor?.id) || allList[0];
       if (found) setSelectedAuditorId(found.id);
     })();
   }, [currentOrg, user]);
@@ -167,23 +142,31 @@ export default function Licenses() {
 
     (async () => {
       toast({ title: "Verifying payment…", description: "Please wait a moment." });
-      const { data, error } = await supabase.functions.invoke("paystack-verify", {
-        body: { reference: ref },
-      });
-
-      if (error || !data?.ok) {
+      try {
+        const result = await paystackApi.verify(ref);
+        if (!result.ok) {
+          toast({
+            title: "Payment verification failed",
+            description: result.error ?? "Payment was not successful. Please try again.",
+            variant: "destructive",
+          });
+        } else {
+          await load();
+          navigate("/app", { replace: true });
+          setTimeout(() => {
+            toast({
+              title: "Payment confirmed!",
+              description: "Redirecting to processes setup…",
+            });
+            setTimeout(() => navigate("/app/processes"), 500);
+          }, 800);
+        }
+      } catch (err: any) {
         toast({
           title: "Payment verification failed",
-          description: error?.message ?? "Payment was not successful. Please try again.",
+          description: err?.message ?? "Unexpected error.",
           variant: "destructive",
         });
-      } else {
-        toast({
-          title: "Payment confirmed!",
-          description: "Your audit has been created. Redirecting to processes setup…",
-        });
-        await load();
-        setTimeout(() => navigate("/app/processes"), 1500);
       }
 
       const next = new URLSearchParams(searchParams);
@@ -226,7 +209,8 @@ export default function Licenses() {
   };
 
   // ── Auto-computed tier & price from actual member count ────────────────────
-  const autoTier = getUserTier(memberCount) as UserTier;
+  const isIndividual = currentOrg?.type === "individual";
+  const autoTier = getUserTier(memberCount, isIndividual) as UserTier;
   const autoPrice = configuringPack
     ? (PACK_TIER_PRICES[configuringPack]?.[autoTier] ?? 0)
     : 0;
@@ -253,44 +237,39 @@ export default function Licenses() {
 
     setBusy(configuringPack);
     try {
-      const sessionRes = await supabase.auth.getSession();
-      const token = sessionRes.data.session?.access_token;
-      const { data, error } = await supabase.functions.invoke("paystack-initiate", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: {
-          org_id: currentOrg.id,
-          pack: configuringPack,
-          user_count: memberCount,
-          email: user.email,
-          audit_title: auditTitle.trim(),
-          audit_criteria: auditCriteria.trim() || null,
-          audit_scope: auditScope.trim() || null,
-          audit_object: auditObject.trim() || null,
-          start_date: startDate || null,
-          end_date: endDate || null,
-          audit_owner:
-            currentOrg.type !== "individual"
-              ? currentOrg.name
-              : auditOwner.trim() || null,
-          auditee_name: auditeeName.trim(),
-          auditee_email: auditeeEmail.trim(),
-          lead_auditor_id: selectedAuditorId || null,
-        },
+      const result = await paystackApi.initiate({
+        org_id: currentOrg.id,
+        pack: configuringPack,
+        user_count: memberCount,
+        email: user.email,
+        audit_title: auditTitle.trim(),
+        audit_criteria: auditCriteria.trim() || null,
+        audit_scope: auditScope.trim() || null,
+        audit_object: auditObject.trim() || null,
+        start_date: startDate || null,
+        end_date: endDate || null,
+        audit_owner:
+          currentOrg.type !== "individual"
+            ? currentOrg.name
+            : auditOwner.trim() || null,
+        auditee_name: auditeeName.trim(),
+        auditee_email: auditeeEmail.trim(),
+        lead_auditor_id: selectedAuditorId || null,
       });
 
-      if (error || !data?.authorization_url) {
+      if (!result.authorization_url) {
         toast({
           title: "Could not initiate payment",
-          description: error?.message ?? data?.error ?? "Unexpected error.",
+          description: "Unexpected error.",
           variant: "destructive",
         });
         setBusy(null);
         return;
       }
 
-      window.location.href = data.authorization_url;
-    } catch (e) {
-      toast({ title: "Error", description: String(e), variant: "destructive" });
+      window.location.href = result.authorization_url;
+    } catch (e: any) {
+      toast({ title: "Error", description: e?.message ?? String(e), variant: "destructive" });
       setBusy(null);
     }
   };
@@ -325,15 +304,6 @@ export default function Licenses() {
         </div>
       )}
 
-      {/* Member count pill */}
-      <div className="mt-6 inline-flex items-center gap-2.5 rounded-2xl border border-border bg-card px-4 py-2.5 shadow-card text-sm">
-        <Users className="h-4 w-4 text-primary" />
-        <span className="text-muted-foreground">Your workspace:</span>
-        <span className="font-bold text-foreground">{memberCount} user{memberCount === 1 ? "" : "s"}</span>
-        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-          {TIER_LABELS[autoTier]}
-        </span>
-      </div>
 
       {/* Pack cards */}
       <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -347,7 +317,7 @@ export default function Licenses() {
           return (
             <div
               key={pack.code}
-              className="group relative flex flex-col rounded-[28px] border border-border bg-card p-6 shadow-card transition hover:-translate-y-1 hover:shadow-elevated"
+              className="group relative flex flex-col rounded-[28px] border border-border bg-card p-4 sm:p-6 shadow-card transition hover:-translate-y-1 hover:shadow-elevated"
             >
               {/* Badges */}
               {isBundle && !active && (
@@ -395,7 +365,7 @@ export default function Licenses() {
                     Pricing — Per Audit Run
                   </p>
                 </div>
-                {(["1-5", "5-15", "16+"] as UserTier[]).map((tier) => (
+                {(isIndividual ? ["individual"] : ["1-5", "5-15", "16+"] as UserTier[]).map((tier) => (
                   <div
                     key={tier}
                     className={`flex items-center justify-between px-3 py-2.5 border-b last:border-0 border-border/30 transition-colors ${
@@ -535,7 +505,7 @@ export default function Licenses() {
               </div>
             </div>
 
-            <div className="p-7 space-y-5 max-h-[75vh] overflow-y-auto">
+            <div className="p-4 sm:p-7 space-y-5 max-h-[75vh] overflow-y-auto">
               {/* ── STEP 1: Audit metadata ──────────────────────────────── */}
               {step === 1 && (
                 <>
@@ -564,6 +534,18 @@ export default function Licenses() {
                       />
                     </div>
 
+                    <div className="md:col-span-2">
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                        Audit Objective
+                      </label>
+                      <textarea
+                        className="input w-full font-sans text-sm min-h-[80px] resize-y"
+                        value={auditObject}
+                        onChange={(e) => setAuditObject(e.target.value)}
+                        placeholder="e.g. Quality improvement"
+                      />
+                    </div>
+
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
                         Audit Scope
@@ -573,18 +555,6 @@ export default function Licenses() {
                         value={auditScope}
                         onChange={(e) => setAuditScope(e.target.value)}
                         placeholder="e.g. Operations, Warehouse"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                        Audit Objective
-                      </label>
-                      <input
-                        className="input w-full font-sans text-sm"
-                        value={auditObject}
-                        onChange={(e) => setAuditObject(e.target.value)}
-                        placeholder="e.g. Quality improvement"
                       />
                     </div>
 
@@ -612,22 +582,24 @@ export default function Licenses() {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                        Lead Auditor
-                      </label>
-                      <select
-                        className="input w-full font-sans text-sm"
-                        value={selectedAuditorId}
-                        onChange={(e) => setSelectedAuditorId(e.target.value)}
-                      >
-                        {auditors.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {currentOrg?.type !== "individual" && (
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                          Lead Auditor
+                        </label>
+                        <select
+                          className="input w-full font-sans text-sm"
+                          value={selectedAuditorId}
+                          onChange={(e) => setSelectedAuditorId(e.target.value)}
+                        >
+                          {auditors.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
 
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
@@ -635,16 +607,9 @@ export default function Licenses() {
                       </label>
                       <input
                         type="text"
-                        className={`input w-full font-sans text-sm ${
-                          currentOrg?.type === "individual"
-                            ? "bg-secondary/40 opacity-70 cursor-not-allowed"
-                            : ""
-                        }`}
+                        className="input w-full font-sans text-sm"
                         value={auditeeName}
-                        onChange={(e) => {
-                          if (currentOrg?.type !== "individual") setAuditeeName(e.target.value);
-                        }}
-                        disabled={currentOrg?.type === "individual"}
+                        onChange={(e) => setAuditeeName(e.target.value)}
                         placeholder="e.g. Samuel Auditee"
                       />
                     </div>
@@ -655,16 +620,9 @@ export default function Licenses() {
                       </label>
                       <input
                         type="email"
-                        className={`input w-full font-sans text-sm ${
-                          currentOrg?.type === "individual"
-                            ? "bg-secondary/40 opacity-70 cursor-not-allowed"
-                            : ""
-                        }`}
+                        className="input w-full font-sans text-sm"
                         value={auditeeEmail}
-                        onChange={(e) => {
-                          if (currentOrg?.type !== "individual") setAuditeeEmail(e.target.value);
-                        }}
-                        disabled={currentOrg?.type === "individual"}
+                        onChange={(e) => setAuditeeEmail(e.target.value)}
                         placeholder="auditee@company.com"
                       />
                     </div>
@@ -717,37 +675,52 @@ export default function Licenses() {
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                       <Users className="h-5 w-5" />
                     </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">
-                        Your workspace currently has
-                      </p>
-                      <p className="font-display text-xl font-bold text-foreground">
-                        {memberCount} user{memberCount === 1 ? "" : "s"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Tier automatically set to{" "}
-                        <strong className="text-foreground">{TIER_LABELS[autoTier]}</strong>
-                      </p>
-                    </div>
-                    <div className="ml-auto text-right">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                        Max users in tier
-                      </p>
-                      <p className="font-display text-lg font-bold text-foreground">
-                        {TIER_MAX_USERS[autoTier] ?? "Unlimited"}
-                      </p>
-                    </div>
+                    {isIndividual ? (
+                      <div>
+                        <p className="font-display text-xl font-bold text-foreground">
+                          Individual Account
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Tier: <strong className="text-foreground">{TIER_LABELS[autoTier]}</strong>
+                        </p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-xs text-muted-foreground">
+                          Your workspace currently has
+                        </p>
+                        <p className="font-display text-xl font-bold text-foreground">
+                          {memberCount} user{memberCount === 1 ? "" : "s"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Tier automatically set to{" "}
+                          <strong className="text-foreground">{TIER_LABELS[autoTier]}</strong>
+                        </p>
+                      </div>
+                    )}
+                    {!isIndividual && (
+                      <div className="ml-auto text-right">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                          Max users in tier
+                        </p>
+                        <p className="font-display text-lg font-bold text-foreground">
+                          {TIER_MAX_USERS[autoTier] ?? "Unlimited"}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Tier enforcement notice */}
-                  <div className="rounded-2xl border border-warning/30 bg-warning/5 p-3 flex gap-2.5 text-xs text-warning">
-                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                    <span>
-                      Your paid tier allows up to{" "}
-                      <strong>{TIER_MAX_USERS[autoTier] ?? "unlimited"} users</strong>. Adding more
-                      team members beyond this limit will require a new payment at the higher tier.
-                    </span>
-                  </div>
+                  {!isIndividual && (
+                    <div className="rounded-2xl border border-warning/30 bg-warning/5 p-3 flex gap-2.5 text-xs text-warning">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>
+                        Your paid tier allows up to{" "}
+                        <strong>{TIER_MAX_USERS[autoTier] ?? "unlimited"} users</strong>. Adding more
+                        team members beyond this limit will require a new payment at the higher tier.
+                      </span>
+                    </div>
+                  )}
 
                   {/* Price summary */}
                   <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
