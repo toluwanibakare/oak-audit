@@ -1,0 +1,9 @@
+---
+deployment:
+  tasks:
+    - cd backend/
+    - /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader
+    - chmod 755 storage bootstrap/cache
+    - chmod -R 775 storage/app/public
+    - chmod -R 775 storage/framework
+    - chmod -R 775 storage/logs
