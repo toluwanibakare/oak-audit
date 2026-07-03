@@ -6,3 +6,4 @@ deployment:
     - cd $DEPLOYPATH/backend
     - /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader
     - chmod -R 775 storage bootstrap/cache
+

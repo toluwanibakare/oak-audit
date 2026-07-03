@@ -16,24 +16,7 @@ use App\Http\Controllers\Api\QuestionController;
 use App\Http\Controllers\Api\SupportTicketController;
 use App\Http\Controllers\Api\WalletController;
 use App\Models\IsoClause;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
-
-// One-time setup route (remove after deployment)
-Route::get('setup', function () {
-    if (app()->environment('local')) {
-        return response()->json(['message' => 'Not needed in local environment']);
-    }
-    try {
-        Artisan::call('migrate', ['--force' => true]);
-        Artisan::call('config:cache');
-        Artisan::call('route:cache');
-        try { Artisan::call('storage:link'); } catch (\Exception $e) {}
-        return response()->json(['message' => 'Setup completed']);
-    } catch (\Exception $e) {
-        return response()->json(['error' => 'Setup failed: ' . $e->getMessage()], 500);
-    }
-});
 
 // Public auth routes
 Route::post('auth/register', [AuthController::class, 'register']);
