@@ -1,9 +1,8 @@
 ---
 deployment:
   tasks:
-    - cd backend/
+    - export DEPLOYPATH=/home/ibmsspac/api.oakaudix.app/
+    - /bin/cp -R backend $DEPLOYPATH
+    - cd $DEPLOYPATH/backend
     - /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader
-    - chmod 755 storage bootstrap/cache
-    - chmod -R 775 storage/app/public
-    - chmod -R 775 storage/framework
-    - chmod -R 775 storage/logs
+    - chmod -R 775 storage bootstrap/cache
