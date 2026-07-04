@@ -131,6 +131,7 @@ export default function Processes() {
     try {
       // Load processes
       const processesList = await processesApi.list(currentOrg.id) as Proc[];
+      console.log("Processes loaded:", processesList.map((p: any) => ({ name: p.name, key: p.key, is_custom: p.is_custom, type: typeof p.is_custom })));
       const uniqueListMap = new Map<string, Proc>();
       processesList.forEach((p) => {
         const normKey = p.is_custom ? p.key : normalizeProcessKey(p.key);
@@ -645,10 +646,8 @@ export default function Processes() {
                 </div>
                 <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                      p.is_custom ? "bg-accent/20 text-accent" : "bg-primary/20 text-primary"
-                    }`}>
-                      {p.is_custom ? "Custom" : "Standard"}
+                    <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary">
+                      Standard
                     </span>
                     {p.is_custom && !isSelectMode && (
                       <button
