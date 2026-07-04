@@ -428,9 +428,11 @@ export default function Settings() {
       </div>
       )}
 
-      <div className="mt-6">
-        <SecuritySettings />
-      </div>
+      {!isAuditor && (
+        <div className="mt-6">
+          <SecuritySettings />
+        </div>
+      )}
 
       <div className="pt-10 pb-6 text-center text-xs text-muted-foreground/60 select-none font-medium border-t border-border/40 mt-10">
         © {new Date().getFullYear()} OakAudix. All rights reserved.
