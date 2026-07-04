@@ -24,7 +24,7 @@ class AuthController extends Controller
             'full_name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255',
             'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
-            'account_type' => 'sometimes|string|in:individual,organization',
+            'account_type' => 'sometimes|string|in:individual,organization,auditor',
         ]);
 
         if ($validator->fails()) {
