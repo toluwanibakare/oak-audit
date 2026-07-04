@@ -22,7 +22,6 @@ class ProcessController extends Controller
             'name' => 'required|string|max:255',
             'key' => 'required|string|max:255',
             'scope' => 'nullable|string|max:500',
-            'is_custom' => 'sometimes|boolean',
             'process_owner' => 'nullable|string|max:255',
             'process_owner_email' => 'nullable|string|email|max:255',
         ]);
@@ -31,9 +30,17 @@ class ProcessController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        // Auto-determine is_custom from key: standard processes don't have a "custom_" prefix
+        $isCustom = str_starts_with($request->key, 'custom_');
+
         $process = OrgProcess::create([
             'org_id' => $orgId,
-            ...$request->only(['name', 'key', 'scope', 'is_custom', 'process_owner', 'process_owner_email']),
+            'name' => $request->name,
+            'key' => $request->key,
+            'scope' => $request->scope,
+            'is_custom' => $isCustom,
+            'process_owner' => $request->process_owner,
+            'process_owner_email' => $request->process_owner_email,
         ]);
 
         return response()->json($process, 201);
