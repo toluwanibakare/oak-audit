@@ -144,19 +144,23 @@ export default function SecuritySettings() {
                   <label className="mb-1 block text-xs font-medium">OTP Code</label>
                   <input className="input" value={passwordOtp} onChange={(e) => setPasswordOtp(e.target.value)} placeholder="Enter 6-digit OTP" maxLength={6} />
                 </div>
-                <div className="relative">
+                <div>
                   <label className="mb-1 block text-xs font-medium">New Password</label>
-                  <input className="input pr-10" type={showNew ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password" />
-                  <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 top-1/2 mt-3 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                  <div className="relative">
+                    <input className="input pr-10" type={showNew ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password" />
+                    <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
-                <div className="relative">
+                <div>
                   <label className="mb-1 block text-xs font-medium">Confirm New Password</label>
-                  <input className="input pr-10" type={showConfirm ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" />
-                  <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 mt-3 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                    {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                  <div className="relative">
+                    <input className="input pr-10" type={showConfirm ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" />
+                    <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div className="flex gap-3">
                   <button onClick={handleChangePassword} disabled={passwordLoading || !passwordOtp || !newPassword || !confirmPassword} className="pill-cta text-xs disabled:opacity-50">
