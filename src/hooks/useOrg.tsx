@@ -27,7 +27,8 @@ export const OrgProvider = ({ children }: { children: ReactNode }) => {
     try {
       const list = await orgsApi.list();
       setOrgs(list);
-      if (!currentId || !list.find((o) => o.id === currentId)) {
+      const currentOrgInList = list.find((o) => o.id === currentId);
+      if (!currentId || !currentOrgInList || (currentOrgInList.type === "individual" && list.some((o) => o.type === "organization"))) {
         const preferred = list.find((o) => o.type === "organization") ?? list[0];
         if (preferred) {
           setCurrentId(preferred.id);
