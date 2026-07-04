@@ -376,7 +376,7 @@ export default function Licenses() {
                       <Users className="h-3 w-3 shrink-0" />
                       {TIER_LABELS[tier]}
                       {tier === autoTier && (
-                        <span className="ml-1 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary">
+                        <span className="whitespace-nowrap shrink-0 rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary">
                           your tier
                         </span>
                       )}
