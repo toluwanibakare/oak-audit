@@ -66,7 +66,7 @@ class MemberController extends Controller
     public function destroy(string $orgId, string $id): JsonResponse
     {
         $this->authorizeMemberAccess($orgId);
-        $member = OrganizationMember::where('org_id', $orgId)->findOrFail($id);
+        $member = OrganizationMember::where('org_id', $orgId)->where('user_id', $id)->firstOrFail();
         if ($member->user_id) {
             UserRole::where('org_id', $orgId)
                 ->where('user_id', $member->user_id)

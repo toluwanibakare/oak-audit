@@ -78,8 +78,17 @@ class OrganizationController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $path = $request->file('logo')->store('logos', 'public');
-        $url = asset('storage/' . $path);
+        $file = $request->file('logo');
+        $ext = $file->getClientOriginalExtension();
+        $filename = time() . '_' . bin2hex(random_bytes(8)) . '.' . $ext;
+        $uploadPath = public_path('uploads/logos');
+
+        if (!file_exists($uploadPath)) {
+            mkdir($uploadPath, 0755, true);
+        }
+
+        $file->move($uploadPath, $filename);
+        $url = $request->getSchemeAndHttpHost() . '/uploads/logos/' . $filename;
 
         $org->update(['logo_url' => $url]);
 
