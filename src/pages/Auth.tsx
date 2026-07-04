@@ -311,6 +311,7 @@ const Auth = () => {
           // Org will be created after email verification
           sessionStorage.setItem("oa_pending_org", JSON.stringify({
             name: finalOrgName,
+            type: "organization",
             industry: finalIndustry,
             address: serializedAddress,
           }));
