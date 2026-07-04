@@ -104,7 +104,7 @@ export default function Team() {
       const websiteUrl = window.location.origin;
       const emailHtml = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-          <h2 style="color: #6366f1;">Welcome to Oak Audit Portal</h2>
+          <h2 style="color: #6366f1;">Welcome to OakAudix Portal</h2>
           <p>Hello ${form.name.trim()},</p>
           <p>An auditor account has been created for you under <strong>${currentOrg.name}</strong>.</p>
           <p>Please use the credentials below to log in and start performing audits:</p>
@@ -114,11 +114,11 @@ export default function Team() {
             <p style="margin: 4px 0;"><strong>Portal URL:</strong> <a href="${websiteUrl}">${websiteUrl}</a></p>
           </div>
           <p>Ensure you change your password after logging in for security.</p>
-          <p>Regards,<br>Oak Audit Team</p>
+          <p>Regards,<br>OakAudix Team</p>
         </div>
       `;
       try {
-        await notificationsApi.sendEmail(form.email.trim(), "Your Oak Audit Auditor Credentials", emailHtml);
+        await notificationsApi.sendEmail(form.email.trim(), "Your OakAudix Auditor Credentials", emailHtml);
       } catch (emailErr) {
         console.error("Welcome email failed to dispatch:", emailErr);
       }
