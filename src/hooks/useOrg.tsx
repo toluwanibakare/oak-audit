@@ -27,20 +27,20 @@ export const OrgProvider = ({ children }: { children: ReactNode }) => {
     try {
       const list = await orgsApi.list();
       setOrgs(list);
-      const currentOrgInList = list.find((o) => o.id === currentId);
-      if (!currentId || !currentOrgInList || (currentOrgInList.type === "individual" && list.some((o) => o.type === "organization"))) {
-        const preferred = list.find((o) => o.type === "organization") ?? list[0];
-        if (preferred) {
-          setCurrentId(preferred.id);
-          localStorage.setItem(STORAGE_KEY, preferred.id);
-        }
+      const orgOrg = list.find((o) => o.type === "organization");
+      if (orgOrg) {
+        setCurrentId(orgOrg.id);
+        localStorage.setItem(STORAGE_KEY, orgOrg.id);
+      } else if (list.length > 0) {
+        setCurrentId(list[0].id);
+        localStorage.setItem(STORAGE_KEY, list[0].id);
       }
     } catch {
       // ignore
     } finally {
       setLoading(false);
     }
-  }, [user, currentId]);
+  }, [user]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
