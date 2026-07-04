@@ -4,22 +4,40 @@
 
 $password = 'oakaudix_admin_2024';
 
+// Change to the backend root (one level up from public/)
+$backend_dir = dirname(__DIR__);
+
+// Try common cPanel PHP paths (in order of preference)
+$php_candidates = [
+    '/opt/cpanel/ea-php82/root/usr/bin/php',
+    '/opt/cpanel/ea-php81/root/usr/bin/php',
+    '/opt/cpanel/ea-php80/root/usr/bin/php',
+    '/usr/local/bin/php',
+    'php-cli',
+    'php',
+];
+$php_bin = 'php'; // fallback
+foreach ($php_candidates as $c) {
+    $test = @exec("command -v " . escapeshellarg($c) . " 2>/dev/null", $_, $code);
+    if ($code === 0 && $test) { $php_bin = $c; break; }
+}
+
+$prefix = $php_bin;
 $allowed = [
-    'php artisan route:clear',
-    'php artisan route:list',
-    'php artisan cache:clear',
-    'php artisan config:clear',
-    'php artisan view:clear',
-    'php artisan optimize:clear',
-    'composer dump-autoload',
-    'php -v',
+    'cd ' . escapeshellarg($backend_dir) . ' && ' . $prefix . ' artisan route:clear',
+    'cd ' . escapeshellarg($backend_dir) . ' && ' . $prefix . ' artisan route:list',
+    'cd ' . escapeshellarg($backend_dir) . ' && ' . $prefix . ' artisan cache:clear',
+    'cd ' . escapeshellarg($backend_dir) . ' && ' . $prefix . ' artisan config:clear',
+    'cd ' . escapeshellarg($backend_dir) . ' && ' . $prefix . ' artisan view:clear',
+    'cd ' . escapeshellarg($backend_dir) . ' && ' . $prefix . ' artisan optimize:clear',
+    'cd ' . escapeshellarg($backend_dir) . ' && composer dump-autoload',
+    'echo "PHP binary: ' . $php_bin . '"',
     'whoami',
     'pwd',
-    'ls -la',
+    'ls -la ' . escapeshellarg($backend_dir) . '/artisan 2>/dev/null || echo "artisan not found at ' . addslashes($backend_dir) . '/artisan"',
     'id',
 ];
 
-// Redirect all output to a buffer so we can display it.
 function run_command(string $cmd): string
 {
     ob_start();
@@ -28,7 +46,6 @@ function run_command(string $cmd): string
     return "<pre><strong>$ $cmd</strong> (exit: $exit_code)\n\n" . htmlspecialchars($output ?? '') . "</pre>";
 }
 
-// Handle form submission
 $output = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input_password = $_POST['password'] ?? '';
@@ -38,10 +55,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($input_password !== $password) {
         $output = '<div style="color:red;font-weight:bold;">Wrong password.</div>';
     } else {
-        // Change to the backend directory (adjust if needed)
-        $backend_dir = __DIR__;
-        chdir($backend_dir);
-
         if ($preset && isset($allowed[$preset])) {
             $cmd = $allowed[$preset];
             $output .= run_command($cmd);
