@@ -131,7 +131,6 @@ export default function Processes() {
     try {
       // Load processes
       const processesList = await processesApi.list(currentOrg.id) as Proc[];
-      console.log("Processes loaded:", processesList.map((p: any) => ({ name: p.name, key: p.key, is_custom: p.is_custom, type: typeof p.is_custom })));
       const uniqueListMap = new Map<string, Proc>();
       processesList.forEach((p) => {
         const normKey = p.is_custom ? p.key : normalizeProcessKey(p.key);
