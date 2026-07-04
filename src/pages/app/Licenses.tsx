@@ -255,6 +255,7 @@ export default function Licenses() {
         auditee_name: auditeeName.trim(),
         auditee_email: auditeeEmail.trim(),
         lead_auditor_id: selectedAuditorId || null,
+        callback_url: window.location.origin + "/app/licenses",
       });
 
       if (!result.authorization_url) {

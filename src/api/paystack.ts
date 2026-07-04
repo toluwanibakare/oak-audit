@@ -15,6 +15,7 @@ export interface InitiatePayload {
   auditee_name: string;
   auditee_email: string;
   lead_auditor_id?: string | null;
+  callback_url?: string;
 }
 
 export interface InitiateResponse {

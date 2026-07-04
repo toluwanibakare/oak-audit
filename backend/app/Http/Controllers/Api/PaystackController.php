@@ -38,6 +38,7 @@ class PaystackController extends Controller
             'auditee_name' => 'required|string|max:255',
             'auditee_email' => 'required|email',
             'lead_auditor_id' => 'nullable|string',
+            'callback_url' => 'nullable|string|url',
         ]);
 
         if ($validator->fails()) {
@@ -63,12 +64,13 @@ class PaystackController extends Controller
 
         // Call Paystack initialize API
         try {
+            $callbackUrl = $request->callback_url ?? config('services.paystack.callback_url');
             $response = Http::withToken($this->secretKey)->post('https://api.paystack.co/transaction/initialize', [
                 'email' => $request->email,
                 'amount' => $price * 100, // convert to kobo
                 'currency' => 'NGN',
                 'reference' => $reference,
-                'callback_url' => config('services.paystack.callback_url'),
+                'callback_url' => $callbackUrl,
                 'metadata' => [
                     'org_id' => $request->org_id,
                     'pack' => $request->pack,
