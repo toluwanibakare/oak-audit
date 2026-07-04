@@ -83,7 +83,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
 <h1>Command Runner</h1>
 <form method="POST">
-  <input type="password" name="password" placeholder="Password" required />
+  <div style="position:relative">
+  <input type="password" name="password" id="pwd" placeholder="Password" required style="padding-right:40px" />
+  <span onclick="togglePwd()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;user-select:none;font-family:sans-serif" id="pwdIcon">SHOW</span>
+</div>
+<script>
+function togglePwd(){var e=document.getElementById('pwd'),i=document.getElementById('pwdIcon');if(e.type==='password'){e.type='text';i.textContent='HIDE'}else{e.type='password';i.textContent='SHOW'}}
+</script>
   <select name="preset">
     <option value="">-- Select a command --</option>
     <?php foreach ($allowed as $i => $cmd): ?>
