@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
 import { processesApi } from "@/api/processes";
@@ -51,6 +51,7 @@ export default function Processes() {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedProcIdsMain, setSelectedProcIdsMain] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const pendingSuggestionRef = useRef<{ name: string; key: string; scope: string } | null>(null);
 
   // Memoized process autocompletion suggestions
   const suggestions = useMemo(() => {
@@ -230,15 +231,23 @@ export default function Processes() {
 
     const cleanName = form.name.trim();
     const cleanNameLower = cleanName.toLowerCase();
-    const matchingStandard = UNIQUE_STANDARD_PROCESSES.find(
-      sp => sp.name.toLowerCase() === cleanNameLower || sp.key === cleanNameLower
-    );
+    const pending = pendingSuggestionRef.current;
+    pendingSuggestionRef.current = null;
+
+    const matchingStandard = pending
+      ? UNIQUE_STANDARD_PROCESSES.find(sp => sp.key === pending.key)
+      : UNIQUE_STANDARD_PROCESSES.find(
+          sp => sp.name.toLowerCase() === cleanNameLower || sp.key === cleanNameLower
+        );
 
     let key = "";
     let isCustom = true;
     
     if (matchingStandard) {
       key = matchingStandard.key;
+      if (pending) {
+        setForm(prev => ({ ...prev, name: matchingStandard.name, scope: matchingStandard.scope || "" }));
+      }
       isCustom = false;
     } else {
       key = "custom_" + cleanNameLower.replace(/[^a-z0-9]+/g, "_").slice(0, 40);
@@ -666,7 +675,7 @@ export default function Processes() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="relative w-full max-w-md rounded-3xl border border-border bg-card p-4 sm:p-8 shadow-elevated animate-in zoom-in-95 duration-200">
             <button
-              onClick={() => { setIsModalOpen(false); setShowSuggestions(false); }}
+              onClick={() => { setIsModalOpen(false); setShowSuggestions(false); pendingSuggestionRef.current = null; }}
               className="absolute top-5 right-5 rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition"
             >
               <X className="h-4 w-4" />
@@ -691,6 +700,7 @@ export default function Processes() {
                     if (e.key === "Enter" && showSuggestions && suggestions.length > 0) {
                       e.preventDefault();
                       const first = suggestions[0];
+                      pendingSuggestionRef.current = { name: first.name, key: first.key, scope: first.scope || "" };
                       setForm(prev => ({ ...prev, name: first.name, scope: first.scope || "" }));
                       setShowSuggestions(false);
                     }
@@ -707,6 +717,7 @@ export default function Processes() {
                         type="button"
                         onMouseDown={(e) => {
                           e.preventDefault();
+                          pendingSuggestionRef.current = { name: p.name, key: p.key, scope: p.scope || "" };
                           setForm(prev => ({ ...prev, name: p.name, scope: p.scope || "" }));
                           setShowSuggestions(false);
                         }}
@@ -763,7 +774,7 @@ export default function Processes() {
               </div>
               <div className="flex justify-end gap-3 pt-3">
                 <button
-                  onClick={() => { setIsModalOpen(false); setShowSuggestions(false); }}
+                  onClick={() => { setIsModalOpen(false); setShowSuggestions(false); pendingSuggestionRef.current = null; }}
                   className="rounded-xl border border-border bg-card px-5 py-2 text-sm font-semibold hover:bg-secondary transition"
                 >
                   Cancel
