@@ -14,14 +14,18 @@ class SendOtpMail extends Mailable
 
     public function __construct(
         public string $otp,
-        public string $type, // signup | reset
+        public string $type, // signup | reset | password_change | email_change_old | email_change_new
     ) {}
 
     public function envelope(): Envelope
     {
-        $subject = $this->type === 'reset'
-            ? 'Password Reset OTP - OakAudix'
-            : 'Email Verification OTP - OakAudix';
+        $subject = match ($this->type) {
+            'reset' => 'Password Reset OTP - OakAudix',
+            'password_change' => 'Change Password OTP - OakAudix',
+            'email_change_old' => 'Confirm Email Change OTP - OakAudix',
+            'email_change_new' => 'Verify New Email OTP - OakAudix',
+            default => 'Email Verification OTP - OakAudix',
+        };
 
         return new Envelope(subject: $subject);
     }

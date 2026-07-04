@@ -49,6 +49,12 @@ Route::middleware('auth:api')->group(function () {
     // Auth
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('auth/me', [AuthController::class, 'me']);
+    Route::post('auth/send-password-otp', [AuthController::class, 'sendPasswordOtp']);
+    Route::post('auth/change-password', [AuthController::class, 'changePassword']);
+    Route::post('auth/send-change-email-otp', [AuthController::class, 'sendChangeEmailOtp']);
+    Route::post('auth/send-new-email-otp', [AuthController::class, 'sendNewEmailOtp']);
+    Route::post('auth/verify-change-email', [AuthController::class, 'verifyChangeEmail']);
+    Route::put('auth/name', [AuthController::class, 'updateName']);
 
     // Organizations
     Route::get('organizations', [OrganizationController::class, 'index']);

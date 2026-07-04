@@ -4,6 +4,7 @@ import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { AppShell } from "@/components/app/AppShell";
+import SecuritySettings from "@/components/app/SecuritySettings";
 import { Header } from "./Team";
 import { auditorsApi } from "@/api/auditors";
 import { orgsApi } from "@/api/orgs";
@@ -20,6 +21,7 @@ export default function Settings() {
   const isIndividual = currentOrg?.type === "individual";
   const isForced = !currentOrg?.industry && !localStorage.getItem(SKIP_ONBOARDING_KEY);
   const [currentUserAuditor, setCurrentUserAuditor] = useState<any | undefined>(undefined);
+  const [auditorName, setAuditorName] = useState("");
   
   // Structured form states
   const [name, setName] = useState("");
@@ -79,6 +81,7 @@ export default function Settings() {
         const data = await auditorsApi.list(currentOrg.id);
         const match = data.find((a: any) => a.user_id === user.id) ?? null;
         setCurrentUserAuditor(match);
+        setAuditorName(user?.full_name ?? "");
       } catch { setCurrentUserAuditor(null); }
     })();
   }, [user, currentOrg]);
@@ -208,7 +211,23 @@ export default function Settings() {
             <p className="text-xs text-muted-foreground mt-1">Your personal account information.</p>
             <div className="grid gap-4 md:grid-cols-2 mt-4">
               <Field label="Full name">
-                <input className="input" value={user?.full_name ?? ""} disabled />
+                <div className="flex gap-2">
+                  <input className="input flex-1" value={auditorName} onChange={(e) => setAuditorName(e.target.value)} placeholder="Your full name" />
+                  <button
+                    onClick={async () => {
+                      try {
+                        await authApi.updateName(auditorName);
+                        toast({ title: "Name updated successfully" });
+                      } catch (err: any) {
+                        toast({ title: err?.response?.data?.error || "Failed to update name", variant: "destructive" });
+                      }
+                    }}
+                    className={`pill-cta text-xs ${auditorName === (user?.full_name ?? "") ? "opacity-50 cursor-not-allowed" : ""}`}
+                    disabled={auditorName === (user?.full_name ?? "")}
+                  >
+                    Save
+                  </button>
+                </div>
               </Field>
               <Field label="Email address">
                 <input className="input" value={user?.email ?? ""} disabled />
@@ -227,6 +246,7 @@ export default function Settings() {
               </button>
             </div>
           </div>
+          <SecuritySettings />
         </div>
       ) : (
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
@@ -407,6 +427,10 @@ export default function Settings() {
         </div>
       </div>
       )}
+
+      <div className="mt-6">
+        <SecuritySettings />
+      </div>
 
       <div className="pt-10 pb-6 text-center text-xs text-muted-foreground/60 select-none font-medium border-t border-border/40 mt-10">
         © {new Date().getFullYear()} OakAudix. All rights reserved.

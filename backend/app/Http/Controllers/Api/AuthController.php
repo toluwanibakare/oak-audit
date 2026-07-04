@@ -202,6 +202,148 @@ class AuthController extends Controller
         return response()->json(['message' => 'Password reset successful']);
     }
 
+    public function sendPasswordOtp(Request $request): JsonResponse
+    {
+        $user = auth('api')->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $this->generateAndSendOtp($user->email, 'password_change');
+
+        return response()->json(['message' => 'OTP sent to your email']);
+    }
+
+    public function changePassword(Request $request): JsonResponse
+    {
+        $user = auth('api')->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'otp' => 'required|string|size:6',
+            'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $otpRecord = VerificationOtp::valid($user->email, $request->otp, 'password_change')->first();
+
+        if (!$otpRecord) {
+            return response()->json(['error' => 'Invalid or expired OTP'], 400);
+        }
+
+        $otpRecord->update(['used_at' => now()]);
+
+        $user->update([
+            'password' => Hash::make($request->password),
+        ]);
+
+        return response()->json(['message' => 'Password changed successfully']);
+    }
+
+    public function sendChangeEmailOtp(Request $request): JsonResponse
+    {
+        $user = auth('api')->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'new_email' => 'required|string|email|max:255|unique:users,email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $this->generateAndSendOtp($user->email, 'email_change_old');
+
+        return response()->json(['message' => 'OTP sent to your current email']);
+    }
+
+    public function sendNewEmailOtp(Request $request): JsonResponse
+    {
+        $user = auth('api')->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'new_email' => 'required|string|email|max:255|unique:users,email',
+            'otp' => 'required|string|size:6',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $otpRecord = VerificationOtp::valid($user->email, $request->otp, 'email_change_old')->first();
+
+        if (!$otpRecord) {
+            return response()->json(['error' => 'Invalid or expired OTP for current email'], 400);
+        }
+
+        $otpRecord->update(['used_at' => now()]);
+
+        $this->generateAndSendOtp($request->new_email, 'email_change_new');
+
+        return response()->json(['message' => 'OTP sent to your new email']);
+    }
+
+    public function verifyChangeEmail(Request $request): JsonResponse
+    {
+        $user = auth('api')->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'new_email' => 'required|string|email|max:255|unique:users,email',
+            'otp' => 'required|string|size:6',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $otpRecord = VerificationOtp::valid($request->new_email, $request->otp, 'email_change_new')->first();
+
+        if (!$otpRecord) {
+            return response()->json(['error' => 'Invalid or expired OTP for new email'], 400);
+        }
+
+        $otpRecord->update(['used_at' => now()]);
+
+        $oldEmail = $user->email;
+        $user->update(['email' => $request->new_email]);
+
+        return response()->json(['message' => 'Email changed successfully', 'old_email' => $oldEmail, 'new_email' => $request->new_email]);
+    }
+
+    public function updateName(Request $request): JsonResponse
+    {
+        $user = auth('api')->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'full_name' => 'required|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $user->update(['full_name' => $request->full_name]);
+
+        return response()->json(['message' => 'Name updated successfully', 'full_name' => $user->full_name]);
+    }
+
     public function me(): JsonResponse
     {
         return response()->json(auth('api')->user());

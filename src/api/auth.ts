@@ -73,4 +73,22 @@ export const authApi = {
   logout: () => apiClient.post("/auth/logout").then((r) => r.data),
 
   refresh: () => apiClient.post<AuthResponse>("/auth/refresh").then((r) => r.data),
+
+  sendPasswordOtp: () =>
+    apiClient.post<{ message: string }>("/auth/send-password-otp").then((r) => r.data),
+
+  changePassword: (payload: { otp: string; password: string; password_confirmation: string }) =>
+    apiClient.post<{ message: string }>("/auth/change-password", payload).then((r) => r.data),
+
+  sendChangeEmailOtp: (newEmail: string) =>
+    apiClient.post<{ message: string }>("/auth/send-change-email-otp", { new_email: newEmail }).then((r) => r.data),
+
+  sendNewEmailOtp: (newEmail: string, otp: string) =>
+    apiClient.post<{ message: string }>("/auth/send-new-email-otp", { new_email: newEmail, otp }).then((r) => r.data),
+
+  verifyChangeEmail: (newEmail: string, otp: string) =>
+    apiClient.post<{ message: string; old_email: string; new_email: string }>("/auth/verify-change-email", { new_email: newEmail, otp }).then((r) => r.data),
+
+  updateName: (fullName: string) =>
+    apiClient.put<{ message: string; full_name: string }>("/auth/name", { full_name: fullName }).then((r) => r.data),
 };
