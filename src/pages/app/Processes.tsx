@@ -196,10 +196,14 @@ export default function Processes() {
     if (!currentOrg) return;
     setSaving(true);
     try {
-      // Clear existing non-custom processes
+      // Remove any existing processes whose key matches a selected standard key
+      // (regardless of is_custom flag) to eliminate duplicates from previous buggy saves
       const existing = await processesApi.list(currentOrg.id);
+      const keysToRemove = new Set(selectedStandardKeys);
       await Promise.all(
-        existing.filter((p: any) => !p.is_custom).map((p: any) => processesApi.remove(currentOrg.id, p.id))
+        existing
+          .filter((p: any) => keysToRemove.has(p.is_custom ? normalizeProcessKey(p.key) : p.key))
+          .map((p: any) => processesApi.remove(currentOrg.id, p.id))
       );
 
       // Insert selected ones with their process owner names

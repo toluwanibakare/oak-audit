@@ -21,6 +21,13 @@ class OrgProcess extends Model
         'process_owner_email',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'is_custom' => 'boolean',
+        ];
+    }
+
     public function organization()
     {
         return $this->belongsTo(Organization::class, 'org_id');
