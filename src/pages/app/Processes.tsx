@@ -50,6 +50,7 @@ export default function Processes() {
   const [processToDelete, setProcessToDelete] = useState<Proc | null>(null);
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedProcIdsMain, setSelectedProcIdsMain] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Memoized process autocompletion suggestions
   const suggestions = useMemo(() => {
@@ -260,6 +261,7 @@ export default function Processes() {
     }
 
     setForm({ name: "", scope: "", process_owner: "", process_owner_email: "" });
+    setShowSuggestions(false);
     setCustomSubmitClicked(false);
     setIsModalOpen(false);
     await load();
@@ -664,7 +666,7 @@ export default function Processes() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="relative w-full max-w-md rounded-3xl border border-border bg-card p-4 sm:p-8 shadow-elevated animate-in zoom-in-95 duration-200">
             <button
-              onClick={() => setIsModalOpen(false)}
+              onClick={() => { setIsModalOpen(false); setShowSuggestions(false); }}
               className="absolute top-5 right-5 rounded-lg p-1 text-muted-foreground hover:bg-secondary hover:text-foreground transition"
             >
               <X className="h-4 w-4" />
@@ -681,17 +683,32 @@ export default function Processes() {
                   placeholder="e.g. Fleet Logistics"
                   className="input w-full h-11"
                   value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  onChange={(e) => {
+                    setForm({ ...form, name: e.target.value });
+                    setShowSuggestions(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && showSuggestions && suggestions.length > 0) {
+                      e.preventDefault();
+                      const first = suggestions[0];
+                      setForm(prev => ({ ...prev, name: first.name, scope: first.scope || "" }));
+                      setShowSuggestions(false);
+                    }
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                 />
-                {suggestions.length > 0 && (
+                {showSuggestions && suggestions.length > 0 && (
                   <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-card shadow-elevated p-1 space-y-0.5 animate-in fade-in duration-100 text-xs">
                     <p className="px-2.5 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Matching Standard Processes</p>
                     {suggestions.map((p) => (
                       <button
                         key={p.key}
                         type="button"
-                        onClick={() => {
+                        onMouseDown={(e) => {
+                          e.preventDefault();
                           setForm(prev => ({ ...prev, name: p.name, scope: p.scope || "" }));
+                          setShowSuggestions(false);
                         }}
                         className="w-full text-left rounded-lg px-2.5 py-2 hover:bg-secondary text-foreground font-semibold flex flex-col gap-0.5 transition"
                       >
@@ -746,7 +763,7 @@ export default function Processes() {
               </div>
               <div className="flex justify-end gap-3 pt-3">
                 <button
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => { setIsModalOpen(false); setShowSuggestions(false); }}
                   className="rounded-xl border border-border bg-card px-5 py-2 text-sm font-semibold hover:bg-secondary transition"
                 >
                   Cancel

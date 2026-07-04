@@ -15,6 +15,7 @@ export default function Team() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [list, setList] = useState<Auditor[]>([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ name: "", email: "", role: "auditor", certifications: "", password: "" });
   const [busy, setBusy] = useState(false);
 
@@ -24,6 +25,7 @@ export default function Team() {
 
   const load = async () => {
     if (!currentOrg) return;
+    setLoading(true);
 
     try {
       // Check if the current logged-in user is already in the auditors directory
@@ -46,6 +48,8 @@ export default function Team() {
       setList(data as Auditor[]);
     } catch (err) {
       console.error("Failed to load auditors", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -225,41 +229,54 @@ export default function Team() {
             </tr>
           </thead>
           <tbody>
-            {list.map((auditor) => (
-              <tr key={auditor.id} className="border-t border-border">
-                <td className="px-4 py-3 font-medium">{auditor.name}</td>
-                <td className="px-4 py-3 text-muted-foreground">{auditor.email}</td>
-                <td className="px-4 py-3">
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                    auditor.role === "management_representative" 
-                      ? "bg-purple-600/10 text-purple-500 border border-purple-500/20"
-                      : "bg-secondary text-muted-foreground"
-                  }`}>
-                    {formatRole(auditor.role)}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">{auditor.certifications || "-"}</td>
-                <td className="px-4 py-3 text-right space-x-3">
-                  <button 
-                    onClick={() => startEdit(auditor)} 
-                    className="inline-flex items-center text-muted-foreground hover:text-primary transition"
-                    title="Edit Member"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  {auditor.role !== "management_representative" && (
+            {loading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <tr key={i} className="border-t border-border">
+                  {Array.from({ length: 5 }).map((_, j) => (
+                    <td key={j} className="px-4 py-3">
+                      <div className="h-4 w-3/4 animate-pulse rounded bg-secondary/80" />
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : list.length === 0 ? (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No auditors yet.</td></tr>
+            ) : (
+              list.map((auditor) => (
+                <tr key={auditor.id} className="border-t border-border">
+                  <td className="px-4 py-3 font-medium">{auditor.name}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{auditor.email}</td>
+                  <td className="px-4 py-3">
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      auditor.role === "management_representative" 
+                        ? "bg-purple-600/10 text-purple-500 border border-purple-500/20"
+                        : "bg-secondary text-muted-foreground"
+                    }`}>
+                      {formatRole(auditor.role)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{auditor.certifications || "-"}</td>
+                  <td className="px-4 py-3 text-right space-x-3">
                     <button 
-                      onClick={() => remove(auditor.id, auditor.role)} 
-                      className="inline-flex items-center text-muted-foreground hover:text-destructive transition"
-                      title="Remove Member"
+                      onClick={() => startEdit(auditor)} 
+                      className="inline-flex items-center text-muted-foreground hover:text-primary transition"
+                      title="Edit Member"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Pencil className="h-4 w-4" />
                     </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {list.length === 0 && <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">No auditors yet.</td></tr>}
+                    {auditor.role !== "management_representative" && (
+                      <button 
+                        onClick={() => remove(auditor.id, auditor.role)} 
+                        className="inline-flex items-center text-muted-foreground hover:text-destructive transition"
+                        title="Remove Member"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
