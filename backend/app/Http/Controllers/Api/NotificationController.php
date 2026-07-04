@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditModel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -23,16 +22,7 @@ class NotificationController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Only allow sending to auditee emails of audits the user has access to
-        $userId = auth('api')->id();
-        $validRecipient = AuditModel::whereHas('organization', function ($q) use ($userId) {
-            $q->where('created_by', $userId);
-        })->where('auditee_email', $request->to)->exists();
-
-        if (!$validRecipient) {
-            return response()->json(['error' => 'Recipient not authorized'], 403);
-        }
-
+        // Authenticated users can send notification emails
         try {
             Mail::html($request->html, function ($message) use ($request) {
                 $message->to($request->to)
