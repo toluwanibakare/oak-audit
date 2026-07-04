@@ -34,6 +34,10 @@ $allowed = [
     'echo "PHP binary: ' . $php_bin . '"',
     'whoami',
     'pwd',
+    'curl -o ' . escapeshellarg($backend_dir . '/routes/api.php') . ' https://raw.githubusercontent.com/toluwanibakare/oak-audit/main/backend/routes/api.php 2>&1 && echo "OK: api.php updated"',
+    'curl -o ' . escapeshellarg($backend_dir . '/app/Http/Controllers/Api/AuthController.php') . ' https://raw.githubusercontent.com/toluwanibakare/oak-audit/main/backend/app/Http/Controllers/Api/AuthController.php 2>&1 && echo "OK: AuthController.php updated"',
+    'curl -o ' . escapeshellarg($backend_dir . '/app/Mail/SendOtpMail.php') . ' https://raw.githubusercontent.com/toluwanibakare/oak-audit/main/backend/app/Mail/SendOtpMail.php 2>&1 && echo "OK: SendOtpMail.php updated"',
+    'curl -o ' . escapeshellarg($backend_dir . '/resources/views/emails/otp.blade.php') . ' https://raw.githubusercontent.com/toluwanibakare/oak-audit/main/backend/resources/views/emails/otp.blade.php 2>&1 && echo "OK: otp.blade.php updated"',
     'ls -la ' . escapeshellarg($backend_dir) . '/artisan 2>/dev/null || echo "artisan not found at ' . addslashes($backend_dir) . '/artisan"',
     'id',
 ];
