@@ -645,11 +645,11 @@ export default function Processes() {
                 </div>
                 <div className="mt-4 pt-3 border-t border-border/60 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                      p.is_custom ? "bg-accent/20 text-accent" : "bg-primary/20 text-primary"
-                    }`}>
-                      {p.is_custom ? "Custom" : "Standard"}
-                    </span>
+                    {!p.is_custom && (
+                      <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary">
+                        Standard
+                      </span>
+                    )}
                     {p.is_custom && !isSelectMode && (
                       <button
                         onClick={(e) => {
