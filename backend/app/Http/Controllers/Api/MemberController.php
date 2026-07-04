@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Organization;
 use App\Models\OrganizationMember;
 use App\Models\UserRole;
 use Illuminate\Http\JsonResponse;
@@ -14,6 +15,11 @@ class MemberController extends Controller
     private function authorizeMemberAccess(string $orgId): void
     {
         $userId = auth('api')->id();
+        // Allow org creators
+        $org = Organization::find($orgId);
+        if ($org && $org->created_by === $userId) {
+            return;
+        }
         if (!UserRole::where('org_id', $orgId)
             ->where('user_id', $userId)
             ->exists()) {

@@ -35,6 +35,20 @@ class AuthController extends Controller
         $existingUser = User::where('email', $request->email)->first();
 
         if ($existingUser) {
+            // For auditor invites: if email already exists, auto-verify and return the user
+            // so the org admin can add them as a member immediately without re-registering
+            if ($request->account_type === 'auditor') {
+                $existingUser->email_verified_at = now();
+                $existingUser->account_type = 'auditor';
+                $existingUser->save();
+
+                return response()->json([
+                    'message' => 'Auditor account already exists and has been activated.',
+                    'needs_verification' => false,
+                    'user' => $existingUser,
+                ], 200);
+            }
+
             if ($existingUser->email_verified_at) {
                 // Account exists and is verified — try to log in with the provided password
                 if (Hash::check($request->password, $existingUser->password)) {
@@ -64,8 +78,13 @@ class AuthController extends Controller
             'account_type' => $request->account_type ?? 'individual',
         ]);
 
-        // Generate and send OTP
-        $this->generateAndSendOtp($user->email, 'signup');
+        // Auto-verify and skip OTP for auditor accounts (invited by org admin)
+        if ($user->account_type === 'auditor') {
+            $user->email_verified_at = now();
+            $user->save();
+        } else {
+            $this->generateAndSendOtp($user->email, 'signup');
+        }
 
         // Auto-create a personal organization for individual accounts
         if ($user->account_type === 'individual') {
@@ -77,8 +96,10 @@ class AuthController extends Controller
         }
 
         return response()->json([
-            'message' => 'User registered successfully. Please verify your email with the OTP sent.',
-            'needs_verification' => true,
+            'message' => $user->account_type === 'auditor'
+                ? 'Auditor account created successfully.'
+                : 'User registered successfully. Please verify your email with the OTP sent.',
+            'needs_verification' => $user->account_type !== 'auditor',
             'user' => $user,
         ], 201);
     }

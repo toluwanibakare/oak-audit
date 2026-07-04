@@ -86,7 +86,7 @@ export default function Team() {
       if (!signupRes.ok) throw new Error(signupData.errors?.email?.[0] || signupData.errors?.full_name?.[0] || signupData.message || "Could not register auditor account.");
 
       const userUuid = signupData.user?.id || signupData.id;
-      if (!userUuid) throw new Error("Failed to retrieve user identifier.");
+      if (!userUuid) throw new Error("Failed to retrieve user identifier from registration response.");
 
       // Add auditor to organization members
       await orgsApi.addMember(currentOrg.id, { user_id: userUuid, status: "active" });
