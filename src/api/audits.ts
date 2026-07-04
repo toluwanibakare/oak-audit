@@ -24,8 +24,10 @@ export interface Audit {
 }
 
 export const auditsApi = {
-  list: (orgId: string) =>
-    apiClient.get<Audit[]>(`/organizations/${orgId}/audits`).then((r) => r.data),
+  list: (orgId: string, auditorId?: string) =>
+    apiClient.get<Audit[]>(`/organizations/${orgId}/audits`, {
+      params: { ...(auditorId && { auditor_id: auditorId }) },
+    }).then((r) => r.data),
 
   get: (orgId: string, auditId: string) =>
     apiClient.get<Audit>(`/organizations/${orgId}/audits/${auditId}`).then((r) => r.data),

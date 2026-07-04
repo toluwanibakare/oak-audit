@@ -11,10 +11,21 @@ use Illuminate\Support\Facades\Validator;
 
 class AuditController extends Controller
 {
-    public function index(string $orgId): JsonResponse
+    public function index(Request $request, string $orgId): JsonResponse
     {
-        $audits = AuditModel::where('org_id', $orgId)
-            ->with(['findings', 'answers', 'processes'])
+        $query = AuditModel::where('org_id', $orgId);
+
+        if ($request->has('auditor_id')) {
+            $auditorId = $request->query('auditor_id');
+            $query->where(function ($q) use ($auditorId) {
+                $q->where('lead_auditor_id', $auditorId)
+                  ->orWhereHas('processes', function ($q) use ($auditorId) {
+                      $q->where('auditor_id', $auditorId);
+                  });
+            });
+        }
+
+        $audits = $query->with(['findings', 'answers', 'processes'])
             ->orderBy('created_at', 'desc')
             ->get();
         return response()->json($audits);

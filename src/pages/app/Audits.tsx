@@ -27,7 +27,7 @@ export default function Audits() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [list, setList] = useState<Audit[]>([]);
-  const [currentUserAuditor, setCurrentUserAuditor] = useState<any | null>(null);
+  const [currentUserAuditor, setCurrentUserAuditor] = useState<any | undefined>(undefined);
 
   // States for process assignment and launching audits
   const [selectedAuditForAssign, setSelectedAuditForAssign] = useState<Audit | null>(null);
@@ -51,10 +51,10 @@ export default function Audits() {
     })();
   }, [selectedAuditForAssign, currentOrg]);
 
-  const loadAudits = async () => {
+  const loadAudits = async (auditorId?: string) => {
     if (!currentOrg) return;
     try {
-      const data = await auditsApi.list(currentOrg.id);
+      const data = await auditsApi.list(currentOrg.id, auditorId);
       setList(data as Audit[]);
     } catch {}
   };
@@ -118,17 +118,20 @@ export default function Audits() {
   };
 
   useEffect(() => {
-    loadAudits();
-  }, [currentOrg]);
-
-  useEffect(() => {
     if (!user || !currentOrg) return;
     (async () => {
-      const auditorsList = await auditorsApi.list(currentOrg.id);
-      const found = auditorsList.find((a: any) => a.user_id === user.id);
-      setCurrentUserAuditor(found || null);
+      try {
+        const auditorsList = await auditorsApi.list(currentOrg.id);
+        const found = auditorsList.find((a: any) => a.user_id === user.id);
+        setCurrentUserAuditor(found || null);
+      } catch { setCurrentUserAuditor(null); }
     })();
   }, [user, currentOrg]);
+
+  useEffect(() => {
+    const auditorId = currentUserAuditor?.role === "auditor" ? currentUserAuditor.id : undefined;
+    loadAudits(auditorId);
+  }, [currentOrg, currentUserAuditor]);
 
   const handleDirectLaunch = async (audit: Audit) => {
     if (!currentOrg || !user) return;
@@ -159,6 +162,16 @@ export default function Audits() {
     closed: list.filter((audit) => audit.status === "closed").length,
     draft: list.filter((audit) => audit.status !== "in_progress" && audit.status !== "closed").length,
   }), [list]);
+
+  if (currentUserAuditor === undefined) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>

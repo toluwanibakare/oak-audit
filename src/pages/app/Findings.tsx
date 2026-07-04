@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Clock3, Download, ArrowLeft, FileText, Image, ExternalLink } from "lucide-react";
 import { useOrg } from "@/hooks/useOrg";
+import { useAuth } from "@/hooks/useAuth";
 import { AppShell } from "@/components/app/AppShell";
 import { Header } from "./Team";
 import { useToast } from "@/hooks/use-toast";
 import { getClauseRequirement } from "@/data/isoClauses";
+import { auditorsApi } from "@/api/auditors";
 import { findingsApi } from "@/api/findings";
 import { auditsApi } from "@/api/audits";
 import { processesApi } from "@/api/processes";
@@ -12,7 +14,9 @@ import { notificationsApi } from "@/api/notifications";
 
 export default function Findings() {
   const { currentOrg } = useOrg();
+  const { user } = useAuth();
   const { toast } = useToast();
+  const [currentUserAuditor, setCurrentUserAuditor] = useState<any | undefined>(undefined);
   const [list, setList] = useState<any[]>([]);
   const [audits, setAudits] = useState<any[]>([]);
   const [processes, setProcesses] = useState<Record<string, string>>({}); // id -> name
@@ -64,6 +68,19 @@ export default function Findings() {
   useEffect(() => {
     load();
   }, [currentOrg]);
+
+  useEffect(() => {
+    if (!user || !currentOrg) return;
+    (async () => {
+      try {
+        const data = await auditorsApi.list(currentOrg.id);
+        const match = data.find((a: any) => a.user_id === user.id) ?? null;
+        setCurrentUserAuditor(match);
+      } catch { setCurrentUserAuditor(null); }
+    })();
+  }, [user, currentOrg]);
+
+  const isAuditor = currentUserAuditor?.role === "auditor";
 
   const add = async () => {
     if (!currentOrg || !form.audit_id || !form.description.trim()) return;
@@ -250,6 +267,16 @@ export default function Findings() {
     progress: list.filter((finding) => finding.status === "in_progress" || finding.status === "under_review").length,
     closed: list.filter((finding) => finding.status === "closed").length,
   }), [list]);
+
+  if (currentUserAuditor === undefined) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -446,7 +473,7 @@ export default function Findings() {
           <Header 
             title="CAR Management" 
             subtitle="Non-conformities, observations, and corrective action reports." 
-            action={
+            action={!isAuditor ? (
               <a
                 href="/CAPA_Management_Tool.xlsx"
                 download="CAPA_Management_Tool.xlsx"
@@ -455,7 +482,7 @@ export default function Findings() {
                 <Download className="h-4 w-4" />
                 <span className="hidden sm:inline">Download CAPA Tracker</span><span className="sm:hidden">CAPA</span>
               </a>
-            }
+            ) : undefined}
           />
 
           <section className="mt-6 grid grid-cols-3 gap-3 sm:gap-4">

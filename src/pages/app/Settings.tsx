@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { AppShell } from "@/components/app/AppShell";
 import { Header } from "./Team";
+import { auditorsApi } from "@/api/auditors";
 import { orgsApi } from "@/api/orgs";
 import { authApi } from "@/api/auth";
 
@@ -18,6 +19,7 @@ export default function Settings() {
   const location = useLocation();
   const isIndividual = currentOrg?.type === "individual";
   const isForced = !currentOrg?.industry && !localStorage.getItem(SKIP_ONBOARDING_KEY);
+  const [currentUserAuditor, setCurrentUserAuditor] = useState<any | undefined>(undefined);
   
   // Structured form states
   const [name, setName] = useState("");
@@ -69,6 +71,19 @@ export default function Settings() {
       description.trim() !== initialDescription.trim()
     );
   }, [currentOrg, user, name, industry, website, size, phone, address, description]);
+
+  useEffect(() => {
+    if (!user || !currentOrg) return;
+    (async () => {
+      try {
+        const data = await auditorsApi.list(currentOrg.id);
+        const match = data.find((a: any) => a.user_id === user.id) ?? null;
+        setCurrentUserAuditor(match);
+      } catch { setCurrentUserAuditor(null); }
+    })();
+  }, [user, currentOrg]);
+
+  const isAuditor = currentUserAuditor?.role === "auditor";
 
   useEffect(() => {
     if (!currentOrg) return;
@@ -149,6 +164,16 @@ export default function Settings() {
     setUploading(false);
   };
 
+  if (currentUserAuditor === undefined) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
       <Header 
@@ -176,6 +201,34 @@ export default function Settings() {
         </div>
       )}
       
+      {isAuditor ? (
+        <div className="mt-6 space-y-4">
+          <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-card">
+            <h3 className="font-display text-lg font-bold text-foreground">My Account</h3>
+            <p className="text-xs text-muted-foreground mt-1">Your personal account information.</p>
+            <div className="grid gap-4 md:grid-cols-2 mt-4">
+              <Field label="Full name">
+                <input className="input" value={user?.full_name ?? ""} disabled />
+              </Field>
+              <Field label="Email address">
+                <input className="input" value={user?.email ?? ""} disabled />
+              </Field>
+            </div>
+            <div className="pt-2 border-t border-border mt-6 flex flex-wrap gap-4 items-center justify-between">
+              <button
+                onClick={async () => {
+                  try { await authApi.logout(); } catch {}
+                  signOut();
+                  navigate("/auth");
+                }}
+                className="rounded-2xl border border-destructive/30 hover:border-destructive/60 bg-background/50 hover:bg-destructive/10 px-5 py-2.5 text-xs font-semibold text-destructive transition duration-200"
+              >
+                Sign out of account
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         {/* Left column: Profile Details Form */}
         <div className="space-y-4 rounded-2xl border border-border bg-card p-4 sm:p-6 lg:col-span-2 shadow-card">
@@ -353,6 +406,7 @@ export default function Settings() {
           </div>
         </div>
       </div>
+      )}
 
       <div className="pt-10 pb-6 text-center text-xs text-muted-foreground/60 select-none font-medium border-t border-border/40 mt-10">
         © {new Date().getFullYear()} OakAudix. All rights reserved.

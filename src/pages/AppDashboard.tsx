@@ -85,7 +85,7 @@ const AppDashboard = () => {
     setShowApprovalNotice(false);
   };
 
-  const [currentUserAuditor, setCurrentUserAuditor] = useState<any | null>(null);
+  const [currentUserAuditor, setCurrentUserAuditor] = useState<any | undefined>(undefined);
 
   useEffect(() => {
     if (!user || !currentOrg) return;
@@ -174,6 +174,16 @@ const AppDashboard = () => {
   const topStandard = standardPerformance[0];
   const chartReady = !loading && answers.length > 0;
 
+  if (currentUserAuditor === undefined) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
       {/* Mobile notice */}
@@ -243,7 +253,11 @@ const AppDashboard = () => {
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-          <MetricCard title="Unlocked packs" value={stats.licenses} hint="Ready to run" loading={loading} />
+          {isAuditor ? (
+            <MetricCard title="Assigned to me" value={audits.filter(a => a.lead_auditor_id === currentUserAuditor?.id).length} hint="Audits I'm leading" loading={loading} />
+          ) : (
+            <MetricCard title="Unlocked packs" value={stats.licenses} hint="Ready to run" loading={loading} />
+          )}
           <MetricCard title="Audits" value={stats.audits} hint="Across all standards" loading={loading} />
           <MetricCard title="Open findings" value={stats.findings} hint="Pending CAPA" loading={loading} />
           <MetricCard title="Conformity" value={`${stats.conformity}%`} hint="From all answers" loading={loading} />
@@ -379,7 +393,7 @@ const AppDashboard = () => {
         </div>
       </section>
 
-      {!loading && audits.length > 0 && (
+      {!loading && audits.length > 0 && !isAuditor && (
         <section className="mt-6 grid gap-5">
           <AnalyticsCard
             title="Audit analytics"

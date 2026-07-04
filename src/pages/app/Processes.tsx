@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useOrg } from "@/hooks/useOrg";
 import { useAuth } from "@/hooks/useAuth";
+import { auditorsApi } from "@/api/auditors";
 import { processesApi } from "@/api/processes";
 import { questionsApi } from "@/api/questions";
 import { walletApi } from "@/api/wallet";
@@ -40,6 +41,7 @@ export default function Processes() {
   const { currentOrg } = useOrg();
   const { user } = useAuth();
   const { toast } = useToast();
+  const [currentUserAuditor, setCurrentUserAuditor] = useState<any | undefined>(undefined);
   const [list, setList] = useState<Proc[]>([]);
   const [form, setForm] = useState({ name: "", scope: "", process_owner: "", process_owner_email: "" });
   // Tracks the process owner name per standard process key during selection
@@ -179,6 +181,19 @@ export default function Processes() {
   };
 
   useEffect(() => { load(); }, [currentOrg]);
+
+  useEffect(() => {
+    if (!user || !currentOrg) return;
+    (async () => {
+      try {
+        const data = await auditorsApi.list(currentOrg.id);
+        const match = data.find((a: any) => a.user_id === user.id) ?? null;
+        setCurrentUserAuditor(match);
+      } catch { setCurrentUserAuditor(null); }
+    })();
+  }, [user, currentOrg]);
+
+  const isAuditor = currentUserAuditor?.role === "auditor";
 
   // Set default custom question standard select option based on paid licenses
   useEffect(() => {
@@ -435,6 +450,16 @@ export default function Processes() {
     );
   }
 
+  if (currentUserAuditor === undefined) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
 
     <AppShell>
@@ -444,7 +469,7 @@ export default function Processes() {
           subtitle={showSelectionGrid ? "Select the standard processes operating in your organization." : "Manage and define your organizational processes."} 
         />
         <div className="flex items-center gap-3">
-          {!showSelectionGrid && (
+          {!isAuditor && !showSelectionGrid && (
             <button 
               onClick={toggleSelectMode} 
               className={`rounded-full border px-4 py-2 text-sm transition font-semibold ${
@@ -454,7 +479,7 @@ export default function Processes() {
               {isSelectMode ? "Cancel Selection" : "Select Multiple"}
             </button>
           )}
-          {!showSelectionGrid && isSelectMode && (
+          {!isAuditor && !showSelectionGrid && isSelectMode && (
             <button 
               onClick={() => {
                 if (selectedProcIdsMain.length === list.length) {
@@ -468,7 +493,7 @@ export default function Processes() {
               {selectedProcIdsMain.length === list.length ? "Deselect All" : "Select All"}
             </button>
           )}
-          {!showSelectionGrid && isSelectMode && selectedProcIdsMain.length > 0 && (
+          {!isAuditor && !showSelectionGrid && isSelectMode && selectedProcIdsMain.length > 0 && (
             <button 
               onClick={handleBulkDelete} 
               className="pill-cta bg-destructive hover:bg-destructive/95 text-white px-4 py-2 text-sm font-semibold"
@@ -476,7 +501,7 @@ export default function Processes() {
               Remove Selected ({selectedProcIdsMain.length})
             </button>
           )}
-          {!showSelectionGrid && !isSelectMode && (
+          {!isAuditor && !showSelectionGrid && !isSelectMode && (
             <button onClick={() => setIsModalOpen(true)} className="pill-cta px-4 py-2 text-sm font-semibold flex items-center gap-1.5">
               <Plus className="h-4 w-4" />
               Add Process
@@ -620,7 +645,7 @@ export default function Processes() {
                       )}
                       <h3 className="font-display text-base font-bold text-foreground">{p.name}</h3>
                     </div>
-                    {!isSelectMode && (
+                    {!isAuditor && !isSelectMode && (
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();

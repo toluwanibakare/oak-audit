@@ -79,7 +79,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  const [currentUserAuditor, setCurrentUserAuditor] = useState<any | null>(null);
+  const [currentUserAuditor, setCurrentUserAuditor] = useState<any | undefined>(undefined);
 
   useEffect(() => {
     if (!user || !currentOrg) return;
@@ -95,6 +95,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   }, [user, currentOrg]);
 
   const isAuditor = currentUserAuditor?.role === "auditor";
+  const auditorResolved = currentUserAuditor !== undefined;
 
   /* ── Top loader ─────────────────────────────────────────────── */
   useEffect(() => {
@@ -143,16 +144,18 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   const fullName = user?.full_name || user?.user_metadata?.full_name || "User";
   const displayEmail = user?.email ?? "";
   const NAV = useMemo(() => {
+    if (!auditorResolved) return [];
     if (isIndividual) return INDIVIDUAL_NAV;
     if (currentUserAuditor?.role === "auditor") {
       return [
         { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
         { to: "/app/audits", label: "My Audits", icon: ClipboardCheck },
+        { to: "/app/findings", label: "CAR Management", icon: AlertTriangle },
         { to: "/contact", label: "Help & Support", icon: LifeBuoy },
       ];
     }
     return ORG_NAV;
-  }, [isIndividual, currentUserAuditor]);
+  }, [isIndividual, currentUserAuditor, auditorResolved]);
 
   const renderSidebarContent = () => (
     <div className="flex h-full flex-col">
@@ -190,25 +193,35 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
 
         {/* Navigation */}
         <nav className={`px-3 py-4 ${isIndividual ? "space-y-2" : "space-y-1.5"}`}>
-        {NAV.map(({ to, label, icon: Icon, end }) => (
-              <NavLink
-                key={to}
-                to={to}
-                end={end}
-                onClick={() => setIsMobileOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-2xl px-3.5 ${isIndividual ? "py-3" : "py-2"} text-sm font-medium transition ${
-                    isActive
-                      ? "bg-primary text-primary-foreground shadow-card"
-                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                  }`
-                }
-              >
-                <Icon className="h-4.5 w-4.5 shrink-0" />
-                <span className="flex-1 truncate whitespace-nowrap">{label}</span>
-                <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-40" />
-              </NavLink>
-            ))}
+        {!auditorResolved ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className={`flex items-center gap-3 rounded-2xl px-3.5 ${isIndividual ? "py-3" : "py-2"}`}>
+              <div className="h-4.5 w-4.5 shrink-0 rounded bg-muted-foreground/10 animate-pulse" />
+              <div className="h-3 flex-1 rounded bg-muted-foreground/10 animate-pulse" />
+              <div className="h-3 w-3 shrink-0 rounded bg-muted-foreground/10 animate-pulse" />
+            </div>
+          ))
+        ) : (
+          NAV.map(({ to, label, icon: Icon, end }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              onClick={() => setIsMobileOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 rounded-2xl px-3.5 ${isIndividual ? "py-3" : "py-2"} text-sm font-medium transition ${
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-card"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                }`
+              }
+            >
+              <Icon className="h-4.5 w-4.5 shrink-0" />
+              <span className="flex-1 truncate whitespace-nowrap">{label}</span>
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-40" />
+            </NavLink>
+          ))
+        )}
         </nav>
       </div>
 
