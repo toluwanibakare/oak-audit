@@ -13,7 +13,10 @@ class OrganizationController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $orgs = Organization::where('created_by', auth('api')->id())->get();
+        $userId = auth('api')->id();
+        $orgs = Organization::where('created_by', $userId)
+            ->orWhereHas('members', fn($q) => $q->where('user_id', $userId))
+            ->get();
         return response()->json($orgs);
     }
 
