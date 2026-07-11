@@ -1,0 +1,1131 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AppShell } from "@/components/app-shell";
+import { WCard, WBadge, Annotation } from "@/components/wire";
+import {
+  Check, ChevronLeft, ChevronRight, FileText, Users, ListChecks,
+  ShieldCheck, Send, CalendarRange, Search, X, Plus, History, Mail, Bell, Trash2, Pencil,
+} from "lucide-react";
+import {
+  auditStore, useAuditStore, nextAuditId,
+  type ApprovalStage, type ApprovalStatus, type EditableChecklist, type ChecklistItem,
+} from "@/lib/audit-store";
+import { CHECKLIST_LIBRARY, recommendedFor, getChecklist } from "@/lib/iso-checklists";
+
+export const Route = createFileRoute("/audits/new")({
+  head: () => ({
+    meta: [
+      { title: "Create New Audit — AuditOS" },
+      { name: "description", content: "Step-by-step wizard to plan, staff, and launch a new ISO internal audit." },
+    ],
+  }),
+  component: NewAuditWizard,
+});
+
+/* ---------------- data ---------------- */
+
+const STANDARDS = [
+  { id: "9001", code: "ISO 9001:2015", name: "Quality Management" },
+  { id: "14001", code: "ISO 14001:2015", name: "Environmental Management" },
+  { id: "45001", code: "ISO 45001:2018", name: "Occupational H&S" },
+  { id: "27001", code: "ISO/IEC 27001:2022", name: "Information Security" },
+  { id: "22301", code: "ISO 22301:2019", name: "Business Continuity" },
+  { id: "ims", code: "Integrated (9001/14001/45001)", name: "IMS — Quality + Environment + OH&S" },
+  { id: "hse", code: "Combined (14001/45001)", name: "HSE — Environment + OH&S" },
+];
+
+const DEPARTMENTS = ["Operations", "HSE", "IT & Security", "Quality", "Logistics", "HR", "Finance", "R&D", "Sustainability"];
+const LOCATIONS = ["Plant A — Hamburg", "Plant B — Rotterdam", "DC — Antwerp", "HQ — Berlin", "Data Center — Frankfurt"];
+
+const PEOPLE = [
+  { id: "u1", name: "M. Chen", role: "Lead Auditor", load: 72, cert: ["ISO 9001", "ISO 14001"], email: "m.chen@org.com" },
+  { id: "u2", name: "R. Patel", role: "Senior Auditor", load: 58, cert: ["ISO 27001"], email: "r.patel@org.com" },
+  { id: "u3", name: "L. Okafor", role: "Auditor", load: 41, cert: ["ISO 14001", "ISO 45001"], email: "l.okafor@org.com" },
+  { id: "u4", name: "S. Müller", role: "Lead Auditor", load: 86, cert: ["ISO 22301", "ISO 9001"], email: "s.muller@org.com" },
+  { id: "u5", name: "J. Auditor", role: "Auditor", load: 33, cert: ["ISO 9001"], email: "j.auditor@org.com" },
+  { id: "u6", name: "A. Novak", role: "Technical Expert", load: 22, cert: ["ISO 45001"], email: "a.novak@org.com" },
+  { id: "u7", name: "D. Rossi", role: "Observer", load: 15, cert: [], email: "d.rossi@org.com" },
+];
+
+// Meta list for the "select checklist" cards
+const CHECKLISTS = CHECKLIST_LIBRARY.map((c) => ({
+  id: c.id, name: c.name, standard: c.standard, version: c.version, items: c.questions.length, integrated: !!c.integrated,
+}));
+
+// Seed items pulled straight from the library
+const SEED_ITEMS: Record<string, ChecklistItem[]> = Object.fromEntries(
+  CHECKLIST_LIBRARY.map((c) => [
+    c.id,
+    c.questions.map((q) => ({
+      id: q.id, text: q.text, section: q.section, owner: "u1", clause: q.clause,
+    })),
+  ]),
+);
+
+
+const DEFAULT_APPROVERS: ApprovalStage[] = [
+  { stage: "Plan Draft", role: "Lead Auditor", who: "M. Chen", required: true, status: "Approved" },
+  { stage: "Quality Manager Review", role: "Quality Manager", who: "K. Lindqvist", required: true, status: "Pending" },
+  { stage: "Management Representative Approval", role: "MR", who: "P. Almeida", required: true, status: "Pending" },
+  { stage: "Auditee Acknowledgement", role: "Department Head", who: "Auto-routed", required: false, status: "Pending" },
+];
+
+const STEPS = [
+  { key: "basics", label: "Basics", icon: FileText },
+  { key: "scope", label: "Scope & Schedule", icon: CalendarRange },
+  { key: "team", label: "Team", icon: Users },
+  { key: "checklists", label: "Checklists", icon: ListChecks },
+  { key: "approval", label: "Approval", icon: ShieldCheck },
+  { key: "review", label: "Review & Launch", icon: Send },
+] as const;
+
+type StepKey = typeof STEPS[number]["key"];
+
+/* ---------------- wizard ---------------- */
+
+function NewAuditWizard() {
+  const navigate = useNavigate();
+  const [step, setStep] = useState<StepKey>("basics");
+  const [planId, setPlanId] = useState(() => "AUD-2026-…");
+
+  // state
+  const [title, setTitle] = useState("ISO 9001 Internal Audit — Production Line A");
+  const [auditType, setAuditType] = useState("Internal");
+  const [standardId, setStandardId] = useState("9001");
+  const [objective, setObjective] = useState("Verify conformity to ISO 9001:2015 clauses 4–10 across production line A.");
+  const [scope, setScope] = useState("Production, document control, training records, calibration.");
+  const [criteria, setCriteria] = useState("ISO 9001:2015 · QMS Manual v3.2 · Reg. 21 CFR 820");
+  const [departments, setDepartments] = useState<string[]>(["Operations"]);
+  const [location, setLocation] = useState("Plant A — Hamburg");
+  const [startDate, setStartDate] = useState("2026-07-02");
+  const [endDate, setEndDate] = useState("2026-07-04");
+  const [leadId, setLeadId] = useState("u1");
+  const [teamIds, setTeamIds] = useState<string[]>(["u3"]);
+  const [checklistIds, setChecklistIds] = useState<string[]>(["cl-9001"]);
+  const [checklistItems, setChecklistItems] = useState<Record<string, ChecklistItem[]>>({
+    "cl-9001": SEED_ITEMS["cl-9001"],
+  });
+  const [deptAssignments, setDeptAssignments] = useState<Record<string, string[]>>({ Operations: ["u1"] });
+
+
+  const [approvers, setApprovers] = useState<ApprovalStage[]>(DEFAULT_APPROVERS);
+  const [submitted, setSubmitted] = useState(false);
+
+  const idx = STEPS.findIndex((s) => s.key === step);
+  const standard = STANDARDS.find((s) => s.id === standardId)!;
+  const lead = PEOPLE.find((p) => p.id === leadId)!;
+  const team = PEOPLE.filter((p) => teamIds.includes(p.id));
+  const selectedChecklists: EditableChecklist[] = checklistIds.map((id) => {
+    const c = CHECKLISTS.find((x) => x.id === id)!;
+    return {
+      id: c.id, name: c.name, standard: c.standard, version: c.version,
+      items: checklistItems[id] ?? [],
+    };
+  });
+  const totalItems = selectedChecklists.reduce((a, c) => a + c.items.length, 0);
+  const department = departments.length ? departments.join(", ") : "";
+
+
+  /* --------- Publish to calendar on mount + log creation --------- */
+  const bootRef = useRef(false);
+  useEffect(() => {
+    if (bootRef.current) return;
+    bootRef.current = true;
+    const id = nextAuditId();
+    setPlanId(id);
+    auditStore.upsertPlan({
+      id,
+      title, standard: standard.code, department, location,
+      startDate, endDate, lead: lead.name, teamCount: team.length + 1,
+      status: "Draft", createdAt: new Date().toISOString(),
+    });
+    auditStore.logTrail(id, { step: "wizard", field: "audit_created", to: id, note: "Draft auto-published to Audit Calendar" });
+    auditStore.snapshot(id, "basics", "Wizard launched — initial draft", {
+      title, standardId, auditType, department, location, startDate, endDate,
+    });
+    auditStore.notify({
+      channel: "in-app", to: "M. Chen", subject: `Draft ${id} created`,
+      body: `Your audit draft ${title} has been added to the calendar.`,
+    });
+  }, []);
+
+  /* --------- Keep calendar plan in sync with edits --------- */
+  useEffect(() => {
+    if (!bootRef.current) return;
+    // Map user IDs to display names for storage
+    const named: Record<string, string[]> = {};
+    for (const [d, ids] of Object.entries(deptAssignments)) {
+      named[d] = ids.map((id) => PEOPLE.find((p) => p.id === id)?.name ?? id);
+    }
+    auditStore.upsertPlan({
+      id: planId,
+      title, standard: standard.code, department, location,
+      startDate, endDate, lead: lead.name, teamCount: team.length + 1,
+      status: submitted ? "Pending Approval" : "Draft",
+      createdAt: new Date().toISOString(),
+      deptAssignments: named,
+    });
+  }, [title, standard.code, department, location, startDate, endDate, lead.name, team.length, submitted, planId, deptAssignments]);
+
+
+  /* --------- Tracking helper --------- */
+  function track<T extends string>(field: string, from: T, to: T) {
+    if (from === to) return;
+    auditStore.logTrail(planId, { step, field, from: String(from), to: String(to) });
+  }
+  function trackList(field: string, from: string[], to: string[]) {
+    const added = to.filter((x) => !from.includes(x));
+    const removed = from.filter((x) => !to.includes(x));
+    if (added.length) auditStore.logTrail(planId, { step, field, to: `+${added.join(", ")}` });
+    if (removed.length) auditStore.logTrail(planId, { step, field, to: `−${removed.join(", ")}` });
+  }
+
+  const validation = useMemo(() => ({
+    basics: !!title && !!standardId && !!auditType,
+    scope: !!scope && departments.length >= 1 && !!location && !!startDate && !!endDate,
+    team: !!leadId && team.length >= 1,
+    checklists: selectedChecklists.length >= 1 && totalItems >= 1,
+    approval: approvers.filter((a) => a.required).every((a) => !!a.who),
+    review: true,
+  } satisfies Record<StepKey, boolean>), [title, standardId, auditType, scope, department, location, startDate, endDate, leadId, team.length, selectedChecklists.length, totalItems, approvers]);
+
+  const canNext = validation[step];
+  function goNext() {
+    if (idx < STEPS.length - 1) {
+      const next = STEPS[idx + 1].key;
+      auditStore.snapshot(planId, step, `Advanced to ${next}`, {
+        title, standardId, scope, department, location, startDate, endDate,
+        leadId, teamIds, checklistIds, checklistItems, approvers,
+      });
+      setStep(next);
+    }
+  }
+  function goPrev() { if (idx > 0) setStep(STEPS[idx - 1].key); }
+
+  function toggleTeam(id: string) {
+    setTeamIds((t) => {
+      const next = t.includes(id) ? t.filter((x) => x !== id) : [...t, id];
+      trackList("team_members", t, next);
+      return next;
+    });
+  }
+  function toggleChecklist(id: string) {
+    setChecklistIds((t) => {
+      const next = t.includes(id) ? t.filter((x) => x !== id) : [...t, id];
+      trackList("checklists", t, next);
+      // Seed items when adding
+      if (!t.includes(id)) {
+        setChecklistItems((m) => m[id] ? m : { ...m, [id]: SEED_ITEMS[id] ?? [] });
+      }
+      return next;
+    });
+  }
+
+  function updateItems(clId: string, updater: (items: ChecklistItem[]) => ChecklistItem[], note: string) {
+    setChecklistItems((m) => {
+      const before = m[clId] ?? [];
+      const after = updater(before);
+      auditStore.logTrail(planId, { step: "checklists", field: `${clId}:${note}`, to: `${after.length} items` });
+      return { ...m, [clId]: after };
+    });
+  }
+
+  function updateApprover(i: number, patch: Partial<ApprovalStage>, note: string) {
+    setApprovers((prev) => {
+      const next = prev.map((a, idx) => idx === i ? { ...a, ...patch, updatedAt: new Date().toISOString() } : a);
+      auditStore.logTrail(planId, { step: "approval", field: `${next[i].stage}:${note}`, to: JSON.stringify(patch) });
+      return next;
+    });
+  }
+
+  function changeApprovalStatus(i: number, status: ApprovalStatus) {
+    const a = approvers[i];
+    updateApprover(i, { status }, `status→${status}`);
+    const emailSubject = `[${planId}] ${a.stage} — ${status}`;
+    const body = `Audit "${title}" (${standard.code}) — stage "${a.stage}" is now ${status}.`;
+    if (a.who) {
+      auditStore.notify({ channel: "email", to: a.who, subject: emailSubject, body });
+      auditStore.notify({ channel: "in-app", to: a.who, subject: emailSubject, body });
+    }
+    auditStore.notify({ channel: "in-app", to: "M. Chen (creator)", subject: emailSubject, body });
+  }
+
+  function submit() {
+    setSubmitted(true);
+    auditStore.logTrail(planId, { step: "review", field: "submitted_for_approval", to: "Pending Approval" });
+    auditStore.snapshot(planId, "review", "Submitted for approval", {
+      title, standardId, department, location, startDate, endDate, leadId, teamIds, checklistIds, approvers,
+    });
+    // Notify first required pending stage + auto-mark as Notified
+    const firstIdx = approvers.findIndex((a) => a.required && a.status === "Pending");
+    if (firstIdx >= 0) {
+      const a = approvers[firstIdx];
+      updateApprover(firstIdx, { status: "Notified" }, "status→Notified");
+      auditStore.notify({
+        channel: "email", to: a.who,
+        subject: `Approval requested · ${planId} · ${a.stage}`,
+        body: `Please review and approve audit "${title}" (${standard.code}).`,
+      });
+      auditStore.notify({
+        channel: "in-app", to: a.who,
+        subject: `Approval requested · ${planId}`,
+        body: `${a.stage} — please review and approve.`,
+      });
+    }
+  }
+
+  return (
+    <AppShell title="Create New Audit" annotation="02 · NEW AUDIT WIZARD">
+      {submitted ? (
+        <Submitted
+          planId={planId}
+          title={title} standard={standard.code} startDate={startDate} endDate={endDate}
+          lead={lead.name} teamCount={team.length} items={totalItems}
+          approvers={approvers}
+          onDashboard={() => navigate({ to: "/" })}
+          onAnother={() => { setSubmitted(false); setStep("basics"); }}
+          onCalendar={() => navigate({ to: "/audits/calendar" })}
+        />
+      ) : (
+        <div className="grid grid-cols-12 gap-4">
+          {/* Stepper */}
+          <aside className="col-span-12 xl:col-span-3">
+            <div className="wire-card rounded-lg p-3 xl:sticky xl:top-20">
+              <Annotation>WIZARD STEPS</Annotation>
+              <ol className="mt-2 space-y-1">
+                {STEPS.map((s, i) => {
+                  const Icon = s.icon;
+                  const active = s.key === step;
+                  const done = i < idx;
+                  return (
+                    <li key={s.key}>
+                      <button
+                        onClick={() => setStep(s.key)}
+                        className={`w-full flex items-center gap-3 px-2 py-2 rounded-md text-left text-sm ${active ? "bg-foreground text-background" : "hover:bg-muted"}`}>
+                        <span className={`h-6 w-6 grid place-items-center rounded-full text-[11px] border ${active ? "border-background" : done ? "bg-foreground text-background border-foreground" : "border-border bg-card"}`}>
+                          {done ? <Check className="h-3 w-3" /> : i + 1}
+                        </span>
+                        <Icon className="h-4 w-4 opacity-70" />
+                        <span className="flex-1 truncate">{s.label}</span>
+                        {validation[s.key] ? null : <span className="annotation opacity-70">REQ</span>}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+              <div className="border-t border-border mt-3 pt-3 space-y-1.5 text-xs">
+                <Row k="Ref." v={planId} />
+                <Row k="Audit" v={title} />
+                <Row k="Standard" v={standard.code} />
+                <Row k="Depts." v={departments.length ? `${departments.length} · ${department}` : "—"} />
+                <Row k="Dates" v={`${startDate} → ${endDate}`} />
+                <Row k="Lead" v={lead.name} />
+                <Row k="Team" v={`${team.length} member${team.length !== 1 ? "s" : ""}`} />
+                <Row k="Checklists" v={`${selectedChecklists.length} · ${totalItems} items`} />
+              </div>
+              <div className="border-t border-border mt-3 pt-3">
+                <div className="annotation flex items-center gap-1.5"><Bell className="h-3 w-3" /> AUTO-PUBLISHED</div>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Draft <span className="text-foreground">{planId}</span> is already visible on the Audit Calendar.
+                </p>
+              </div>
+            </div>
+          </aside>
+
+          {/* Content */}
+          <section className="col-span-12 xl:col-span-9 space-y-4">
+            {step === "basics" && (
+              <BasicsStep
+                title={title} setTitle={(v) => { track("title", title, v); setTitle(v); }}
+                auditType={auditType} setAuditType={(v) => { track("audit_type", auditType, v); setAuditType(v); }}
+                standardId={standardId} setStandardId={(v) => { track("standard", standardId, v); setStandardId(v); }}
+                objective={objective} setObjective={(v) => { track("objective", objective, v); setObjective(v); }}
+              />
+            )}
+            {step === "scope" && (
+              <ScopeStep
+                scope={scope} setScope={(v) => { track("scope", scope, v); setScope(v); }}
+                criteria={criteria} setCriteria={(v) => { track("criteria", criteria, v); setCriteria(v); }}
+                departments={departments} setDepartments={(v) => {
+                  trackList("departments", departments, v);
+                  setDepartments(v);
+                  // Prune assignments for removed depts; seed new depts empty
+                  setDeptAssignments((prev) => {
+                    const next: Record<string, string[]> = {};
+                    v.forEach((d) => { next[d] = prev[d] ?? []; });
+                    return next;
+                  });
+                }}
+                location={location} setLocation={(v) => { track("location", location, v); setLocation(v); }}
+                startDate={startDate} setStartDate={(v) => { track("start_date", startDate, v); setStartDate(v); }}
+                endDate={endDate} setEndDate={(v) => { track("end_date", endDate, v); setEndDate(v); }}
+                deptAssignments={deptAssignments}
+                setDeptAssignments={(next) => {
+                  auditStore.logTrail(planId, { step: "scope", field: "dept_assignments", to: JSON.stringify(Object.fromEntries(Object.entries(next).map(([d, ids]) => [d, ids.length]))) });
+                  setDeptAssignments(next);
+                }}
+              />
+            )}
+
+            {step === "team" && (
+              <TeamStep
+                leadId={leadId}
+                setLeadId={(v) => { track("lead_auditor", leadId, v); setLeadId(v); }}
+                teamIds={teamIds} toggleTeam={toggleTeam}
+                standard={standard.code}
+              />
+            )}
+            {step === "checklists" && (
+              <ChecklistsStep
+                selected={checklistIds} toggle={toggleChecklist}
+                standard={standard.code}
+                selectedChecklists={selectedChecklists}
+                updateItems={updateItems}
+              />
+            )}
+            {step === "approval" && (
+              <ApprovalStep
+                approvers={approvers}
+                updateApprover={updateApprover}
+                changeStatus={changeApprovalStatus}
+                addStage={() => {
+                  setApprovers([...approvers, { stage: "Additional Approver", role: "Custom", who: "", required: false, status: "Pending" }]);
+                  auditStore.logTrail(planId, { step: "approval", field: "stage_added", to: "Additional Approver" });
+                }}
+                removeStage={(i) => {
+                  const removed = approvers[i];
+                  setApprovers(approvers.filter((_, x) => x !== i));
+                  auditStore.logTrail(planId, { step: "approval", field: "stage_removed", to: removed.stage });
+                }}
+              />
+            )}
+            {step === "review" && (
+              <ReviewStep
+                title={title} standard={standard.code} objective={objective} scope={scope} criteria={criteria}
+                department={department} location={location} startDate={startDate} endDate={endDate}
+                lead={lead} team={team} checklists={selectedChecklists} approvers={approvers}
+              />
+            )}
+
+            {/* Footer nav */}
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <button onClick={goPrev} disabled={idx === 0}
+                className="h-9 px-3 inline-flex items-center gap-1.5 rounded-md border border-border text-sm disabled:opacity-40 hover:bg-muted">
+                <ChevronLeft className="h-4 w-4" /> Back
+              </button>
+              <div className="text-xs text-muted-foreground">Step {idx + 1} of {STEPS.length}</div>
+              {idx < STEPS.length - 1 ? (
+                <button onClick={goNext} disabled={!canNext}
+                  className="h-9 px-4 inline-flex items-center gap-1.5 rounded-md bg-foreground text-background text-sm font-medium disabled:opacity-40">
+                  Continue <ChevronRight className="h-4 w-4" />
+                </button>
+              ) : (
+                <button onClick={submit}
+                  className="h-9 px-4 inline-flex items-center gap-1.5 rounded-md bg-foreground text-background text-sm font-medium">
+                  Submit for Approval <Send className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            {/* History & Trail */}
+            <HistoryPanel planId={planId} />
+          </section>
+        </div>
+      )}
+    </AppShell>
+  );
+}
+
+/* ---------------- shared ---------------- */
+
+function Row({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex gap-2">
+      <span className="annotation w-16 shrink-0">{k}</span>
+      <span className="flex-1 truncate text-foreground">{v}</span>
+    </div>
+  );
+}
+
+function Field({ label, hint, children, className }: { label: string; hint?: string; children: React.ReactNode; className?: string }) {
+  return (
+    <label className={`flex flex-col gap-1 ${className ?? ""}`}>
+      <span className="annotation">{label}</span>
+      {children}
+      {hint && <span className="text-[11px] text-muted-foreground">{hint}</span>}
+    </label>
+  );
+}
+
+const inputCls = "h-9 px-2 rounded-md border border-input bg-muted/30 text-sm outline-none focus:border-ring";
+const areaCls = "min-h-[90px] w-full p-2 rounded-md border border-input bg-muted/30 text-sm outline-none focus:border-ring";
+
+/* ---------------- step components ---------------- */
+
+function BasicsStep(p: {
+  title: string; setTitle: (v: string) => void;
+  auditType: string; setAuditType: (v: string) => void;
+  standardId: string; setStandardId: (v: string) => void;
+  objective: string; setObjective: (v: string) => void;
+}) {
+  return (
+    <WCard title="Audit Basics" hint="Identify the audit and its objective">
+      <div className="grid grid-cols-12 gap-3">
+        <Field label="Audit Title*" className="col-span-12">
+          <input className={inputCls} value={p.title} onChange={(e) => p.setTitle(e.target.value)} />
+        </Field>
+        <div className="col-span-12 grid grid-cols-2 gap-3">
+          <Field label="Audit Type*">
+            <select className={inputCls} value={p.auditType} onChange={(e) => p.setAuditType(e.target.value)}>
+              {["Internal", "Supplier", "Surveillance", "Certification", "Follow-up", "Process"].map((t) => <option key={t}>{t}</option>)}
+            </select>
+          </Field>
+          <Field label="ISO Standard*">
+            <select className={inputCls} value={p.standardId} onChange={(e) => p.setStandardId(e.target.value)}>
+              {STANDARDS.map((s) => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
+            </select>
+          </Field>
+        </div>
+        <Field label="Audit Objective*" className="col-span-12" hint="What this audit is intended to verify or assess">
+          <textarea className={areaCls} value={p.objective} onChange={(e) => p.setObjective(e.target.value)} />
+        </Field>
+      </div>
+    </WCard>
+  );
+}
+
+function ScopeStep(p: {
+  scope: string; setScope: (v: string) => void;
+  criteria: string; setCriteria: (v: string) => void;
+  departments: string[]; setDepartments: (v: string[]) => void;
+  location: string; setLocation: (v: string) => void;
+  startDate: string; setStartDate: (v: string) => void;
+  endDate: string; setEndDate: (v: string) => void;
+  deptAssignments: Record<string, string[]>;
+  setDeptAssignments: (next: Record<string, string[]>) => void;
+}) {
+  function toggleDept(d: string) {
+    const next = p.departments.includes(d) ? p.departments.filter((x) => x !== d) : [...p.departments, d];
+    p.setDepartments(next);
+  }
+  function selectAll() { p.setDepartments([...DEPARTMENTS]); }
+  function clearAll() { p.setDepartments([]); }
+  function toggleAuditor(dept: string, uid: string) {
+    const cur = p.deptAssignments[dept] ?? [];
+    const nextIds = cur.includes(uid) ? cur.filter((x) => x !== uid) : [...cur, uid];
+    p.setDeptAssignments({ ...p.deptAssignments, [dept]: nextIds });
+  }
+  return (
+    <>
+      <WCard title="Scope & Criteria">
+        <div className="grid gap-3">
+          <Field label="Audit Scope*">
+            <textarea className={areaCls} value={p.scope} onChange={(e) => p.setScope(e.target.value)} />
+          </Field>
+          <Field label="Audit Criteria*" hint="Standards, manuals, regulations, contracts">
+            <textarea className={areaCls} value={p.criteria} onChange={(e) => p.setCriteria(e.target.value)} />
+          </Field>
+        </div>
+      </WCard>
+      <WCard
+        title="Departments in Scope*"
+        hint="Select one or more departments — the same audit will cover each."
+        actions={
+          <div className="flex gap-1">
+            <WBadge tone="strong">{p.departments.length} selected</WBadge>
+            <button onClick={selectAll} className="h-6 px-2 rounded border border-border text-[11px] hover:bg-muted">All</button>
+            <button onClick={clearAll} className="h-6 px-2 rounded border border-border text-[11px] hover:bg-muted">Clear</button>
+          </div>
+        }
+      >
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          {DEPARTMENTS.map((d) => {
+            const on = p.departments.includes(d);
+            return (
+              <button
+                key={d}
+                onClick={() => toggleDept(d)}
+                className={`text-left rounded-md border p-2.5 text-sm inline-flex items-center gap-2 ${on ? "border-foreground bg-muted" : "border-border hover:bg-muted/40"}`}
+              >
+                <span className={`h-4 w-4 rounded border grid place-items-center ${on ? "bg-foreground border-foreground text-background" : "border-border"}`}>
+                  {on && <Check className="h-3 w-3" />}
+                </span>
+                <span className="truncate">{d}</span>
+              </button>
+            );
+          })}
+        </div>
+        {p.departments.length === 0 && (
+          <div className="annotation mt-2 text-destructive/80">↳ Select at least one department to continue.</div>
+        )}
+      </WCard>
+
+      {p.departments.length > 0 && (
+        <WCard title="Assign Auditors per Department"
+          hint="Each department can be audited by one or more assigned auditors."
+          actions={<WBadge tone="outline">{Object.values(p.deptAssignments).reduce((a, ids) => a + ids.length, 0)} assignments</WBadge>}>
+          <div className="space-y-3">
+            {p.departments.map((d) => {
+              const assigned = p.deptAssignments[d] ?? [];
+              return (
+                <div key={d} className="rounded-md border border-border p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm font-medium">{d}</div>
+                    <WBadge tone={assigned.length ? "strong" : "outline"}>
+                      {assigned.length ? `${assigned.length} auditor${assigned.length > 1 ? "s" : ""}` : "Unassigned"}
+                    </WBadge>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+                    {PEOPLE.map((u) => {
+                      const on = assigned.includes(u.id);
+                      return (
+                        <button key={u.id} onClick={() => toggleAuditor(d, u.id)}
+                          className={`text-left rounded-md border p-2 text-xs inline-flex items-center gap-2 ${on ? "border-foreground bg-muted" : "border-border hover:bg-muted/40"}`}>
+                          <span className={`h-4 w-4 rounded border grid place-items-center ${on ? "bg-foreground border-foreground text-background" : "border-border"}`}>
+                            {on && <Check className="h-3 w-3" />}
+                          </span>
+                          <span className="truncate flex-1">
+                            <span className="font-medium">{u.name}</span>
+                            <span className="text-muted-foreground"> · {u.role}</span>
+                          </span>
+                          {u.cert.length > 0 && <span className="annotation opacity-70">{u.cert[0]}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {assigned.length === 0 && (
+                    <div className="annotation mt-2 opacity-70">↳ Optional — assign at least one auditor for accountability.</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </WCard>
+      )}
+
+      <WCard title="Where & When">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Location*">
+            <select className={inputCls} value={p.location} onChange={(e) => p.setLocation(e.target.value)}>
+              {LOCATIONS.map((l) => <option key={l}>{l}</option>)}
+            </select>
+          </Field>
+          <div />
+          <Field label="Start Date*">
+            <input type="date" className={inputCls} value={p.startDate} onChange={(e) => p.setStartDate(e.target.value)} />
+          </Field>
+          <Field label="End Date*">
+            <input type="date" className={inputCls} value={p.endDate} onChange={(e) => p.setEndDate(e.target.value)} />
+          </Field>
+        </div>
+      </WCard>
+    </>
+  );
+}
+
+
+
+function TeamStep(p: { leadId: string; setLeadId: (v: string) => void; teamIds: string[]; toggleTeam: (id: string) => void; standard: string }) {
+  const [q, setQ] = useState("");
+  const filtered = PEOPLE.filter((u) => u.name.toLowerCase().includes(q.toLowerCase()) || u.role.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <WCard title="Assign Audit Team" hint={`Recommended certifications: ${p.standard}`}>
+      <div className="mb-3 relative">
+        <Search className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search auditors by name or role…"
+          className="w-full h-9 pl-8 pr-3 rounded-md border border-input bg-muted/30 text-sm" />
+      </div>
+      <div className="grid grid-cols-12 text-[11px] annotation border-b border-border pb-2">
+        <div className="col-span-1">LEAD</div>
+        <div className="col-span-1">TEAM</div>
+        <div className="col-span-3">AUDITOR</div>
+        <div className="col-span-2">ROLE</div>
+        <div className="col-span-3">CERTIFICATIONS</div>
+        <div className="col-span-2">WORKLOAD</div>
+      </div>
+      <ul className="divide-y divide-dashed divide-border">
+        {filtered.map((u) => {
+          const isLead = p.leadId === u.id;
+          const onTeam = p.teamIds.includes(u.id);
+          const matchesStd = u.cert.some((c) => p.standard.startsWith(c));
+          return (
+            <li key={u.id} className="grid grid-cols-12 items-center py-2.5 text-xs">
+              <div className="col-span-1">
+                <input type="radio" name="lead" checked={isLead} onChange={() => p.setLeadId(u.id)} />
+              </div>
+              <div className="col-span-1">
+                <input type="checkbox" checked={onTeam || isLead} disabled={isLead} onChange={() => p.toggleTeam(u.id)} />
+              </div>
+              <div className="col-span-3 flex items-center gap-2 min-w-0">
+                <div className="h-7 w-7 rounded-full wire-box shrink-0" />
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{u.name}</div>
+                  <Annotation>{u.id.toUpperCase()}</Annotation>
+                </div>
+              </div>
+              <div className="col-span-2 text-muted-foreground">{u.role}</div>
+              <div className="col-span-3 flex flex-wrap gap-1">
+                {u.cert.length === 0 && <span className="text-muted-foreground">—</span>}
+                {u.cert.map((c) => <WBadge key={c} tone={p.standard.startsWith(c) ? "strong" : "outline"}>{c}</WBadge>)}
+                {matchesStd && <WBadge tone="strong">MATCH</WBadge>}
+              </div>
+              <div className="col-span-2">
+                <div className="h-1.5 rounded bg-muted overflow-hidden">
+                  <div className="h-full bg-foreground/70" style={{ width: `${u.load}%` }} />
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">{u.load}% allocated</div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="annotation pt-3">↳ Selected lead is automatically included in the team. Conflicts-of-interest checked on submit.</div>
+    </WCard>
+  );
+}
+
+/* ---------------- checklists ---------------- */
+
+function ChecklistsStep(p: {
+  selected: string[]; toggle: (id: string) => void; standard: string;
+  selectedChecklists: EditableChecklist[];
+  updateItems: (clId: string, updater: (items: ChecklistItem[]) => ChecklistItem[], note: string) => void;
+}) {
+  const recIds = new Set(recommendedFor(p.standard).map((c) => c.id));
+  const recommended = CHECKLISTS.filter((c) => recIds.has(c.id));
+  const others = CHECKLISTS.filter((c) => !recIds.has(c.id));
+
+  const total = p.selectedChecklists.reduce((a, c) => a + c.items.length, 0);
+
+  return (
+    <>
+      <WCard title="Select Audit Checklists" hint={`Filtered by standard · ${p.standard}`}
+        actions={<WBadge tone="strong">{p.selected.length} selected · {total} items</WBadge>}>
+        <Annotation>RECOMMENDED FOR THIS STANDARD</Annotation>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+          {recommended.map((c) => <ChecklistCard key={c.id} c={c} on={p.selected.includes(c.id)} toggle={() => p.toggle(c.id)} recommended />)}
+        </div>
+        <Annotation>OTHER LIBRARY CHECKLISTS</Annotation>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+          {others.map((c) => <ChecklistCard key={c.id} c={c} on={p.selected.includes(c.id)} toggle={() => p.toggle(c.id)} />)}
+        </div>
+      </WCard>
+
+      {p.selectedChecklists.map((cl) => (
+        <ChecklistEditor key={cl.id} cl={cl}
+          onChange={(updater, note) => p.updateItems(cl.id, updater, note)} />
+      ))}
+
+      {p.selectedChecklists.length === 0 && (
+        <WCard title="No checklists selected"><div className="text-xs text-muted-foreground">Pick at least one checklist to edit items and assign owners.</div></WCard>
+      )}
+    </>
+  );
+}
+
+function ChecklistCard({ c, on, toggle, recommended }: { c: typeof CHECKLISTS[number]; on: boolean; toggle: () => void; recommended?: boolean }) {
+  return (
+    <button onClick={toggle}
+      className={`text-left rounded-md border p-3 transition-colors ${on ? "border-foreground bg-muted" : "border-border hover:bg-muted/40"}`}>
+      <div className="flex items-start gap-2">
+        <div className={`h-4 w-4 mt-0.5 rounded border grid place-items-center ${on ? "bg-foreground border-foreground text-background" : "border-border"}`}>
+          {on && <Check className="h-3 w-3" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="text-sm font-medium truncate">{c.name}</div>
+            {c.integrated && <WBadge tone="strong">INTEGRATED</WBadge>}
+            {recommended && <WBadge tone="strong">REC</WBadge>}
+          </div>
+          <div className="annotation mt-1">{c.standard} · {c.items} items · {c.version}</div>
+
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function ChecklistEditor({ cl, onChange }: {
+  cl: EditableChecklist;
+  onChange: (updater: (items: ChecklistItem[]) => ChecklistItem[], note: string) => void;
+}) {
+  function addItem() {
+    onChange((items) => [...items, {
+      id: `i_${Date.now()}`, text: "New checklist item", section: "Unassigned", owner: "u1",
+    }], "added");
+  }
+  function update(id: string, patch: Partial<ChecklistItem>) {
+    onChange((items) => items.map((it) => it.id === id ? { ...it, ...patch } : it), `edited:${Object.keys(patch).join(",")}`);
+  }
+  function remove(id: string) {
+    onChange((items) => items.filter((it) => it.id !== id), "removed");
+  }
+  return (
+    <WCard
+      title={`Edit · ${cl.name}`}
+      hint={`${cl.standard} · ${cl.version}`}
+      actions={<WBadge tone="outline">{cl.items.length} items</WBadge>}
+    >
+      <div className="grid grid-cols-12 text-[11px] annotation border-b border-border pb-2">
+        <div className="col-span-1">#</div>
+        <div className="col-span-5">ITEM</div>
+        <div className="col-span-3">SECTION</div>
+        <div className="col-span-2">OWNER</div>
+        <div className="col-span-1"></div>
+      </div>
+      <ul className="divide-y divide-dashed divide-border">
+        {cl.items.map((it, i) => (
+          <li key={it.id} className="grid grid-cols-12 items-center gap-2 py-2 text-xs">
+            <div className="col-span-1 text-muted-foreground">{i + 1}</div>
+            <div className="col-span-5">
+              <input value={it.text} onChange={(e) => update(it.id, { text: e.target.value })}
+                className="w-full h-8 px-2 rounded border border-input bg-muted/30" />
+              {it.clause && <div className="annotation mt-0.5">Clause {it.clause}</div>}
+            </div>
+            <div className="col-span-3">
+              <input value={it.section} onChange={(e) => update(it.id, { section: e.target.value })}
+                className="w-full h-8 px-2 rounded border border-input bg-muted/30" />
+            </div>
+            <div className="col-span-2">
+              <select value={it.owner} onChange={(e) => update(it.id, { owner: e.target.value })}
+                className="w-full h-8 px-2 rounded border border-input bg-muted/30">
+                {PEOPLE.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+            <div className="col-span-1 flex justify-end">
+              <button onClick={() => remove(it.id)} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted">
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <button onClick={addItem} className="mt-3 w-full h-9 rounded-md border border-dashed border-border text-xs text-muted-foreground hover:bg-muted inline-flex items-center justify-center gap-1.5">
+        <Plus className="h-4 w-4" /> Add checklist item
+      </button>
+    </WCard>
+  );
+}
+
+/* ---------------- approval ---------------- */
+
+const STATUS_FLOW: ApprovalStatus[] = ["Pending", "Notified", "In Review", "Approved", "Rejected"];
+
+function ApprovalStep({ approvers, updateApprover, changeStatus, addStage, removeStage }: {
+  approvers: ApprovalStage[];
+  updateApprover: (i: number, patch: Partial<ApprovalStage>, note: string) => void;
+  changeStatus: (i: number, s: ApprovalStatus) => void;
+  addStage: () => void;
+  removeStage: (i: number) => void;
+}) {
+  return (
+    <WCard title="Approval Workflow" hint="Sequential — status changes trigger email + in-app notifications"
+      actions={<WBadge tone="outline"><Mail className="h-3 w-3 inline mr-1" />Notifications on</WBadge>}>
+      <ol className="space-y-3">
+        {approvers.map((a, i) => (
+          <li key={i} className="rounded-md border border-border p-3">
+            <div className="flex items-start gap-3">
+              <div className="h-7 w-7 rounded-full border border-border grid place-items-center text-xs font-semibold shrink-0">{i + 1}</div>
+              <div className="flex-1 grid grid-cols-12 gap-3 items-center">
+                <div className="col-span-12 md:col-span-4">
+                  <Annotation>STAGE</Annotation>
+                  <div className="text-sm font-medium">{a.stage}</div>
+                  <div className="text-[11px] text-muted-foreground">{a.role}</div>
+                </div>
+                <div className="col-span-12 md:col-span-5">
+                  <Annotation>APPROVER</Annotation>
+                  <input className={inputCls + " w-full"} value={a.who}
+                    onChange={(e) => updateApprover(i, { who: e.target.value }, "who")}
+                    placeholder="Assign approver…" />
+                </div>
+                <div className="col-span-12 md:col-span-3 flex items-center gap-2 justify-end">
+                  <WBadge tone={a.required ? "strong" : "outline"}>{a.required ? "Required" : "Optional"}</WBadge>
+                  {!a.required && (
+                    <button onClick={() => removeStage(i)} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted">
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            <ApprovalStatusBar status={a.status} />
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="annotation">SET STATUS:</span>
+              {STATUS_FLOW.map((s) => (
+                <button key={s} onClick={() => changeStatus(i, s)}
+                  className={`h-7 px-2 rounded border text-[11px] ${a.status === s ? "bg-foreground text-background border-foreground" : "border-border hover:bg-muted"}`}>
+                  {s}
+                </button>
+              ))}
+              {a.updatedAt && <span className="annotation ml-auto">Updated {new Date(a.updatedAt).toLocaleTimeString()}</span>}
+            </div>
+          </li>
+        ))}
+      </ol>
+      <button onClick={addStage} className="mt-3 w-full h-9 rounded-md border border-dashed border-border text-xs text-muted-foreground hover:bg-muted inline-flex items-center justify-center gap-1.5">
+        <Plus className="h-4 w-4" /> Add approval stage
+      </button>
+      <div className="annotation pt-3 flex items-center gap-1.5"><Bell className="h-3 w-3" /> Every status change pushes an email to the approver and an in-app notice to the creator.</div>
+    </WCard>
+  );
+}
+
+function ApprovalStatusBar({ status }: { status: ApprovalStatus }) {
+  const order: ApprovalStatus[] = ["Pending", "Notified", "In Review", "Approved"];
+  const reached = status === "Rejected" ? -1 : order.indexOf(status);
+  return (
+    <div className="mt-3 grid grid-cols-4 gap-1">
+      {order.map((s, i) => (
+        <div key={s} className="space-y-1">
+          <div className={`h-1 rounded ${
+            status === "Rejected" ? "bg-muted" : i <= reached ? "bg-foreground" : "bg-muted"
+          }`} />
+          <div className="annotation">{s}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ---------------- review ---------------- */
+
+function ReviewStep(p: {
+  title: string; standard: string; objective: string; scope: string; criteria: string;
+  department: string; location: string; startDate: string; endDate: string;
+  lead: typeof PEOPLE[number]; team: typeof PEOPLE; checklists: EditableChecklist[];
+  approvers: ApprovalStage[];
+}) {
+  const totalItems = p.checklists.reduce((a, c) => a + c.items.length, 0);
+  return (
+    <>
+      <WCard title="Audit Plan Summary" hint="Verify details before submitting for approval"
+        actions={<><WBadge tone="outline">Export PDF</WBadge><WBadge tone="outline">Save Draft</WBadge></>}>
+        <div className="grid grid-cols-12 gap-4 text-xs">
+          <Block className="col-span-12" label="Title">{p.title}</Block>
+          <Block className="col-span-6" label="Standard">{p.standard}</Block>
+          <Block className="col-span-6" label="Department · Location">{p.department} · {p.location}</Block>
+          <Block className="col-span-12" label="Objective">{p.objective}</Block>
+          <Block className="col-span-6" label="Scope">{p.scope}</Block>
+          <Block className="col-span-6" label="Criteria">{p.criteria}</Block>
+          <Block className="col-span-4" label="Start">{p.startDate}</Block>
+          <Block className="col-span-4" label="End">{p.endDate}</Block>
+          <Block className="col-span-4" label="Lead Auditor">{p.lead.name} · {p.lead.role}</Block>
+        </div>
+      </WCard>
+
+      <div className="grid grid-cols-12 gap-4">
+        <WCard className="col-span-12 md:col-span-6" title={`Team · ${p.team.length} member${p.team.length !== 1 ? "s" : ""}`}>
+          <ul className="space-y-2">
+            {[p.lead, ...p.team.filter((t) => t.id !== p.lead.id)].map((u) => (
+              <li key={u.id} className="flex items-center gap-2 text-xs">
+                <div className="h-7 w-7 rounded-full wire-box shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{u.name} {u.id === p.lead.id && <WBadge tone="strong">LEAD</WBadge>}</div>
+                  <Annotation>{u.role}</Annotation>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {u.cert.map((c) => <WBadge key={c} tone="outline">{c}</WBadge>)}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </WCard>
+
+        <WCard className="col-span-12 md:col-span-6" title={`Checklists · ${p.checklists.length} · ${totalItems} items`}>
+          <ul className="space-y-2">
+            {p.checklists.map((c) => (
+              <li key={c.id} className="text-xs">
+                <div className="flex items-center gap-2">
+                  <ListChecks className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{c.name}</div>
+                    <Annotation>{c.standard} · {c.items.length} items · {c.version}</Annotation>
+                  </div>
+                </div>
+                <ul className="ml-6 mt-1 space-y-0.5 text-[11px] text-muted-foreground">
+                  {c.items.slice(0, 4).map((it) => (
+                    <li key={it.id} className="truncate">· {it.text} <span className="opacity-70">({PEOPLE.find((u) => u.id === it.owner)?.name ?? it.owner})</span></li>
+                  ))}
+                  {c.items.length > 4 && <li className="opacity-70">+ {c.items.length - 4} more</li>}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </WCard>
+      </div>
+
+      <WCard title="Approval Routing">
+        <ol className="grid grid-cols-1 md:grid-cols-4 gap-2">
+          {p.approvers.map((a, i) => (
+            <li key={i} className="rounded-md border border-border p-3 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-full border border-border grid place-items-center text-[11px]">{i + 1}</div>
+                <span className="font-medium truncate">{a.stage}</span>
+              </div>
+              <Annotation>APPROVER</Annotation>
+              <div className="text-foreground">{a.who || "—"}</div>
+              <div className="mt-2 flex items-center gap-1">
+                <WBadge tone={a.required ? "strong" : "outline"}>{a.required ? "Required" : "Optional"}</WBadge>
+                <WBadge tone="outline">{a.status}</WBadge>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </WCard>
+    </>
+  );
+}
+
+function Block({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-md border border-border p-3 bg-muted/20 ${className}`}>
+      <Annotation>{label}</Annotation>
+      <div className="text-foreground text-xs mt-1 leading-relaxed">{children}</div>
+    </div>
+  );
+}
+
+/* ---------------- history & trail ---------------- */
+
+function HistoryPanel({ planId }: { planId: string }) {
+  const versions = useAuditStore((s) => s.versions[planId] ?? []);
+  const trail = useAuditStore((s) => s.trail[planId] ?? []);
+  const notifications = useAuditStore((s) => s.notifications);
+  const [tab, setTab] = useState<"trail" | "versions" | "notifications">("trail");
+
+  return (
+    <WCard
+      title="Audit Trail & Version History"
+      hint="Every wizard change is captured automatically"
+      actions={
+        <div className="flex gap-1">
+          <TabBtn active={tab === "trail"} onClick={() => setTab("trail")}><History className="h-3 w-3" /> Trail ({trail.length})</TabBtn>
+          <TabBtn active={tab === "versions"} onClick={() => setTab("versions")}>Versions ({versions.length})</TabBtn>
+          <TabBtn active={tab === "notifications"} onClick={() => setTab("notifications")}><Bell className="h-3 w-3" /> Notifications ({notifications.length})</TabBtn>
+        </div>
+      }
+    >
+      {tab === "trail" && (
+        <ul className="divide-y divide-dashed divide-border text-xs max-h-72 overflow-auto">
+          {trail.length === 0 && <li className="py-3 text-muted-foreground">No changes recorded yet.</li>}
+          {[...trail].reverse().map((e, i) => (
+            <li key={i} className="py-2 grid grid-cols-12 gap-2">
+              <span className="col-span-3 annotation truncate">{new Date(e.ts).toLocaleTimeString()} · {e.step}</span>
+              <span className="col-span-2 text-foreground truncate">{e.actor}</span>
+              <span className="col-span-3 truncate"><Pencil className="h-3 w-3 inline opacity-50 mr-1" />{e.field}</span>
+              <span className="col-span-4 text-muted-foreground truncate">
+                {e.from !== undefined && <span className="line-through opacity-60 mr-1">{e.from}</span>}
+                {e.to ?? e.note}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {tab === "versions" && (
+        <ul className="divide-y divide-dashed divide-border text-xs max-h-72 overflow-auto">
+          {versions.length === 0 && <li className="py-3 text-muted-foreground">No snapshots yet.</li>}
+          {[...versions].reverse().map((v) => (
+            <li key={v.v} className="py-2 grid grid-cols-12 gap-2 items-center">
+              <span className="col-span-1"><WBadge tone="strong">v{v.v}</WBadge></span>
+              <span className="col-span-3 annotation truncate">{new Date(v.ts).toLocaleString()}</span>
+              <span className="col-span-2 truncate">{v.actor}</span>
+              <span className="col-span-3 truncate">{v.step}</span>
+              <span className="col-span-3 text-muted-foreground truncate">{v.note}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {tab === "notifications" && (
+        <ul className="divide-y divide-dashed divide-border text-xs max-h-72 overflow-auto">
+          {notifications.length === 0 && <li className="py-3 text-muted-foreground">No notifications yet.</li>}
+          {notifications.map((n) => (
+            <li key={n.id} className="py-2 grid grid-cols-12 gap-2 items-center">
+              <span className="col-span-1">
+                {n.channel === "email" ? <Mail className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
+              </span>
+              <span className="col-span-2 annotation truncate">{new Date(n.ts).toLocaleTimeString()}</span>
+              <span className="col-span-3 truncate">{n.to}</span>
+              <span className="col-span-6 truncate text-muted-foreground">{n.subject}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </WCard>
+  );
+}
+
+function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick}
+      className={`h-7 px-2 rounded-md border text-[11px] inline-flex items-center gap-1 ${active ? "bg-foreground text-background border-foreground" : "border-border hover:bg-muted"}`}>
+      {children}
+    </button>
+  );
+}
+
+/* ---------------- submitted ---------------- */
+
+function Submitted({ planId, title, standard, startDate, endDate, lead, teamCount, items, approvers, onDashboard, onAnother, onCalendar }: {
+  planId: string;
+  title: string; standard: string; startDate: string; endDate: string; lead: string; teamCount: number; items: number;
+  approvers: ApprovalStage[];
+  onDashboard: () => void; onAnother: () => void; onCalendar: () => void;
+}) {
+  return (
+    <div className="max-w-3xl mx-auto wire-card rounded-lg p-8 text-center space-y-5">
+      <div className="mx-auto h-12 w-12 rounded-full bg-foreground text-background grid place-items-center">
+        <Check className="h-6 w-6" />
+      </div>
+      <div>
+        <Annotation>STATUS · PENDING APPROVAL</Annotation>
+        <h2 className="text-xl font-semibold mt-1">Audit submitted for approval</h2>
+        <p className="text-sm text-muted-foreground mt-2 max-w-xl mx-auto">
+          <span className="font-medium text-foreground">{title}</span> is on the Audit Calendar and routed through the approval workflow. Approvers have been notified by email and in-app.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-left">
+        <Mini label="Reference" value={planId} />
+        <Mini label="Standard" value={standard} />
+        <Mini label="Dates" value={`${startDate} → ${endDate}`} />
+        <Mini label="Lead" value={lead} />
+        <Mini label="Team" value={`${teamCount + 1} members`} />
+        <Mini label="Checklist Items" value={String(items)} />
+        <Mini label="Stage" value={approvers.find((a) => a.status === "Notified")?.stage ?? approvers[1]?.stage ?? "—"} />
+        <Mini label="ETA" value="2 business days" />
+      </div>
+
+      <div className="rounded-md border border-border p-4 text-left">
+        <Annotation>APPROVAL TRACKER</Annotation>
+        <div className="mt-2 grid grid-cols-4 gap-2 text-xs">
+          {approvers.slice(0, 4).map((a) => (
+            <div key={a.stage}>
+              <div className={`h-1.5 rounded ${
+                a.status === "Approved" ? "bg-foreground" :
+                a.status === "In Review" || a.status === "Notified" ? "bg-foreground/50" :
+                a.status === "Rejected" ? "bg-foreground/20" : "bg-muted"
+              }`} />
+              <div className="annotation mt-1 truncate">{a.stage}</div>
+              <div className="text-[11px] mt-0.5">{a.status}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-center gap-2">
+        <button onClick={onAnother} className="h-9 px-4 rounded-md border border-border text-sm">Create Another</button>
+        <button onClick={onCalendar} className="h-9 px-4 rounded-md border border-border text-sm">View on Calendar</button>
+        <button onClick={onDashboard} className="h-9 px-4 rounded-md bg-foreground text-background text-sm font-medium">Go to Dashboard</button>
+      </div>
+    </div>
+  );
+}
+
+function Mini({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border p-3">
+      <Annotation>{label}</Annotation>
+      <div className="text-sm font-medium mt-1 truncate">{value}</div>
+    </div>
+  );
+}

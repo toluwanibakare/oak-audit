@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Mail\SendOtpMail;
 use App\Models\Organization;
+use App\Models\NewsletterSubscription;
 use App\Models\User;
 use App\Models\VerificationOtp;
 use Illuminate\Http\JsonResponse;
@@ -42,6 +43,10 @@ class AuthController extends Controller
                 $existingUser->account_type = 'auditor';
                 $existingUser->save();
 
+                if ($request->boolean('newsletter')) {
+                    $this->subscribeToNewsletter($existingUser->email, 'signup', $existingUser->id);
+                }
+
                 return response()->json([
                     'message' => 'Auditor account already exists and has been activated.',
                     'needs_verification' => false,
@@ -59,6 +64,10 @@ class AuthController extends Controller
                 return response()->json([
                     'errors' => ['email' => ['This email is already registered. Sign in instead.']],
                 ], 422);
+            }
+
+            if ($request->boolean('newsletter')) {
+                $this->subscribeToNewsletter($existingUser->email, 'signup', $existingUser->id);
             }
 
             // Email exists but not verified — resend OTP
@@ -84,6 +93,11 @@ class AuthController extends Controller
             $user->save();
         } else {
             $this->generateAndSendOtp($user->email, 'signup');
+        }
+
+        // Subscribe to newsletter if requested
+        if ($request->boolean('newsletter')) {
+            $this->subscribeToNewsletter($user->email, 'signup', $user->id);
         }
 
         // Auto-create a personal organization for individual accounts
@@ -372,6 +386,19 @@ class AuthController extends Controller
             'token_type' => 'bearer',
             'expires_in' => auth('api')->factory()->getTTL() * 60,
         ]);
+    }
+
+    protected function subscribeToNewsletter(string $email, string $source, ?string $userId = null): void
+    {
+        NewsletterSubscription::firstOrCreate(
+            ['email' => $email],
+            [
+                'subscribed' => true,
+                'source' => $source,
+                'user_id' => $userId,
+                'subscribed_at' => now(),
+            ]
+        );
     }
 
     protected function generateAndSendOtp(string $email, string $type): void

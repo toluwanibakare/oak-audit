@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\OrganizationController;
 use App\Http\Controllers\Api\ProcessAssignmentController;
 use App\Http\Controllers\Api\ProcessController;
 use App\Http\Controllers\Api\QuestionController;
+use App\Http\Controllers\Api\NewsletterController;
 use App\Http\Controllers\Api\SupportTicketController;
 use App\Http\Controllers\Api\WalletController;
 use App\Models\IsoClause;
@@ -32,6 +33,9 @@ Route::get('iso-clauses/{standard}', fn(string $s) => response()->json(IsoClause
 
 // Public support ticket submission
 Route::post('support-tickets', [SupportTicketController::class, 'store']);
+
+// Newsletter subscription (public)
+Route::post('newsletter/subscribe', [NewsletterController::class, 'subscribe']);
 
 // Public finding view & CAR submission (CAR portal - no auth required)
 Route::get('findings/{id}', [FindingController::class, 'show']);
