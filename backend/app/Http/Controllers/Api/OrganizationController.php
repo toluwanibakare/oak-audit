@@ -59,14 +59,39 @@ class OrganizationController extends Controller
             'industry' => 'nullable|string|max:255',
             'address' => 'nullable|string',
             'logo_url' => 'nullable|string|max:500',
+            'settings' => 'nullable|array',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $org->update($request->only(['name', 'industry', 'address', 'logo_url']));
+        $org->update($request->only(['name', 'industry', 'address', 'logo_url', 'settings']));
         return response()->json($org);
+    }
+
+    public function getSettings(string $id): JsonResponse
+    {
+        $org = Organization::where('created_by', auth('api')->id())
+            ->findOrFail($id);
+        return response()->json($org->settings ?? []);
+    }
+
+    public function updateSettings(Request $request, string $id): JsonResponse
+    {
+        $org = Organization::where('created_by', auth('api')->id())
+            ->findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'settings' => 'required|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $org->update(['settings' => $request->settings]);
+        return response()->json(['message' => 'Settings saved', 'settings' => $org->settings]);
     }
 
     public function uploadLogo(Request $request, string $id): JsonResponse

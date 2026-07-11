@@ -4,8 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Mail\SendOtpMail;
-use App\Models\Organization;
+use App\Mail\WelcomeMail;
 use App\Models\NewsletterSubscription;
+use App\Models\Notification;
 use App\Models\User;
 use App\Models\VerificationOtp;
 use Illuminate\Http\JsonResponse;
@@ -25,7 +26,6 @@ class AuthController extends Controller
             'full_name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255',
             'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
-            'account_type' => 'sometimes|string|in:individual,organization,auditor',
         ]);
 
         if ($validator->fails()) {
@@ -36,24 +36,6 @@ class AuthController extends Controller
         $existingUser = User::where('email', $request->email)->first();
 
         if ($existingUser) {
-            // For auditor invites: if email already exists, auto-verify and return the user
-            // so the org admin can add them as a member immediately without re-registering
-            if ($request->account_type === 'auditor') {
-                $existingUser->email_verified_at = now();
-                $existingUser->account_type = 'auditor';
-                $existingUser->save();
-
-                if ($request->boolean('newsletter')) {
-                    $this->subscribeToNewsletter($existingUser->email, 'signup', $existingUser->id);
-                }
-
-                return response()->json([
-                    'message' => 'Auditor account already exists and has been activated.',
-                    'needs_verification' => false,
-                    'user' => $existingUser,
-                ], 200);
-            }
-
             if ($existingUser->email_verified_at) {
                 // Account exists and is verified — try to log in with the provided password
                 if (Hash::check($request->password, $existingUser->password)) {
@@ -84,36 +66,19 @@ class AuthController extends Controller
             'full_name' => $request->full_name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'account_type' => $request->account_type ?? 'individual',
         ]);
 
-        // Auto-verify and skip OTP for auditor accounts (invited by org admin)
-        if ($user->account_type === 'auditor') {
-            $user->email_verified_at = now();
-            $user->save();
-        } else {
-            $this->generateAndSendOtp($user->email, 'signup');
-        }
+        $this->sendWelcomeNotification($user);
+        $this->generateAndSendOtp($user->email, 'signup');
 
         // Subscribe to newsletter if requested
         if ($request->boolean('newsletter')) {
             $this->subscribeToNewsletter($user->email, 'signup', $user->id);
         }
 
-        // Auto-create a personal organization for individual accounts
-        if ($user->account_type === 'individual') {
-            Organization::create([
-                'name' => $user->full_name,
-                'type' => 'individual',
-                'created_by' => $user->id,
-            ]);
-        }
-
         return response()->json([
-            'message' => $user->account_type === 'auditor'
-                ? 'Auditor account created successfully.'
-                : 'User registered successfully. Please verify your email with the OTP sent.',
-            'needs_verification' => $user->account_type !== 'auditor',
+            'message' => 'User registered successfully. Please verify your email with the OTP sent.',
+            'needs_verification' => true,
             'user' => $user,
         ], 201);
     }
@@ -139,6 +104,11 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
         $user->update(['email_verified_at' => now()]);
+
+        $existing = Notification::where('user_id', $user->id)->where('type', 'welcome')->exists();
+        if (!$existing) {
+            $this->sendWelcomeNotification($user);
+        }
 
         $token = JWTAuth::fromUser($user);
 
@@ -386,6 +356,23 @@ class AuthController extends Controller
             'token_type' => 'bearer',
             'expires_in' => auth('api')->factory()->getTTL() * 60,
         ]);
+    }
+
+    protected function sendWelcomeNotification(User $user): void
+    {
+        Notification::create([
+            'user_id' => $user->id,
+            'type' => 'welcome',
+            'title' => 'Welcome to OakAudix!',
+            'body' => "Hi {$user->full_name},\n\nWelcome to OakAudix! We're excited to have you on board.\n\nHere are a few things to get started:\n• Complete your organization profile in Settings\n• Explore the dashboard and audit modules\n• Reach out to our support team if you need any help\n\nEnjoy the platform!\n— The OakAudix Team",
+            'is_read' => false,
+        ]);
+
+        try {
+            Mail::to($user->email)->send(new WelcomeMail($user->full_name, $user->email));
+        } catch (\Exception $e) {
+            // fail silently
+        }
     }
 
     protected function subscribeToNewsletter(string $email, string $source, ?string $userId = null): void

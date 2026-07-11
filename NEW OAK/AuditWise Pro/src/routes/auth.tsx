@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { z } from "zod";
 import { authApi } from "@/lib/api/auth";
@@ -116,13 +116,16 @@ function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  const navigatingRef = useRef(false);
+
   const goToDashboard = () => {
+    navigatingRef.current = true;
     setNavigating(true);
-    requestAnimationFrame(() => navigate({ to: "/dashboard" }));
+    window.location.href = "/dashboard";
   };
 
   useEffect(() => {
-    if (user) navigate({ to: "/dashboard" });
+    if (user && !navigatingRef.current) navigate({ to: "/dashboard" });
   }, [user, navigate]);
 
   const switchMode = (newMode: "signin" | "signup" | "forgot") => {
@@ -132,6 +135,9 @@ function Auth() {
     setIndustry("");
     setOrgAddress("");
     setMode(newMode);
+    try {
+      navigate({ to: "/auth", search: { mode: newMode }, replace: true });
+    } catch {}
   };
 
   const handleSendForgotPasswordOtp = async (e: React.FormEvent) => {
@@ -201,7 +207,6 @@ function Auth() {
           password: parsed.data.password,
           password_confirmation: parsed.data.password,
           full_name: parsed.data.full_name,
-          account_type: "organization",
           newsletter,
         });
 
@@ -272,10 +277,7 @@ function Auth() {
         <div className="orb right-[-120px] top-[-80px] h-[460px] w-[460px]" />
         <div className="orb left-[-100px] top-[300px] h-[260px] w-[260px] opacity-30" />
       </div>
-      <SiteNav
-        onSwitchToSignIn={() => switchMode("signin")}
-        onSwitchToSignUp={() => switchMode("signup")}
-      />
+      <SiteNav />
 
       <main className="mx-auto flex max-w-lg flex-col px-6 py-10">
         {registered ? (

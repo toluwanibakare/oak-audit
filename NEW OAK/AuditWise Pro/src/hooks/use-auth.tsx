@@ -5,7 +5,6 @@ type User = {
   id: string;
   email: string;
   full_name: string;
-  account_type: string;
 };
 
 type AuthCtx = {
@@ -27,12 +26,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
       return;
     }
+    const timeout = setTimeout(() => setLoading(false), 10000);
     try {
       const data = await authApi.me();
+      clearTimeout(timeout);
       setUser(data as User);
     } catch {
+      clearTimeout(timeout);
       localStorage.removeItem("oa_token");
     } finally {
+      clearTimeout(timeout);
       setLoading(false);
     }
   }, []);

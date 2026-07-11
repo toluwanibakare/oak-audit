@@ -1,8 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { WCard, WBadge, Annotation } from "@/components/wire";
-import { TrendingUp, TrendingDown, ArrowUpRight, Calendar, FileText, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowUpRight, Calendar, FileText, AlertTriangle, CheckCircle2, X, Settings } from "lucide-react";
 import { requireAuth } from "@/lib/require-auth";
+import { useAuth } from "@/hooks/use-auth";
+import { orgsApi } from "@/lib/api/orgs";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: requireAuth,
@@ -43,8 +46,43 @@ const ACTIVITY = [
 ];
 
 function Dashboard() {
+  const { user } = useAuth();
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [hasOrgSettings, setHasOrgSettings] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const orgs = await orgsApi.list();
+        if (orgs.length > 0 && orgs[0].settings) setHasOrgSettings(true);
+        else setHasOrgSettings(false);
+      } catch {
+        setHasOrgSettings(true);
+      }
+    })();
+  }, []);
+
+  const showBanner = !bannerDismissed && hasOrgSettings === false;
+
   return (
     <AppShell title="Compliance & Audit Dashboard" annotation="01 · DASHBOARD">
+      {showBanner && (
+        <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-4 flex items-start gap-3">
+          <Settings className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">Complete your organization profile</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Fill in your company details, standards, and preferences to get the most out of OakAudix.
+            </p>
+            <Link to="/settings" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+              Go to Settings <ArrowUpRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <button onClick={() => setBannerDismissed(true)} className="h-7 w-7 grid place-items-center rounded-md hover:bg-secondary text-muted-foreground cursor-pointer shrink-0">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
         {KPIS.map((k) => (
           <div key={k.label} className="wire-card rounded-lg p-3">

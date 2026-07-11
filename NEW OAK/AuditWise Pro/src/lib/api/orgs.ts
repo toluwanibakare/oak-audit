@@ -7,6 +7,7 @@ export interface Organization {
   industry?: string;
   address?: string;
   logo_url?: string;
+  settings?: Record<string, unknown>;
   created_by?: string;
   created_at: string;
   updated_at: string;

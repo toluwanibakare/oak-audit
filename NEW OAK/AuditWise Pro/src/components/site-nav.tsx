@@ -4,19 +4,13 @@ import { useAuth } from "@/hooks/use-auth";
 import logo from "@/assets/logo.png";
 import { X } from "lucide-react";
 
-type SiteNavProps = {
-  onSwitchToSignIn?: () => void;
-  onSwitchToSignUp?: () => void;
-};
-
-export const SiteNav = ({ onSwitchToSignIn, onSwitchToSignUp }: SiteNavProps = {}) => {
-  const { user, signOut } = useAuth();
+export const SiteNav = () => {
+  const { user, loading, signOut } = useAuth();
   const location = useRouterState({ select: (s) => s.location });
   const [showLogout, setShowLogout] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
   const isAuthPage = location.pathname === "/auth";
-  const isSignUpMode = location.searchStr?.includes("mode=signup");
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -64,7 +58,7 @@ export const SiteNav = ({ onSwitchToSignIn, onSwitchToSignUp }: SiteNavProps = {
             </nav>
           )}
           <div className="flex items-center gap-3">
-            {user ? (
+            {loading ? null : user ? (
               <>
                 <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">Dashboard</Link>
                 <button
@@ -77,21 +71,12 @@ export const SiteNav = ({ onSwitchToSignIn, onSwitchToSignUp }: SiteNavProps = {
             ) : (
               <>
                 {isAuthPage ? (
-                  isSignUpMode ? (
-                    <button
-                      onClick={() => onSwitchToSignIn ? onSwitchToSignIn() : undefined}
-                      className="rounded-full bg-secondary px-5 py-2 text-sm font-medium text-foreground hover:bg-muted transition duration-200"
-                    >
-                      Sign In
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => onSwitchToSignUp ? onSwitchToSignUp() : undefined}
-                      className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition duration-200"
-                    >
+                  <>
+                    <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">Sign In</Link>
+                    <Link to="/auth?mode=signup" className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition duration-200">
                       Sign Up
-                    </button>
-                  )
+                    </Link>
+                  </>
                 ) : (
                   <>
                     <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">Sign In</Link>

@@ -10,7 +10,6 @@ export interface RegisterPayload {
   email: string;
   password: string;
   password_confirmation: string;
-  account_type?: "individual" | "organization";
   newsletter?: boolean;
 }
 

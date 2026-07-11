@@ -15,8 +15,16 @@ class Organization extends Model
         'industry',
         'address',
         'logo_url',
+        'settings',
         'created_by',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'settings' => 'array',
+        ];
+    }
 
     public function creator()
     {

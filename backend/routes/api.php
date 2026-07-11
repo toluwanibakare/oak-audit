@@ -8,7 +8,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EvidenceController;
 use App\Http\Controllers\Api\FindingController;
 use App\Http\Controllers\Api\MemberController;
-use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\NotificationController as NotificationApiController;
 use App\Http\Controllers\Api\OrganizationController;
 use App\Http\Controllers\Api\ProcessAssignmentController;
 use App\Http\Controllers\Api\ProcessController;
@@ -65,6 +65,8 @@ Route::middleware('auth:api')->group(function () {
     Route::post('organizations', [OrganizationController::class, 'store']);
     Route::get('organizations/{id}', [OrganizationController::class, 'show']);
     Route::put('organizations/{id}', [OrganizationController::class, 'update']);
+    Route::get('organizations/{id}/settings', [OrganizationController::class, 'getSettings']);
+    Route::put('organizations/{id}/settings', [OrganizationController::class, 'updateSettings']);
     Route::post('organizations/{id}/logo', [OrganizationController::class, 'uploadLogo']);
 
     // Organization scoped routes
@@ -129,6 +131,14 @@ Route::middleware('auth:api')->group(function () {
 
     // Process assignments
     Route::get('organizations/{org}/process-assignments', [ProcessAssignmentController::class, 'index']);
+
+    // Notifications
+    Route::get('notifications', [NotificationApiController::class, 'index']);
+    Route::get('notifications/unread-count', [NotificationApiController::class, 'unreadCount']);
+    Route::get('notifications/{id}', [NotificationApiController::class, 'show']);
+    Route::post('notifications/{id}/read', [NotificationApiController::class, 'markAsRead']);
+    Route::post('notifications/read-all', [NotificationApiController::class, 'markAllAsRead']);
+    Route::delete('notifications/{id}', [NotificationApiController::class, 'destroy']);
 
     // Email notifications
     Route::post('notifications/send-email', [NotificationController::class, 'sendEmail']);

@@ -2,10 +2,12 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, ClipboardList, Search, AlertTriangle, CheckSquare,
   TrendingUp, Building2, Users, BookOpen, BarChart3, Settings, Sparkles,
-  Bell, Plus, Search as SearchIcon, ChevronDown, LogOut, X,
+  Bell, Plus, Search as SearchIcon, ChevronDown, LogOut, X, User,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/hooks/use-auth";
+import { NotificationsPanel } from "@/components/notifications-panel";
+import { notificationsApi } from "@/lib/api/notifications";
 import logo from "@/assets/logo.png";
 
 type Item = { label: string; to?: string; children?: { label: string; to: string }[] };
@@ -85,9 +87,20 @@ const NAV: { icon: any; label: string; to?: string; children?: { label: string; 
 
 function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { user, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const [showLogout, setShowLogout] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState<Set<string>>(() => {
+    const active = NAV.filter((n) => n.children?.some((c) => location.pathname.startsWith(c.to)));
+    return new Set(active.map((n) => n.label));
+  });
+  const toggleMenu = (label: string) => {
+    setExpandedMenus((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label); else next.add(label);
+      return next;
+    });
+  };
   const handleSignOut = async () => {
     if (signingOut) return;
     setSigningOut(true);
@@ -128,7 +141,6 @@ function Sidebar() {
         {NAV.map((item) => {
           const Icon = item.icon;
           const active = item.to && pathname === item.to;
-          const expanded = item.children?.some((c) => pathname.startsWith(c.to));
           if (item.to && !item.children) {
             return (
               <Link key={item.label} to={item.to}
@@ -140,11 +152,12 @@ function Sidebar() {
           }
           return (
             <div key={item.label}>
-              <div className={`flex items-center gap-2 px-2 py-1.5 rounded-md ${expanded ? "bg-sidebar-accent font-medium" : ""}`}>
+              <button onClick={() => toggleMenu(item.label)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent text-left cursor-pointer ${expandedMenus.has(item.label) ? "bg-sidebar-accent font-medium" : ""}`}>
                 <Icon className="h-4 w-4 text-ink-soft" />
                 <span className="flex-1 truncate">{item.label}</span>
-                <ChevronDown className="h-3 w-3 opacity-50" />
-              </div>
+                <ChevronDown className={`h-3 w-3 opacity-50 transition-transform duration-200 ${expandedMenus.has(item.label) ? "rotate-180" : ""}`} />
+              </button>
+              {expandedMenus.has(item.label) && (
               <div className="ml-6 border-l border-sidebar-border pl-2 mt-0.5 space-y-0.5">
                 {item.children?.map((c) => {
                   const ca = pathname === c.to;
@@ -156,21 +169,35 @@ function Sidebar() {
                   );
                 })}
               </div>
+              )}
             </div>
           );
         })}
       </nav>
       <div className="border-t border-sidebar-border p-3 flex items-center gap-2">
-        <div className="h-8 w-8 rounded-full wire-box grid place-items-center text-xs font-bold bg-sidebar-accent">
-          {user?.full_name?.charAt(0)?.toUpperCase() || "?"}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium truncate">{user?.full_name || "User"}</div>
-          <div className="annotation">{user?.account_type === "organization" ? "ORGANIZATION" : "INDIVIDUAL"}</div>
-        </div>
-        <button onClick={() => setShowLogout(true)} className="h-6 w-6 grid place-items-center rounded hover:bg-sidebar-accent text-muted-foreground hover:text-foreground" title="Sign out">
-          <LogOut className="h-3.5 w-3.5" />
-        </button>
+        {loading ? (
+          <>
+            <div className="h-8 w-8 rounded-full bg-sidebar-accent animate-pulse" />
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <div className="h-3 w-24 rounded bg-sidebar-accent animate-pulse" />
+              <div className="h-2.5 w-16 rounded bg-sidebar-accent/60 animate-pulse" />
+            </div>
+            <div className="h-6 w-6 rounded bg-sidebar-accent animate-pulse" />
+          </>
+        ) : (
+          <>
+            <div className="h-8 w-8 rounded-full wire-box grid place-items-center text-xs font-bold bg-sidebar-accent">
+              {user?.full_name?.charAt(0)?.toUpperCase() || "?"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-medium truncate">{user?.full_name}</div>
+              <div className="annotation">WORKSPACE</div>
+            </div>
+            <button onClick={() => setShowLogout(true)} className="h-6 w-6 grid place-items-center rounded hover:bg-sidebar-accent text-muted-foreground hover:text-foreground" title="Sign out">
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </>
+        )}
       </div>
     </aside>
     </>
@@ -178,6 +205,27 @@ function Sidebar() {
 }
 
 function TopBar() {
+  const { user, loading, signOut } = useAuth();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await notificationsApi.unreadCount();
+        setUnreadCount(res.count);
+      } catch {}
+    })();
+  }, []);
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    await signOut();
+  };
+
   return (
     <header className="h-14 border-b border-border bg-card flex items-center gap-3 px-6 sticky top-0 z-10">
       <div className="flex-1 max-w-xl relative">
@@ -187,14 +235,42 @@ function TopBar() {
           className="w-full h-9 pl-9 pr-3 rounded-md border border-input bg-muted/40 text-sm outline-none focus:border-ring"
         />
       </div>
-      <Link to="/audits/new" className="h-9 px-3 inline-flex items-center gap-1.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90">
-        <Plus className="h-4 w-4" /> New Audit
-      </Link>
-      <button className="h-9 w-9 grid place-items-center rounded-md border border-border relative">
-        <Bell className="h-4 w-4" />
-        <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-foreground" />
-      </button>
-      <div className="h-9 w-9 rounded-full wire-box" />
+      <div className="ml-auto flex items-center gap-3">
+        <Link to="/audits/new" className="h-9 px-3 inline-flex items-center gap-1.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-90">
+          <Plus className="h-4 w-4" /> New Audit
+        </Link>
+        <button onClick={() => setNotifOpen(true)} className="h-9 w-9 grid place-items-center rounded-md border border-border relative hover:bg-secondary transition cursor-pointer">
+          <Bell className="h-4 w-4" />
+          {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-foreground" />}
+        </button>
+        <div className="relative">
+          {loading ? (
+            <div className="h-9 w-9 rounded-full bg-sidebar-accent animate-pulse" />
+          ) : (
+            <button onClick={() => setProfileOpen((v) => !v)} className="h-9 w-9 rounded-full bg-sidebar-accent grid place-items-center text-xs font-bold hover:ring-2 hover:ring-ring transition cursor-pointer">
+              {user?.full_name?.charAt(0)?.toUpperCase() || "?"}
+            </button>
+          )}
+          {profileOpen && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setProfileOpen(false)} />
+              <div className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-border bg-card p-1.5 shadow-xl z-40">
+                <div className="px-3 py-2 border-b border-border mb-1">
+                  <div className="text-sm font-medium truncate">{user?.full_name}</div>
+                  <div className="text-[11px] text-muted-foreground truncate">{user?.email}</div>
+                </div>
+                <Link to="/settings" onClick={() => setProfileOpen(false)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition">
+                  <Settings className="h-4 w-4" /> Settings
+                </Link>
+                <button onClick={handleSignOut} disabled={signingOut} className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition cursor-pointer disabled:opacity-50">
+                  <LogOut className="h-4 w-4" /> {signingOut ? "Signing out..." : "Sign Out"}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+      <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
     </header>
   );
 }
@@ -209,14 +285,9 @@ export function AppShell({ children, title, annotation }: { children: ReactNode;
           {title && (
             <div className="flex items-end justify-between gap-4 flex-wrap">
               <div>
-                {annotation && <div className="annotation mb-1">{annotation}</div>}
                 <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
               </div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="annotation">WIREFRAME</span>
-                <span>·</span>
-                <span>1440px · 12-col grid</span>
-              </div>
+
             </div>
           )}
           {children}

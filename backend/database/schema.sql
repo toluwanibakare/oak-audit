@@ -22,7 +22,6 @@ CREATE TABLE users (
   email VARCHAR(255) NOT NULL UNIQUE,
   password VARCHAR(255) NOT NULL,
   full_name VARCHAR(255) DEFAULT NULL,
-  account_type ENUM('individual', 'organization') NOT NULL DEFAULT 'individual',
   email_verified_at TIMESTAMP NULL,
   remember_token VARCHAR(100) DEFAULT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
