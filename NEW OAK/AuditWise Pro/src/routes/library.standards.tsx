@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { ModulePage, WCard, WBadge, Annotation } from "@/components/module-page";
-import { auditStore, useAuditStore } from "@/lib/audit-store";
+import { useAuditStore } from "@/lib/audit-store";
 import { toast } from "sonner";
 import { Plus, FileText, Download, Trash2, X } from "lucide-react";
 
@@ -10,33 +10,14 @@ export const Route = createFileRoute("/library/standards")({
   component: Page,
 });
 
-const SEED_ONCE_KEY = "auditos:seed:standards:v1";
-const DEFAULTS = [
-  { id: "STD-9001",  code: "ISO 9001:2015",       title: "Quality Management Systems — Requirements",     type: "Management System", edition: "2015", pages: 29, status: "Adopted" },
-  { id: "STD-14001", code: "ISO 14001:2015",      title: "Environmental Management Systems — Requirements", type: "Management System", edition: "2015", pages: 35, status: "Adopted" },
-  { id: "STD-45001", code: "ISO 45001:2018",      title: "Occupational H&S Management Systems",             type: "Management System", edition: "2018", pages: 41, status: "Adopted" },
-  { id: "STD-27001", code: "ISO/IEC 27001:2022",  title: "Information Security Management Systems",         type: "Management System", edition: "2022", pages: 19, status: "Adopted" },
-  { id: "STD-22301", code: "ISO 22301:2019",      title: "Business Continuity Management Systems",          type: "Management System", edition: "2019", pages: 33, status: "Adopted" },
-  { id: "STD-19011", code: "ISO 19011:2018",      title: "Guidelines for Auditing Management Systems",      type: "Guideline",         edition: "2018", pages: 46, status: "Reference" },
-];
-
-function seedIfEmpty() {
-  if (typeof window === "undefined") return;
-  if (localStorage.getItem(SEED_ONCE_KEY)) return;
-  const list = auditStore.list("standards");
-  if (list.length === 0) DEFAULTS.forEach((d) => auditStore.create("standards", d, "STD"));
-  localStorage.setItem(SEED_ONCE_KEY, "1");
-}
-
 function Page() {
-  seedIfEmpty();
   const standards = useAuditStore((s) => Object.values(s.collections.standards ?? {}));
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const filtered = standards.filter((s: any) => (s.code + s.title).toLowerCase().includes(q.toLowerCase()));
 
   return (
-    <ModulePage annotation="09 · LIBRARY" title="ISO Standards">
+    <ModulePage title="ISO Standards">
       <div className="wire-card rounded-lg p-3 flex flex-wrap items-center gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search standards…" className="h-8 px-2 rounded-md border border-input bg-muted/30 text-xs min-w-[220px]" />
         <WBadge tone="outline">{filtered.length} standards</WBadge>

@@ -22,7 +22,6 @@ function Page() {
   return (
     <EntityPage
       entity="actions"
-      annotation="05 · CLOSED"
       title="Closed Actions"
       idPrefix="CA"
       fields={ACTION_FIELDS}

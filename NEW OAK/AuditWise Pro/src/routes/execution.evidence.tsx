@@ -33,14 +33,13 @@ function Page() {
   return (
     <EntityPage
       entity="evidence"
-      annotation="03 · EVIDENCE"
       title="Evidence Collection"
       description="Attach objective evidence (photos, documents, audio) to audits and findings."
       idPrefix="E"
       fields={FIELDS}
       columns={COLUMNS}
       filterField={{ key: "type", options: TYPES }}
-      defaultValues={{ status: "Linked", type: "Document", uploadedBy: "M. Chen" }}
+      defaultValues={{ status: "Linked", type: "Document", uploadedBy: "" }}
     />
   );
 }

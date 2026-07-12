@@ -33,7 +33,6 @@ function Page() {
   return (
     <EntityPage
       entity="locations"
-      annotation="07 · LOCATIONS"
       title="Locations"
       idPrefix="L"
       fields={FIELDS}

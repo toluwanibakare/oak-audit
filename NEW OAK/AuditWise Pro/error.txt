@@ -1,0 +1,19 @@
+auth.ts:71 
+ GET http://localhost:8000/api/auth/me net::ERR_CONNECTION_REFUSED
+notifications.ts:45 
+ GET http://localhost:8000/api/notifications/unread-count net::ERR_CONNECTION_REFUSED
+orgs.ts:32 
+ GET http://localhost:8000/api/organizations net::ERR_CONNECTION_REFUSED
+orgs.ts:32 
+ GET http://localhost:8000/api/organizations net::ERR_CONNECTION_REFUSED
+Promise.then		
+(anonymous)	@	orgs.ts:32
+(anonymous)	@	dashboard.tsx:91
+<button>		
+(anonymous)	@	jsx-dev-runtime:138
+Dashboard	@	dashboard.tsx:198
+<OutletImpl>		
+(anonymous)	@	jsx-dev-runtime:101
+RootComponent	@	__root.tsx:146
+<StartClient>		
+(anonymous)	@	jsx-dev-runtime:101

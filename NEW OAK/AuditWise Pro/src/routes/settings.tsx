@@ -6,7 +6,7 @@ import { authApi } from "@/lib/api/auth";
 import { orgsApi } from "@/lib/api/orgs";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
-import { Save, RotateCcw, Check, Loader2, Mail, Lock, X, ArrowRight } from "lucide-react";
+import { Save, RotateCcw, Check, Loader2, Mail, Lock } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Settings — OakAudix" }, { name: "description", content: "Configure organization, account, and compliance settings." }] }),
@@ -50,8 +50,6 @@ function Page() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [orgId, setOrgId] = useState<string | null>(null);
-  const [orgMembers, setOrgMembers] = useState<any[]>([]);
-
   // Password change
   const [pwOtpSent, setPwOtpSent] = useState(false);
   const [pwOtp, setPwOtp] = useState("");
@@ -65,11 +63,7 @@ function Page() {
   const [emailStep, setEmailStep] = useState<"idle" | "otp_old" | "otp_new">("idle");
   const [emailBusy, setEmailBusy] = useState(false);
 
-  // Role transfer
-  const [showRoleModal, setShowRoleModal] = useState(false);
-  const [targetUserId, setTargetUserId] = useState("");
-  const [roleOtp, setRoleOtp] = useState("");
-  const [roleBusy, setRoleBusy] = useState(false);
+
 
   useEffect(() => {
     (async () => {
@@ -84,10 +78,6 @@ function Page() {
           if (org.settings) {
             setSettings({ ...DEFAULT, ...(org.settings as Partial<Settings>), integrations: {} });
           }
-          try {
-            const members = await orgsApi.getMembers(org.id);
-            setOrgMembers(members);
-          } catch {}
         }
         setFullName(user?.full_name || "");
       } catch {
@@ -215,23 +205,8 @@ function Page() {
     }
   };
 
-  const handleTransferRole = async () => {
-    if (!targetUserId) { toast.error("Select a user to transfer the role to"); return; }
-    setRoleBusy(true);
-    try {
-      await authApi.sendPasswordOtp();
-      setRoleOtp("sent");
-      toast.success("OTP sent — enter it to confirm role transfer");
-      setShowRoleModal(true);
-    } catch {
-      toast.error("Failed to initiate transfer");
-    } finally {
-      setRoleBusy(false);
-    }
-  };
-
   if (loading) return (
-    <ModulePage annotation="12 · SETTINGS" title="Settings">
+    <ModulePage title="Settings">
       <div className="flex items-center justify-center py-20">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
@@ -239,48 +214,7 @@ function Page() {
   );
 
   return (
-    <ModulePage annotation="12 · SETTINGS" title="Settings">
-      {showRoleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowRoleModal(false)}>
-          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display text-lg font-bold text-foreground">Confirm Transfer</h3>
-              <button onClick={() => setShowRoleModal(false)} className="h-8 w-8 grid place-items-center rounded-md hover:bg-secondary text-muted-foreground"><X className="h-4 w-4" /></button>
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Transfer <strong>Management Representative</strong> role to{' '}
-              <strong>{orgMembers.find((m) => m.user_id === targetUserId)?.name || "selected user"}</strong>?
-            </p>
-            <p className="text-xs text-muted-foreground mb-4">Enter the OTP sent to your email to confirm.</p>
-            <input
-              value={roleOtp === "sent" ? "" : roleOtp}
-              onChange={(e) => setRoleOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder="000000"
-              className="w-full text-center font-mono font-bold text-2xl tracking-[8px] h-14 rounded-xl border border-border bg-background/50 outline-none focus:border-primary"
-            />
-            <button
-              onClick={async () => {
-                setRoleBusy(true);
-                try {
-                  await authApi.changePassword({ otp: roleOtp, password: "Temp@1234", password_confirmation: "Temp@1234" });
-                  toast.success("Role transferred successfully");
-                  setShowRoleModal(false);
-                  setTargetUserId("");
-                  setRoleOtp("");
-                } catch {
-                  toast.error("Invalid OTP");
-                } finally {
-                  setRoleBusy(false);
-                }
-              }}
-              disabled={roleBusy || roleOtp.length !== 6}
-              className="w-full mt-4 rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50 cursor-pointer"
-            >
-              {roleBusy ? "Verifying..." : "Confirm Transfer"}
-            </button>
-          </div>
-        </div>
-      )}
+    <ModulePage title="Settings">
       <div className="grid grid-cols-12 gap-4">
         <WCard className="col-span-12 md:col-span-3" title="Sections">
           {SECTIONS.map((s) => (
@@ -318,30 +252,7 @@ function Page() {
                     </div>
                   </label>
                 </div>
-                <div>
-                  <label className="flex flex-col gap-1">
-                    <Annotation>Transfer Management Representative</Annotation>
-                    <div className="flex gap-2">
-                      <select
-                        value={targetUserId}
-                        onChange={(e) => setTargetUserId(e.target.value)}
-                        className="flex-1 h-9 px-2 rounded-md border border-input bg-muted/30 text-xs"
-                      >
-                        <option value="">Select a member...</option>
-                        {orgMembers.filter((m) => m.user_id !== user?.id).map((m) => (
-                          <option key={m.id} value={m.user_id}>{m.name} ({m.email})</option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={handleTransferRole}
-                        disabled={!targetUserId || roleBusy}
-                        className="h-9 px-4 rounded-md bg-foreground text-background text-xs font-medium disabled:opacity-40 inline-flex items-center gap-1.5 cursor-pointer"
-                      >
-                        {roleBusy ? "Sending..." : "Transfer"} <ArrowRight className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </label>
-                </div>
+
               </div>
             </WCard>
           )}

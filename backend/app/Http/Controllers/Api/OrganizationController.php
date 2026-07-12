@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Organization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -14,9 +16,16 @@ class OrganizationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $userId = auth('api')->id();
-        $orgs = Organization::where('created_by', $userId)
-            ->orWhereHas('members', fn($q) => $q->where('user_id', $userId))
-            ->get();
+        $orgs = Cache::remember("user_orgs:{$userId}", 300, function () use ($userId) {
+            $createdIds = DB::table('organizations')
+                ->where('created_by', $userId)
+                ->select('id');
+            $memberIds = DB::table('organization_members')
+                ->where('user_id', $userId)
+                ->select('org_id');
+            $ids = $createdIds->union($memberIds)->pluck('id');
+            return Organization::whereIn('id', $ids)->get();
+        });
         return response()->json($orgs);
     }
 
@@ -33,10 +42,31 @@ class OrganizationController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        $userId = auth('api')->id();
         $org = Organization::create([
             ...$request->only(['name', 'type', 'industry', 'address']),
-            'created_by' => auth('api')->id(),
+            'created_by' => $userId,
         ]);
+
+        \App\Models\OrganizationMember::create([
+            'org_id' => $org->id,
+            'user_id' => $userId,
+            'status' => 'Active',
+        ]);
+
+        $roleName = 'Management Representative';
+        $roleExists = \App\Models\EntityData::where('org_id', $org->id)
+            ->where('entity_type', 'roles')
+            ->where('data->name', $roleName)
+            ->exists();
+
+        \App\Models\UserRole::create([
+            'org_id' => $org->id,
+            'user_id' => $userId,
+            'role' => $roleExists ? $roleName : 'admin',
+        ]);
+
+        Cache::forget("user_orgs:{$userId}");
 
         return response()->json($org, 201);
     }
@@ -51,7 +81,8 @@ class OrganizationController extends Controller
 
     public function update(Request $request, string $id): JsonResponse
     {
-        $org = Organization::where('created_by', auth('api')->id())
+        $userId = auth('api')->id();
+        $org = Organization::where('created_by', $userId)
             ->findOrFail($id);
 
         $validator = Validator::make($request->all(), [
@@ -67,6 +98,9 @@ class OrganizationController extends Controller
         }
 
         $org->update($request->only(['name', 'industry', 'address', 'logo_url', 'settings']));
+
+        Cache::forget("user_orgs:{$userId}");
+
         return response()->json($org);
     }
 
@@ -79,7 +113,8 @@ class OrganizationController extends Controller
 
     public function updateSettings(Request $request, string $id): JsonResponse
     {
-        $org = Organization::where('created_by', auth('api')->id())
+        $userId = auth('api')->id();
+        $org = Organization::where('created_by', $userId)
             ->findOrFail($id);
 
         $validator = Validator::make($request->all(), [
@@ -91,6 +126,9 @@ class OrganizationController extends Controller
         }
 
         $org->update(['settings' => $request->settings]);
+
+        Cache::forget("user_orgs:{$userId}");
+
         return response()->json(['message' => 'Settings saved', 'settings' => $org->settings]);
     }
 

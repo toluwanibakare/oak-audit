@@ -24,51 +24,10 @@ export const Route = createFileRoute("/audits/new")({
 
 /* ---------------- data ---------------- */
 
-const STANDARDS = [
-  { id: "9001", code: "ISO 9001:2015", name: "Quality Management" },
-  { id: "14001", code: "ISO 14001:2015", name: "Environmental Management" },
-  { id: "45001", code: "ISO 45001:2018", name: "Occupational H&S" },
-  { id: "27001", code: "ISO/IEC 27001:2022", name: "Information Security" },
-  { id: "22301", code: "ISO 22301:2019", name: "Business Continuity" },
-  { id: "ims", code: "Integrated (9001/14001/45001)", name: "IMS — Quality + Environment + OH&S" },
-  { id: "hse", code: "Combined (14001/45001)", name: "HSE — Environment + OH&S" },
-];
-
-const DEPARTMENTS = ["Operations", "HSE", "IT & Security", "Quality", "Logistics", "HR", "Finance", "R&D", "Sustainability"];
-const LOCATIONS = ["Plant A — Hamburg", "Plant B — Rotterdam", "DC — Antwerp", "HQ — Berlin", "Data Center — Frankfurt"];
-
-const PEOPLE = [
-  { id: "u1", name: "M. Chen", role: "Lead Auditor", load: 72, cert: ["ISO 9001", "ISO 14001"], email: "m.chen@org.com" },
-  { id: "u2", name: "R. Patel", role: "Senior Auditor", load: 58, cert: ["ISO 27001"], email: "r.patel@org.com" },
-  { id: "u3", name: "L. Okafor", role: "Auditor", load: 41, cert: ["ISO 14001", "ISO 45001"], email: "l.okafor@org.com" },
-  { id: "u4", name: "S. Müller", role: "Lead Auditor", load: 86, cert: ["ISO 22301", "ISO 9001"], email: "s.muller@org.com" },
-  { id: "u5", name: "J. Auditor", role: "Auditor", load: 33, cert: ["ISO 9001"], email: "j.auditor@org.com" },
-  { id: "u6", name: "A. Novak", role: "Technical Expert", load: 22, cert: ["ISO 45001"], email: "a.novak@org.com" },
-  { id: "u7", name: "D. Rossi", role: "Observer", load: 15, cert: [], email: "d.rossi@org.com" },
-];
-
 // Meta list for the "select checklist" cards
 const CHECKLISTS = CHECKLIST_LIBRARY.map((c) => ({
   id: c.id, name: c.name, standard: c.standard, version: c.version, items: c.questions.length, integrated: !!c.integrated,
 }));
-
-// Seed items pulled straight from the library
-const SEED_ITEMS: Record<string, ChecklistItem[]> = Object.fromEntries(
-  CHECKLIST_LIBRARY.map((c) => [
-    c.id,
-    c.questions.map((q) => ({
-      id: q.id, text: q.text, section: q.section, owner: "u1", clause: q.clause,
-    })),
-  ]),
-);
-
-
-const DEFAULT_APPROVERS: ApprovalStage[] = [
-  { stage: "Plan Draft", role: "Lead Auditor", who: "M. Chen", required: true, status: "Approved" },
-  { stage: "Quality Manager Review", role: "Quality Manager", who: "K. Lindqvist", required: true, status: "Pending" },
-  { stage: "Management Representative Approval", role: "MR", who: "P. Almeida", required: true, status: "Pending" },
-  { stage: "Auditee Acknowledgement", role: "Department Head", who: "Auto-routed", required: false, status: "Pending" },
-];
 
 const STEPS = [
   { key: "basics", label: "Basics", icon: FileText },
@@ -89,32 +48,30 @@ function NewAuditWizard() {
   const [planId, setPlanId] = useState(() => "AUD-2026-…");
 
   // state
-  const [title, setTitle] = useState("ISO 9001 Internal Audit — Production Line A");
+  const [title, setTitle] = useState("");
   const [auditType, setAuditType] = useState("Internal");
-  const [standardId, setStandardId] = useState("9001");
-  const [objective, setObjective] = useState("Verify conformity to ISO 9001:2015 clauses 4–10 across production line A.");
-  const [scope, setScope] = useState("Production, document control, training records, calibration.");
-  const [criteria, setCriteria] = useState("ISO 9001:2015 · QMS Manual v3.2 · Reg. 21 CFR 820");
-  const [departments, setDepartments] = useState<string[]>(["Operations"]);
-  const [location, setLocation] = useState("Plant A — Hamburg");
-  const [startDate, setStartDate] = useState("2026-07-02");
-  const [endDate, setEndDate] = useState("2026-07-04");
-  const [leadId, setLeadId] = useState("u1");
-  const [teamIds, setTeamIds] = useState<string[]>(["u3"]);
-  const [checklistIds, setChecklistIds] = useState<string[]>(["cl-9001"]);
-  const [checklistItems, setChecklistItems] = useState<Record<string, ChecklistItem[]>>({
-    "cl-9001": SEED_ITEMS["cl-9001"],
-  });
-  const [deptAssignments, setDeptAssignments] = useState<Record<string, string[]>>({ Operations: ["u1"] });
+  const [standardId, setStandardId] = useState("");
+  const [objective, setObjective] = useState("");
+  const [scope, setScope] = useState("");
+  const [criteria, setCriteria] = useState("");
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [location, setLocation] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [leadId, setLeadId] = useState("");
+  const [teamIds, setTeamIds] = useState<string[]>([]);
+  const [checklistIds, setChecklistIds] = useState<string[]>([]);
+  const [checklistItems, setChecklistItems] = useState<Record<string, ChecklistItem[]>>({});
+  const [deptAssignments, setDeptAssignments] = useState<Record<string, string[]>>({});
 
 
-  const [approvers, setApprovers] = useState<ApprovalStage[]>(DEFAULT_APPROVERS);
+  const [approvers, setApprovers] = useState<ApprovalStage[]>([]);
   const [submitted, setSubmitted] = useState(false);
 
   const idx = STEPS.findIndex((s) => s.key === step);
-  const standard = STANDARDS.find((s) => s.id === standardId)!;
-  const lead = PEOPLE.find((p) => p.id === leadId)!;
-  const team = PEOPLE.filter((p) => teamIds.includes(p.id));
+  const standard = { id: standardId, code: standardId, name: standardId };
+  const lead = { id: leadId, name: leadId, role: "", cert: [] as string[] };
+  const team = teamIds.map((id) => ({ id, name: id, role: "", cert: [] as string[] }));
   const selectedChecklists: EditableChecklist[] = checklistIds.map((id) => {
     const c = CHECKLISTS.find((x) => x.id === id)!;
     return {
@@ -144,7 +101,7 @@ function NewAuditWizard() {
       title, standardId, auditType, department, location, startDate, endDate,
     });
     auditStore.notify({
-      channel: "in-app", to: "M. Chen", subject: `Draft ${id} created`,
+      channel: "in-app", to: "Lead Auditor", subject: `Draft ${id} created`,
       body: `Your audit draft ${title} has been added to the calendar.`,
     });
   }, []);
@@ -155,7 +112,7 @@ function NewAuditWizard() {
     // Map user IDs to display names for storage
     const named: Record<string, string[]> = {};
     for (const [d, ids] of Object.entries(deptAssignments)) {
-      named[d] = ids.map((id) => PEOPLE.find((p) => p.id === id)?.name ?? id);
+      named[d] = ids;
     }
     auditStore.upsertPlan({
       id: planId,
@@ -215,7 +172,7 @@ function NewAuditWizard() {
       trackList("checklists", t, next);
       // Seed items when adding
       if (!t.includes(id)) {
-        setChecklistItems((m) => m[id] ? m : { ...m, [id]: SEED_ITEMS[id] ?? [] });
+        setChecklistItems((m) => m[id] ? m : { ...m, [id]: [] });
       }
       return next;
     });
@@ -275,7 +232,7 @@ function NewAuditWizard() {
   }
 
   return (
-    <AppShell title="Create New Audit" annotation="02 · NEW AUDIT WIZARD">
+    <AppShell title="Create New Audit">
       {submitted ? (
         <Submitted
           planId={planId}
@@ -480,10 +437,8 @@ function BasicsStep(p: {
               {["Internal", "Supplier", "Surveillance", "Certification", "Follow-up", "Process"].map((t) => <option key={t}>{t}</option>)}
             </select>
           </Field>
-          <Field label="ISO Standard*">
-            <select className={inputCls} value={p.standardId} onChange={(e) => p.setStandardId(e.target.value)}>
-              {STANDARDS.map((s) => <option key={s.id} value={s.id}>{s.code} — {s.name}</option>)}
-            </select>
+          <Field label="ISO Standard*" hint="e.g. ISO 9001:2015, ISO 14001:2015">
+            <input className={inputCls} value={p.standardId} onChange={(e) => p.setStandardId(e.target.value)} placeholder="ISO 9001:2015" />
           </Field>
         </div>
         <Field label="Audit Objective*" className="col-span-12" hint="What this audit is intended to verify or assess">
@@ -508,7 +463,6 @@ function ScopeStep(p: {
     const next = p.departments.includes(d) ? p.departments.filter((x) => x !== d) : [...p.departments, d];
     p.setDepartments(next);
   }
-  function selectAll() { p.setDepartments([...DEPARTMENTS]); }
   function clearAll() { p.setDepartments([]); }
   function toggleAuditor(dept: string, uid: string) {
     const cur = p.deptAssignments[dept] ?? [];
@@ -538,25 +492,9 @@ function ScopeStep(p: {
           </div>
         }
       >
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {DEPARTMENTS.map((d) => {
-            const on = p.departments.includes(d);
-            return (
-              <button
-                key={d}
-                onClick={() => toggleDept(d)}
-                className={`text-left rounded-md border p-2.5 text-sm inline-flex items-center gap-2 ${on ? "border-foreground bg-muted" : "border-border hover:bg-muted/40"}`}
-              >
-                <span className={`h-4 w-4 rounded border grid place-items-center ${on ? "bg-foreground border-foreground text-background" : "border-border"}`}>
-                  {on && <Check className="h-3 w-3" />}
-                </span>
-                <span className="truncate">{d}</span>
-              </button>
-            );
-          })}
-        </div>
+        <input className={inputCls + " w-full"} value={p.departments.join(", ")} onChange={(e) => p.setDepartments(e.target.value.split(",").map((s) => s.trim()).filter(Boolean))} placeholder="e.g. Operations, Quality, HSE" />
         {p.departments.length === 0 && (
-          <div className="annotation mt-2 text-destructive/80">↳ Select at least one department to continue.</div>
+          <div className="annotation mt-2 text-destructive/80">↳ Enter at least one department to continue.</div>
         )}
       </WCard>
 
@@ -575,23 +513,8 @@ function ScopeStep(p: {
                       {assigned.length ? `${assigned.length} auditor${assigned.length > 1 ? "s" : ""}` : "Unassigned"}
                     </WBadge>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
-                    {PEOPLE.map((u) => {
-                      const on = assigned.includes(u.id);
-                      return (
-                        <button key={u.id} onClick={() => toggleAuditor(d, u.id)}
-                          className={`text-left rounded-md border p-2 text-xs inline-flex items-center gap-2 ${on ? "border-foreground bg-muted" : "border-border hover:bg-muted/40"}`}>
-                          <span className={`h-4 w-4 rounded border grid place-items-center ${on ? "bg-foreground border-foreground text-background" : "border-border"}`}>
-                            {on && <Check className="h-3 w-3" />}
-                          </span>
-                          <span className="truncate flex-1">
-                            <span className="font-medium">{u.name}</span>
-                            <span className="text-muted-foreground"> · {u.role}</span>
-                          </span>
-                          {u.cert.length > 0 && <span className="annotation opacity-70">{u.cert[0]}</span>}
-                        </button>
-                      );
-                    })}
+                  <div className="text-xs text-muted-foreground">
+                    Assign auditors by ID (comma-separated) in the text field above.
                   </div>
                   {assigned.length === 0 && (
                     <div className="annotation mt-2 opacity-70">↳ Optional — assign at least one auditor for accountability.</div>
@@ -605,10 +528,8 @@ function ScopeStep(p: {
 
       <WCard title="Where & When">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Location*">
-            <select className={inputCls} value={p.location} onChange={(e) => p.setLocation(e.target.value)}>
-              {LOCATIONS.map((l) => <option key={l}>{l}</option>)}
-            </select>
+          <Field label="Location*" hint="e.g. Plant A — Hamburg">
+            <input className={inputCls} value={p.location} onChange={(e) => p.setLocation(e.target.value)} placeholder="Plant A — Hamburg" />
           </Field>
           <div />
           <Field label="Start Date*">
@@ -626,60 +547,21 @@ function ScopeStep(p: {
 
 
 function TeamStep(p: { leadId: string; setLeadId: (v: string) => void; teamIds: string[]; toggleTeam: (id: string) => void; standard: string }) {
-  const [q, setQ] = useState("");
-  const filtered = PEOPLE.filter((u) => u.name.toLowerCase().includes(q.toLowerCase()) || u.role.toLowerCase().includes(q.toLowerCase()));
   return (
-    <WCard title="Assign Audit Team" hint={`Recommended certifications: ${p.standard}`}>
-      <div className="mb-3 relative">
-        <Search className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search auditors by name or role…"
-          className="w-full h-9 pl-8 pr-3 rounded-md border border-input bg-muted/30 text-sm" />
+    <WCard title="Assign Audit Team" hint={`Enter team member emails or IDs`}>
+      <div className="space-y-3">
+        <Field label="Lead Auditor ID">
+          <input className={inputCls} value={p.leadId} onChange={(e) => p.setLeadId(e.target.value)} placeholder="e.g. lead@org.com" />
+        </Field>
+        <Field label="Team Member IDs (comma-separated)">
+          <input className={inputCls} value={p.teamIds.join(", ")} onChange={(e) => {
+            const ids = e.target.value.split(",").map((s) => s.trim()).filter(Boolean);
+            ids.forEach((id) => { if (!p.teamIds.includes(id)) p.toggleTeam(id); });
+            p.teamIds.forEach((id) => { if (!ids.includes(id)) p.toggleTeam(id); });
+          }} placeholder="e.g. auditor1, auditor2" />
+        </Field>
       </div>
-      <div className="grid grid-cols-12 text-[11px] annotation border-b border-border pb-2">
-        <div className="col-span-1">LEAD</div>
-        <div className="col-span-1">TEAM</div>
-        <div className="col-span-3">AUDITOR</div>
-        <div className="col-span-2">ROLE</div>
-        <div className="col-span-3">CERTIFICATIONS</div>
-        <div className="col-span-2">WORKLOAD</div>
-      </div>
-      <ul className="divide-y divide-dashed divide-border">
-        {filtered.map((u) => {
-          const isLead = p.leadId === u.id;
-          const onTeam = p.teamIds.includes(u.id);
-          const matchesStd = u.cert.some((c) => p.standard.startsWith(c));
-          return (
-            <li key={u.id} className="grid grid-cols-12 items-center py-2.5 text-xs">
-              <div className="col-span-1">
-                <input type="radio" name="lead" checked={isLead} onChange={() => p.setLeadId(u.id)} />
-              </div>
-              <div className="col-span-1">
-                <input type="checkbox" checked={onTeam || isLead} disabled={isLead} onChange={() => p.toggleTeam(u.id)} />
-              </div>
-              <div className="col-span-3 flex items-center gap-2 min-w-0">
-                <div className="h-7 w-7 rounded-full wire-box shrink-0" />
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{u.name}</div>
-                  <Annotation>{u.id.toUpperCase()}</Annotation>
-                </div>
-              </div>
-              <div className="col-span-2 text-muted-foreground">{u.role}</div>
-              <div className="col-span-3 flex flex-wrap gap-1">
-                {u.cert.length === 0 && <span className="text-muted-foreground">—</span>}
-                {u.cert.map((c) => <WBadge key={c} tone={p.standard.startsWith(c) ? "strong" : "outline"}>{c}</WBadge>)}
-                {matchesStd && <WBadge tone="strong">MATCH</WBadge>}
-              </div>
-              <div className="col-span-2">
-                <div className="h-1.5 rounded bg-muted overflow-hidden">
-                  <div className="h-full bg-foreground/70" style={{ width: `${u.load}%` }} />
-                </div>
-                <div className="text-[10px] text-muted-foreground mt-0.5">{u.load}% allocated</div>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-      <div className="annotation pt-3">↳ Selected lead is automatically included in the team. Conflicts-of-interest checked on submit.</div>
+      <div className="annotation pt-3">↳ Team members are loaded from the organization directory. Set up your team in Settings first.</div>
     </WCard>
   );
 }
@@ -751,7 +633,7 @@ function ChecklistEditor({ cl, onChange }: {
 }) {
   function addItem() {
     onChange((items) => [...items, {
-      id: `i_${Date.now()}`, text: "New checklist item", section: "Unassigned", owner: "u1",
+      id: `i_${Date.now()}`, text: "New checklist item", section: "Unassigned", owner: "",
     }], "added");
   }
   function update(id: string, patch: Partial<ChecklistItem>) {
@@ -787,10 +669,8 @@ function ChecklistEditor({ cl, onChange }: {
                 className="w-full h-8 px-2 rounded border border-input bg-muted/30" />
             </div>
             <div className="col-span-2">
-              <select value={it.owner} onChange={(e) => update(it.id, { owner: e.target.value })}
-                className="w-full h-8 px-2 rounded border border-input bg-muted/30">
-                {PEOPLE.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
+              <input value={it.owner} onChange={(e) => update(it.id, { owner: e.target.value })}
+                className="w-full h-8 px-2 rounded border border-input bg-muted/30" placeholder="Owner ID" />
             </div>
             <div className="col-span-1 flex justify-end">
               <button onClick={() => remove(it.id)} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted">
@@ -892,7 +772,8 @@ function ApprovalStatusBar({ status }: { status: ApprovalStatus }) {
 function ReviewStep(p: {
   title: string; standard: string; objective: string; scope: string; criteria: string;
   department: string; location: string; startDate: string; endDate: string;
-  lead: typeof PEOPLE[number]; team: typeof PEOPLE; checklists: EditableChecklist[];
+  lead: { id: string; name: string; role: string; cert: string[] }; team: { id: string; name: string; role: string; cert: string[] }[];
+  checklists: EditableChecklist[];
   approvers: ApprovalStage[];
 }) {
   const totalItems = p.checklists.reduce((a, c) => a + c.items.length, 0);
@@ -944,7 +825,7 @@ function ReviewStep(p: {
                 </div>
                 <ul className="ml-6 mt-1 space-y-0.5 text-[11px] text-muted-foreground">
                   {c.items.slice(0, 4).map((it) => (
-                    <li key={it.id} className="truncate">· {it.text} <span className="opacity-70">({PEOPLE.find((u) => u.id === it.owner)?.name ?? it.owner})</span></li>
+                    <li key={it.id} className="truncate">· {it.text} <span className="opacity-70">({it.owner})</span></li>
                   ))}
                   {c.items.length > 4 && <li className="opacity-70">+ {c.items.length - 4} more</li>}
                 </ul>

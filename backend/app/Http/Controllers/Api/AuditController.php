@@ -25,7 +25,7 @@ class AuditController extends Controller
             });
         }
 
-        $audits = $query->with(['findings', 'answers', 'processes'])
+        $audits = $query->with(['findings', 'answers', 'processes', 'leadAuditor'])
             ->orderBy('created_at', 'desc')
             ->get();
         return response()->json($audits);

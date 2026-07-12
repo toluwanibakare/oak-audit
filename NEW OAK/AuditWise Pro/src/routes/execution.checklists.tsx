@@ -8,16 +8,13 @@ export const Route = createFileRoute("/execution/checklists")({
   component: Page,
 });
 
-const STANDARDS = ["ISO 9001", "ISO 14001", "ISO 45001", "ISO/IEC 27001", "ISO 22301"];
-const STATUSES = ["Active", "Draft", "Archived"];
-
 const FIELDS: FieldDef[] = [
   { key: "name", label: "Name", required: true },
-  { key: "standard", label: "Standard", type: "select", options: STANDARDS, required: true },
+  { key: "standard", label: "Standard", required: true },
   { key: "version", label: "Version" },
   { key: "items", label: "# Items", type: "number" },
   { key: "owner", label: "Owner" },
-  { key: "status", label: "Status", type: "select", options: STATUSES },
+  { key: "status", label: "Status" },
 ];
 
 const COLUMNS: ColumnDef[] = [
@@ -35,13 +32,11 @@ function Page() {
   return (
     <EntityPage
       entity="checklists"
-      annotation="03 · CHECKLISTS"
       title="Audit Checklists"
       description="Reusable checklists referenced when creating audit plans."
       idPrefix="CHK"
       fields={FIELDS}
       columns={COLUMNS}
-      filterField={{ key: "standard", options: STANDARDS }}
       defaultValues={{ status: "Active", version: "v1.0" }}
     />
   );

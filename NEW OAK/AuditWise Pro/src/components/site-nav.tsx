@@ -11,6 +11,8 @@ export const SiteNav = () => {
   const [signingOut, setSigningOut] = useState(false);
 
   const isAuthPage = location.pathname === "/auth";
+  const searchParams = new URLSearchParams(location.search);
+  const authMode = searchParams.get("mode") || "signin";
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -71,12 +73,15 @@ export const SiteNav = () => {
             ) : (
               <>
                 {isAuthPage ? (
-                  <>
-                    <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">Sign In</Link>
+                  authMode === "signup" ? (
+                    <Link to="/auth" className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition duration-200">
+                      Sign In
+                    </Link>
+                  ) : (
                     <Link to="/auth?mode=signup" className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition duration-200">
                       Sign Up
                     </Link>
-                  </>
+                  )
                 ) : (
                   <>
                     <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">Sign In</Link>

@@ -12,15 +12,11 @@ export const Route = createFileRoute("/audits/schedule")({
   component: Page,
 });
 
-const STANDARDS = ["ISO 9001:2015", "ISO 14001:2015", "ISO 45001:2018", "ISO/IEC 27001:2022", "ISO 22301:2019"];
-const DEPARTMENTS = ["Operations", "HSE", "IT & Security", "Quality", "Logistics", "HR"];
-const LEADS = ["M. Chen", "R. Patel", "L. Okafor", "S. Müller", "J. Auditor"];
-
 const FIELDS: FieldDef[] = [
   { key: "title", label: "Title", required: true },
-  { key: "standard", label: "Standard", type: "select", options: STANDARDS, required: true },
-  { key: "department", label: "Department", type: "select", options: DEPARTMENTS },
-  { key: "lead", label: "Lead", type: "select", options: LEADS },
+  { key: "standard", label: "Standard", required: true },
+  { key: "department", label: "Department" },
+  { key: "lead", label: "Lead" },
   { key: "startDate", label: "Start", type: "date", required: true },
   { key: "endDate", label: "End", type: "date", required: true },
 ];
@@ -32,7 +28,7 @@ function Page() {
   const [editing, setEditing] = useState<AuditPlan | null>(null);
 
   return (
-    <ModulePage annotation="02 · SCHEDULE" title="Audit Schedule" description="Timeline view of all audits. Reschedule by editing dates inline.">
+    <ModulePage title="Audit Schedule" description="Timeline view of all audits. Reschedule by editing dates inline.">
       <div className="wire-card rounded-lg p-3 flex items-center gap-3">
         <Annotation>{plans.length} scheduled audits</Annotation>
         <div className="ml-auto">

@@ -53,6 +53,7 @@ import { Route as ActionsOverdueRouteImport } from './routes/actions.overdue'
 import { Route as ActionsOpenRouteImport } from './routes/actions.open'
 import { Route as ActionsInProgressRouteImport } from './routes/actions.in-progress'
 import { Route as ActionsClosedRouteImport } from './routes/actions.closed'
+import { Route as AcceptInviteTokenRouteImport } from './routes/accept-invite.$token'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -274,6 +275,11 @@ const ActionsClosedRoute = ActionsClosedRouteImport.update({
   path: '/actions/closed',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AcceptInviteTokenRoute = AcceptInviteTokenRouteImport.update({
+  id: '/accept-invite/$token',
+  path: '/accept-invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -285,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
+  '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/actions/closed': typeof ActionsClosedRoute
   '/actions/in-progress': typeof ActionsInProgressRoute
   '/actions/open': typeof ActionsOpenRoute
@@ -331,6 +338,7 @@ export interface FileRoutesByTo {
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
+  '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/actions/closed': typeof ActionsClosedRoute
   '/actions/in-progress': typeof ActionsInProgressRoute
   '/actions/open': typeof ActionsOpenRoute
@@ -378,6 +386,7 @@ export interface FileRoutesById {
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/terms': typeof TermsRoute
+  '/accept-invite/$token': typeof AcceptInviteTokenRoute
   '/actions/closed': typeof ActionsClosedRoute
   '/actions/in-progress': typeof ActionsInProgressRoute
   '/actions/open': typeof ActionsOpenRoute
@@ -426,6 +435,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/terms'
+    | '/accept-invite/$token'
     | '/actions/closed'
     | '/actions/in-progress'
     | '/actions/open'
@@ -472,6 +482,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/terms'
+    | '/accept-invite/$token'
     | '/actions/closed'
     | '/actions/in-progress'
     | '/actions/open'
@@ -518,6 +529,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/terms'
+    | '/accept-invite/$token'
     | '/actions/closed'
     | '/actions/in-progress'
     | '/actions/open'
@@ -565,6 +577,7 @@ export interface RootRouteChildren {
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
   TermsRoute: typeof TermsRoute
+  AcceptInviteTokenRoute: typeof AcceptInviteTokenRoute
   ActionsClosedRoute: typeof ActionsClosedRoute
   ActionsInProgressRoute: typeof ActionsInProgressRoute
   ActionsOpenRoute: typeof ActionsOpenRoute
@@ -912,6 +925,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ActionsClosedRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/accept-invite/$token': {
+      id: '/accept-invite/$token'
+      path: '/accept-invite/$token'
+      fullPath: '/accept-invite/$token'
+      preLoaderRoute: typeof AcceptInviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -925,6 +945,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
   TermsRoute: TermsRoute,
+  AcceptInviteTokenRoute: AcceptInviteTokenRoute,
   ActionsClosedRoute: ActionsClosedRoute,
   ActionsInProgressRoute: ActionsInProgressRoute,
   ActionsOpenRoute: ActionsOpenRoute,

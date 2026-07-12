@@ -8,16 +8,12 @@ export const Route = createFileRoute("/org/processes")({
   component: Page,
 });
 
-const STANDARDS = ["ISO 9001", "ISO 14001", "ISO 45001", "ISO 27001", "ISO 22301"];
-const DEPARTMENTS = ["Operations", "HSE", "IT & Security", "Quality", "Logistics", "HR", "Finance"];
-const STATUSES = ["Active", "Draft", "Retired"];
-
 const FIELDS: FieldDef[] = [
   { key: "name", label: "Process Name", required: true },
   { key: "owner", label: "Process Owner", required: true },
-  { key: "department", label: "Department", type: "select", options: DEPARTMENTS },
-  { key: "standard", label: "Primary Standard", type: "select", options: STANDARDS },
-  { key: "status", label: "Status", type: "select", options: STATUSES },
+  { key: "department", label: "Department" },
+  { key: "standard", label: "Primary Standard" },
+  { key: "status", label: "Status" },
 ];
 
 const COLUMNS: ColumnDef[] = [
@@ -34,12 +30,10 @@ function Page() {
   return (
     <EntityPage
       entity="processes"
-      annotation="07 · PROCESSES"
       title="Processes"
       idPrefix="P"
       fields={FIELDS}
       columns={COLUMNS}
-      filterField={{ key: "standard", options: STANDARDS }}
       defaultValues={{ status: "Active" }}
     />
   );

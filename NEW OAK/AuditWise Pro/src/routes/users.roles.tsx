@@ -20,7 +20,6 @@ const FIELDS: FieldDef[] = [
 ];
 
 const COLUMNS: ColumnDef[] = [
-  { key: "id", label: "ID", width: "110px" },
   { key: "name", label: "Role" },
   { key: "scope", label: "Scope" },
   { key: "members", label: "Members" },
@@ -32,7 +31,6 @@ function Page() {
   return (
     <EntityPage
       entity="roles"
-      annotation="08 · ROLES"
       title="Roles"
       idPrefix="R"
       fields={FIELDS}

@@ -23,7 +23,6 @@ function Page() {
   return (
     <EntityPage
       entity="actions"
-      annotation="05 · IN PROGRESS"
       title="Actions In Progress"
       idPrefix="CA"
       fields={ACTION_FIELDS}

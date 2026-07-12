@@ -28,7 +28,7 @@ function Page() {
   ];
 
   return (
-    <ModulePage annotation="10 · REPORTS" title="Reports & Analytics">
+    <ModulePage title="Reports & Analytics">
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         {REPORTS.map((r) => (
           <ReportCard key={r.key} name={r.name} desc={r.desc} onGenerate={(fmt) => download(r.name, fmt, r.fn())} />

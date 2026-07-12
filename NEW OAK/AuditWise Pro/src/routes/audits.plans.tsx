@@ -12,18 +12,14 @@ export const Route = createFileRoute("/audits/plans")({
   component: Page,
 });
 
-const STANDARDS = ["ISO 9001:2015", "ISO 14001:2015", "ISO 45001:2018", "ISO/IEC 27001:2022", "ISO 22301:2019"];
-const DEPARTMENTS = ["Operations", "HSE", "IT & Security", "Quality", "Logistics", "HR", "Finance"];
-const LOCATIONS = ["Plant A — Hamburg", "Plant B — Rotterdam", "DC — Antwerp", "HQ — Berlin", "Data Center — Frankfurt"];
-const LEADS = ["M. Chen", "R. Patel", "L. Okafor", "S. Müller", "J. Auditor"];
 const STATUSES: AuditPlan["status"][] = ["Draft", "Pending Approval", "Approved", "Rejected"];
 
 const FIELDS: FieldDef[] = [
   { key: "title", label: "Audit Title", required: true },
-  { key: "standard", label: "ISO Standard", type: "select", options: STANDARDS, required: true },
-  { key: "department", label: "Department", type: "select", options: DEPARTMENTS },
-  { key: "location", label: "Location", type: "select", options: LOCATIONS },
-  { key: "lead", label: "Lead Auditor", type: "select", options: LEADS },
+  { key: "standard", label: "ISO Standard", required: true },
+  { key: "department", label: "Department" },
+  { key: "location", label: "Location" },
+  { key: "lead", label: "Lead Auditor" },
   { key: "teamCount", label: "Team Size", type: "number" },
   { key: "startDate", label: "Start Date", type: "date", required: true },
   { key: "endDate", label: "End Date", type: "date", required: true },
@@ -50,7 +46,7 @@ function Page() {
   const counts = STATUSES.map((s) => ({ s, n: plans.filter((p) => p.status === s).length }));
 
   return (
-    <ModulePage annotation="02 · AUDIT PLANS" title="Audit Plans" description="All audit plans created via the wizard or directly here. Status changes notify the lead auditor.">
+    <ModulePage title="Audit Plans" description="All audit plans created via the wizard or directly here. Status changes notify the lead auditor.">
       <div className="grid grid-cols-4 gap-3">
         {counts.map((c) => (
           <WCard key={c.s} title={c.s}><div className="text-2xl font-semibold">{c.n}</div><Annotation>PLANS</Annotation></WCard>

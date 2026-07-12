@@ -10,7 +10,7 @@ export const Route = createFileRoute("/library/forms")({
 
 function Page() {
   return (
-    <ModulePage annotation="09 · LIBRARY" title="Forms">
+    <ModulePage title="Forms">
       <FilterBar filters={["Type","Standard","Date"]} />
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3">
         {Array.from({length:18}).map((_,i)=>(

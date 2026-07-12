@@ -10,7 +10,7 @@ export const Route = createFileRoute("/risk/assessment")({
 
 function Page() {
   return (
-    <ModulePage annotation="06 · RISK" title="Risk Assessment">
+    <ModulePage title="Risk Assessment">
       <div className="grid grid-cols-12 gap-4">
         <WCard className="col-span-12 xl:col-span-7" title="Risk Assessment Workspace" hint="Scenario · scoring · controls">
           <div className="grid grid-cols-2 gap-3 text-xs">

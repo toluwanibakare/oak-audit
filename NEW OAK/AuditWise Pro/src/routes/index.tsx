@@ -142,7 +142,7 @@ function Logo({ tone = "dark" }: { tone?: "dark" | "light" }) {
 }
 
 function Header({ scrolled }: { scrolled: boolean }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   return (
     <header
       className={`sticky top-0 z-40 transition-all duration-500 ${
@@ -159,7 +159,12 @@ function Header({ scrolled }: { scrolled: boolean }) {
           <a href="#lifecycle" className="text-white/60 hover:text-white transition-colors duration-300">How It Works</a>
         </nav>
         <div className="flex items-center gap-3">
-          {user ? (
+          {loading ? (
+            <div className="flex items-center gap-3">
+              <div className="h-4 w-16 rounded bg-white/10 animate-pulse" />
+              <div className="h-9 w-28 rounded-md bg-white/10 animate-pulse" />
+            </div>
+          ) : user ? (
             <Link
               to="/dashboard"
               className="inline-flex items-center gap-1.5 rounded-md bg-white px-5 py-2 text-sm font-semibold text-[var(--navy-deep)] shadow-sm transition-all duration-300 hover:brightness-95 hover:scale-105 active:scale-95"
@@ -186,7 +191,7 @@ function Header({ scrolled }: { scrolled: boolean }) {
 }
 
 function Hero({ parallaxY }: { parallaxY: number }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   return (
     <section className="relative min-h-dvh overflow-hidden bg-hero text-white">
       <div
@@ -197,7 +202,7 @@ function Hero({ parallaxY }: { parallaxY: number }) {
           transform: `translateY(${parallaxY}px)`,
         }}
       />
-      <div className="container-page relative z-10 grid min-h-dvh gap-10 py-20 lg:grid-cols-[1fr_1fr] lg:items-center">
+      <div className="container-page relative z-10 grid gap-10 py-20 lg:grid-cols-[1fr_1fr] lg:items-center">
         <div className="animate-fade-in-up">
           <span className="chip-on-dark animate-fade-in" style={{ animationDelay: '0.2s', animationFillMode: 'both' }}>Audit & Compliance Management</span>
           <h1 className="mt-5 font-display text-4xl font-bold leading-[1.05] tracking-tight text-white md:text-5xl">
@@ -209,7 +214,9 @@ function Hero({ parallaxY }: { parallaxY: number }) {
             Manage audits, compliance, risks and corrective actions from planning to closure on one connected platform.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            {user ? (
+            {loading ? (
+              <div className="h-11 w-44 rounded-md bg-white/10 animate-pulse" />
+            ) : user ? (
               <Link to="/dashboard" className="inline-flex items-center gap-2 rounded-md bg-white px-5 py-2.5 text-sm font-semibold text-[var(--navy-deep)] shadow-sm transition-all duration-300 hover:brightness-95 hover:scale-105 active:scale-95">
                 Go to Dashboard <ArrowRight className="h-4 w-4" />
               </Link>
@@ -674,9 +681,9 @@ const pricingPacks = [
     badge: null,
     color: "border-border/60 hover:border-primary/50",
     tiers: [
-      { tier: "1 \u2013 5 Users",      price: "\u20A6500,000" },
-      { tier: "5 \u2013 15 Users",     price: "\u20A61,000,000" },
-      { tier: "16+ Users",        price: "\u20A61,500,000" },
+      { tier: "1 – 5 Users",      price: "₦500,000" },
+      { tier: "5 – 15 Users",     price: "₦1,000,000" },
+      { tier: "16+ Users",        price: "₦1,500,000" },
     ],
   },
   {
@@ -686,9 +693,9 @@ const pricingPacks = [
     badge: null,
     color: "border-border/60 hover:border-primary/50",
     tiers: [
-      { tier: "1 \u2013 5 Users",      price: "\u20A6500,000" },
-      { tier: "5 \u2013 15 Users",     price: "\u20A61,000,000" },
-      { tier: "16+ Users",        price: "\u20A61,500,000" },
+      { tier: "1 – 5 Users",      price: "₦500,000" },
+      { tier: "5 – 15 Users",     price: "₦1,000,000" },
+      { tier: "16+ Users",        price: "₦1,500,000" },
     ],
   },
   {
@@ -698,9 +705,9 @@ const pricingPacks = [
     badge: null,
     color: "border-border/60 hover:border-primary/50",
     tiers: [
-      { tier: "1 \u2013 5 Users",      price: "\u20A6500,000" },
-      { tier: "5 \u2013 15 Users",     price: "\u20A61,000,000" },
-      { tier: "16+ Users",        price: "\u20A61,500,000" },
+      { tier: "1 – 5 Users",      price: "₦500,000" },
+      { tier: "5 – 15 Users",     price: "₦1,000,000" },
+      { tier: "16+ Users",        price: "₦1,500,000" },
     ],
   },
   {
@@ -710,9 +717,9 @@ const pricingPacks = [
     badge: null,
     color: "border-border/60 hover:border-primary/50",
     tiers: [
-      { tier: "1 \u2013 5 Users",      price: "\u20A6500,000" },
-      { tier: "5 \u2013 15 Users",     price: "\u20A61,000,000" },
-      { tier: "16+ Users",        price: "\u20A61,500,000" },
+      { tier: "1 – 5 Users",      price: "₦500,000" },
+      { tier: "5 – 15 Users",     price: "₦1,000,000" },
+      { tier: "16+ Users",        price: "₦1,500,000" },
     ],
   },
   {
@@ -722,9 +729,9 @@ const pricingPacks = [
     badge: "Bundle",
     color: "border-primary/40 hover:border-primary/70",
     tiers: [
-      { tier: "1 \u2013 5 Users",      price: "\u20A61,000,000" },
-      { tier: "5 \u2013 15 Users",     price: "\u20A61,500,000" },
-      { tier: "16+ Users",        price: "\u20A62,000,000" },
+      { tier: "1 – 5 Users",      price: "₦1,000,000" },
+      { tier: "5 – 15 Users",     price: "₦1,500,000" },
+      { tier: "16+ Users",        price: "₦2,000,000" },
     ],
   },
   {
@@ -734,9 +741,9 @@ const pricingPacks = [
     badge: "Most Popular",
     color: "border-accent/50 hover:border-accent/80",
     tiers: [
-      { tier: "1 \u2013 5 Users",      price: "\u20A61,500,000" },
-      { tier: "5 \u2013 15 Users",     price: "\u20A62,000,000" },
-      { tier: "16+ Users",        price: "\u20A62,500,000" },
+      { tier: "1 – 5 Users",      price: "₦1,500,000" },
+      { tier: "5 – 15 Users",     price: "₦2,000,000" },
+      { tier: "16+ Users",        price: "₦2,500,000" },
     ],
   },
 ];

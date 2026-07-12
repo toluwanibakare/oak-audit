@@ -24,7 +24,7 @@ function Page() {
   }, [plans]);
 
   return (
-    <ModulePage annotation="02 · PROGRAM" title="Audit Program" description="Strategic coverage across standards, departments, and quarters.">
+    <ModulePage title="Audit Program" description="Strategic coverage across standards, departments, and quarters.">
       <div className="grid grid-cols-12 gap-4">
         <WCard className="col-span-6" title="By ISO Standard">
           {byStd.length === 0 ? <Annotation>No data yet</Annotation> :

@@ -1,7 +1,17 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import { ModulePage, WCard, WBadge, Annotation } from "@/components/module-page";
 import { auditStore, useAuditStore, type EntityItem } from "@/lib/audit-store";
-import { Pencil, Trash2, Plus, X } from "lucide-react";
+import { entitiesApi } from "@/lib/api/entities";
+import { orgsApi } from "@/lib/api/orgs";
+import { Pencil, Trash2, Plus, X, RefreshCw, AlertTriangle } from "lucide-react";
+
+let _orgIdPromise: Promise<string | null> | null = null;
+function getOrgId(): Promise<string | null> {
+  if (!_orgIdPromise) {
+    _orgIdPromise = orgsApi.list().then((orgs) => orgs.length > 0 ? orgs[0].id : null).catch(() => null);
+  }
+  return _orgIdPromise;
+}
 
 export type FieldDef = {
   key: string;
@@ -39,11 +49,15 @@ export function EntityPage(props: {
   filter?: (item: EntityItem) => boolean;
   toolbar?: ReactNode;
 }) {
-  const items = useAuditStore((s) => Object.values(s.collections[props.entity] ?? {}));
+  const localItems = useAuditStore((s) => Object.values(s.collections[props.entity] ?? []));
   const [q, setQ] = useState("");
   const [filterVal, setFilterVal] = useState<string>("All");
   const [editing, setEditing] = useState<EntityItem | null>(null);
   const [creating, setCreating] = useState(false);
+  const [synced, setSynced] = useState(false);
+  const [apiError, setApiError] = useState(false);
+
+  const items = localItems;
 
   const filtered = useMemo(() => {
     const keys = props.searchKeys ?? props.fields.map((f) => f.key);
@@ -53,6 +67,60 @@ export function EntityPage(props: {
       .filter((it) => !q || keys.some((k) => String(it[k] ?? "").toLowerCase().includes(q.toLowerCase())))
       .sort((a, b) => String(b.updated ?? "").localeCompare(String(a.updated ?? "")));
   }, [items, q, filterVal, props]);
+
+  useEffect(() => {
+    (async () => {
+      const orgId = await getOrgId();
+      if (!orgId) { setSynced(true); return; }
+      try {
+        const remote = await entitiesApi.list(orgId, props.entity);
+        const existingIds = new Set(auditStore.list(props.entity).map((i) => i.id));
+        for (const item of remote) {
+          if (existingIds.has(item.id)) {
+            auditStore.update(props.entity, item.id, item);
+          } else {
+            auditStore.create(props.entity, { ...item, id: item.id }, "");
+          }
+        }
+        setApiError(false);
+      } catch {
+        setApiError(true);
+      } finally {
+        setSynced(true);
+      }
+    })();
+  }, [props.entity]);
+
+  const saveEntity = async (item: EntityItem | null, values: Partial<EntityItem>) => {
+    if (item) {
+      auditStore.update(props.entity, item.id, values);
+      setEditing(null);
+    } else {
+      auditStore.create(props.entity, values, props.idPrefix);
+      setCreating(null);
+    }
+    const orgId = await getOrgId();
+    if (!orgId) return;
+    try {
+      if (item) {
+        await entitiesApi.update(orgId, props.entity, item.id, values);
+      } else {
+        await entitiesApi.create(orgId, props.entity, values);
+      }
+    } catch {}
+  };
+
+  const deleteEntity = async (id: string) => {
+    if (!confirm(`Delete ${id}?`)) return;
+    auditStore.remove(props.entity, id);
+    const orgId = await getOrgId();
+    if (orgId) {
+      try { await entitiesApi.delete(orgId, props.entity, id); } catch {}
+    }
+  };
+
+  const hasSeed = items.length > 0 && !synced;
+  const hasApiData = items.length > 0 && synced && !apiError;
 
   return (
     <ModulePage annotation={props.annotation} title={props.title} description={props.description}>
@@ -87,67 +155,75 @@ export function EntityPage(props: {
         </div>
       </div>
 
-      <div className="wire-card rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead className="bg-muted/40 border-b border-border">
-              <tr className="text-left">
-                {props.columns.map((c) => (
-                  <th key={c.key} className="py-2.5 px-3 annotation font-medium" style={{ width: c.width }}>
-                    {c.label ?? c.key}
-                  </th>
-                ))}
-                <th className="py-2.5 px-3 w-24 annotation">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 && (
-                <tr><td colSpan={props.columns.length + 1} className="py-10 text-center text-muted-foreground">No records. Click <span className="font-medium">+ New</span> to create one.</td></tr>
-              )}
-              {filtered.map((it) => (
-                <tr key={it.id} className="border-b border-dashed border-border hover:bg-muted/30">
-                  {props.columns.map((c) => (
-                    <td key={c.key} className="py-2.5 px-3 align-middle">
-                      {c.render
-                        ? c.render(it)
-                        : c.key === "id"
-                        ? <span className="font-mono text-[11px]">{it.id}</span>
-                        : c.key === "status"
-                        ? <WBadge tone={statusTone(String(it[c.key] ?? ""))}>{String(it[c.key] ?? "—")}</WBadge>
-                        : String(it[c.key] ?? "—")}
-                    </td>
-                  ))}
-                  <td className="py-2.5 px-3">
-                    <div className="flex gap-1">
-                      <button onClick={() => setEditing(it)} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted" title="Edit">
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                      <button
-                        onClick={() => { if (confirm(`Delete ${it.id}?`)) auditStore.remove(props.entity, it.id); }}
-                        className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted" title="Delete"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {apiError && (
+        <div className="flex items-center gap-2 px-3 py-2 mt-2 rounded-lg bg-amber-50 text-amber-700 text-xs">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          Could not sync with server. Showing local data.
         </div>
-      </div>
+      )}
+
+      {!synced && (
+        <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
+          <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Loading...
+        </div>
+      )}
+
+      {synced && (
+        <div className="wire-card rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/40 border-b border-border">
+                <tr className="text-left">
+                  {props.columns.map((c) => (
+                    <th key={c.key} className="py-2.5 px-3 annotation font-medium" style={{ width: c.width }}>
+                      {c.label ?? c.key}
+                    </th>
+                  ))}
+                  <th className="py-2.5 px-3 w-24 annotation">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 && (
+                  <tr><td colSpan={props.columns.length + 1} className="py-10 text-center text-muted-foreground">No records. Click <span className="font-medium">+ New</span> to create one.</td></tr>
+                )}
+                {filtered.map((it) => (
+                  <tr key={it.id} className="border-b border-dashed border-border hover:bg-muted/30">
+                    {props.columns.map((c) => (
+                      <td key={c.key} className="py-2.5 px-3 align-middle">
+                        {c.render
+                          ? c.render(it)
+                          : c.key === "id"
+                          ? <span className="font-mono text-[11px]">{it.id}</span>
+                          : c.key === "status"
+                          ? <WBadge tone={statusTone(String(it[c.key] ?? ""))}>{String(it[c.key] ?? "—")}</WBadge>
+                          : String(it[c.key] ?? "—")}
+                      </td>
+                    ))}
+                    <td className="py-2.5 px-3">
+                      <div className="flex gap-1">
+                        <button onClick={() => setEditing(it)} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted" title="Edit">
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button onClick={() => deleteEntity(it.id)} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted" title="Delete">
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {(creating || editing) && (
         <EntityDialog
           fields={props.fields}
           item={editing ?? (props.defaultValues as EntityItem | null)}
           title={editing ? `Edit ${editing.id}` : `New ${props.title}`}
-          onClose={() => { setEditing(null); setCreating(false); }}
-          onSubmit={(values) => {
-            if (editing) auditStore.update(props.entity, editing.id, values);
-            else auditStore.create(props.entity, values, props.idPrefix);
-            setEditing(null); setCreating(false);
-          }}
+          onClose={() => { setEditing(null); setCreating(null); }}
+          onSubmit={(values) => saveEntity(editing, values)}
         />
       )}
     </ModulePage>
@@ -243,10 +319,53 @@ export function EntityKanban(props: {
   metaKeys?: string[];
   tagKey?: string;
 }) {
-  const items = useAuditStore((s) => Object.values(s.collections[props.entity] ?? {}));
+  const items = useAuditStore((s) => Object.values(s.collections[props.entity] ?? []));
   const [editing, setEditing] = useState<EntityItem | null>(null);
-  const [creating, setCreating] = useState<string | null>(null); // status to seed
+  const [creating, setCreating] = useState<string | null>(null);
+  const [synced, setSynced] = useState(false);
   const titleKey = props.titleKey ?? "title";
+
+  useEffect(() => {
+    (async () => {
+      const orgId = await getOrgId();
+      if (!orgId) { setSynced(true); return; }
+      try {
+        const remote = await entitiesApi.list(orgId, props.entity);
+        const existingIds = new Set(auditStore.list(props.entity).map((i) => i.id));
+        for (const item of remote) {
+          if (existingIds.has(item.id)) {
+            auditStore.update(props.entity, item.id, item);
+          } else {
+            auditStore.create(props.entity, { ...item, id: item.id }, "");
+          }
+        }
+      } catch {} finally { setSynced(true); }
+    })();
+  }, [props.entity]);
+
+  const saveEntity = async (item: EntityItem | null, values: Partial<EntityItem>) => {
+    if (item) {
+      auditStore.update(props.entity, item.id, values);
+      setEditing(null);
+    } else {
+      auditStore.create(props.entity, { ...values, status: creating }, props.idPrefix);
+      setCreating(null);
+    }
+    const orgId = await getOrgId();
+    if (orgId && item) {
+      try { await entitiesApi.update(orgId, props.entity, item.id, values); } catch {}
+    }
+  };
+
+  if (!synced) {
+    return (
+      <ModulePage annotation={props.annotation} title={props.title}>
+        <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
+          <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Loading...
+        </div>
+      </ModulePage>
+    );
+  }
 
   return (
     <ModulePage annotation={props.annotation} title={props.title}>
@@ -303,11 +422,7 @@ export function EntityKanban(props: {
           item={editing ?? ({ id: "", status: creating } as EntityItem)}
           title={editing ? `Edit ${editing.id}` : `New ${props.title}`}
           onClose={() => { setEditing(null); setCreating(null); }}
-          onSubmit={(values) => {
-            if (editing) auditStore.update(props.entity, editing.id, values);
-            else auditStore.create(props.entity, { ...values, status: creating }, props.idPrefix);
-            setEditing(null); setCreating(null);
-          }}
+          onSubmit={(values) => saveEntity(editing, values)}
         />
       )}
     </ModulePage>

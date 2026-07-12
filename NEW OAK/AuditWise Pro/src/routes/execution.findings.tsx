@@ -8,19 +8,15 @@ export const Route = createFileRoute("/execution/findings")({
   component: Page,
 });
 
-const SEVERITIES = ["Major", "Minor", "Observation", "OFI"];
-const STATUSES = ["Open", "In Progress", "Pending Verification", "Closed"];
-const DEPARTMENTS = ["Operations", "HSE", "IT & Security", "Quality", "Logistics", "HR"];
-
 const FIELDS: FieldDef[] = [
   { key: "clause", label: "Clause", required: true },
   { key: "description", label: "Description", type: "textarea", required: true },
-  { key: "severity", label: "Severity", type: "select", options: SEVERITIES, required: true },
-  { key: "department", label: "Department", type: "select", options: DEPARTMENTS },
+  { key: "severity", label: "Severity", required: true },
+  { key: "department", label: "Department" },
   { key: "owner", label: "Owner" },
   { key: "auditor", label: "Auditor" },
   { key: "due", label: "Due", type: "date" },
-  { key: "status", label: "Status", type: "select", options: STATUSES },
+  { key: "status", label: "Status" },
 ];
 
 const COLUMNS: ColumnDef[] = [
@@ -38,13 +34,11 @@ function Page() {
   return (
     <EntityPage
       entity="nonconformities"
-      annotation="03 · FINDINGS"
       title="Audit Findings"
       description="All findings — major, minor, observations, and OFIs — raised across audits."
       idPrefix="F"
       fields={FIELDS}
       columns={COLUMNS}
-      filterField={{ key: "severity", options: SEVERITIES }}
       defaultValues={{ status: "Open", severity: "Minor", raisedAt: new Date().toISOString().slice(0, 10) }}
     />
   );

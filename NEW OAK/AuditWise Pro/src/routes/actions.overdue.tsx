@@ -23,7 +23,6 @@ function Page() {
   return (
     <EntityPage
       entity="actions"
-      annotation="05 · OVERDUE"
       title="Overdue Actions"
       description="Actions whose due date is past and that are not yet closed."
       idPrefix="CA"

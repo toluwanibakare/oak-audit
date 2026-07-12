@@ -28,13 +28,12 @@ function Page() {
   return (
     <EntityPage
       entity="notes"
-      annotation="03 · NOTES"
       title="Auditor Notes"
       description="Free-form notes from the field that supplement formal findings."
       idPrefix="N"
       fields={FIELDS}
       columns={COLUMNS}
-      defaultValues={{ author: "M. Chen" }}
+      defaultValues={{ author: "" }}
     />
   );
 }

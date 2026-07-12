@@ -330,7 +330,36 @@ class AuthController extends Controller
 
     public function me(): JsonResponse
     {
-        return response()->json(auth('api')->user());
+        $user = auth('api')->user();
+
+        $role = null;
+        if ($user) {
+            $orgId = null;
+            $member = \App\Models\OrganizationMember::where('user_id', $user->id)
+                ->orderBy('created_at', 'desc')
+                ->first();
+            if ($member) {
+                $orgId = $member->org_id;
+            } else {
+                $org = \App\Models\Organization::where('created_by', $user->id)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+                $orgId = $org?->id;
+            }
+            if ($orgId) {
+                $ur = \App\Models\UserRole::where('org_id', $orgId)
+                    ->where('user_id', $user->id)
+                    ->first();
+                $role = $ur?->role;
+            }
+        }
+
+        return response()->json([
+            'id' => $user->id,
+            'email' => $user->email,
+            'full_name' => $user->full_name,
+            'current_role' => $role,
+        ]);
     }
 
     public function logout(): JsonResponse
@@ -364,7 +393,7 @@ class AuthController extends Controller
             'user_id' => $user->id,
             'type' => 'welcome',
             'title' => 'Welcome to OakAudix!',
-            'body' => "Hi {$user->full_name},\n\nWelcome to OakAudix! We're excited to have you on board.\n\nHere are a few things to get started:\n• Complete your organization profile in Settings\n• Explore the dashboard and audit modules\n• Reach out to our support team if you need any help\n\nEnjoy the platform!\n— The OakAudix Team",
+            'body' => "Welcome to OakAudix! Get started by exploring your dashboard and completing your organization profile.",
             'is_read' => false,
         ]);
 

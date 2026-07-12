@@ -1,18 +1,19 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard, ClipboardList, Search, AlertTriangle, CheckSquare,
-  TrendingUp, Building2, Users, BookOpen, BarChart3, Settings, Sparkles,
-  Bell, Plus, Search as SearchIcon, ChevronDown, LogOut, X, User,
+  TrendingUp, Building2, Users, BookOpen, BarChart3, Settings,
+  Bell, Plus, Search as SearchIcon, ChevronDown, LogOut, X, User, Bot,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { notificationsApi } from "@/lib/api/notifications";
+import { Annotation } from "@/components/wire";
 import logo from "@/assets/logo.png";
 
-type Item = { label: string; to?: string; children?: { label: string; to: string }[] };
+type NavItem = { icon: any; label: string; to?: string; comingSoon?: boolean; children?: { label: string; to: string }[] };
 
-const NAV: { icon: any; label: string; to?: string; children?: { label: string; to: string }[] }[] = [
+const NAV: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
   {
     icon: ClipboardList, label: "Audit Management", children: [
@@ -65,9 +66,8 @@ const NAV: { icon: any; label: string; to?: string; children?: { label: string; 
   },
   {
     icon: Users, label: "User Management", children: [
-      { label: "Users", to: "/users/all" },
+      { label: "Team Management", to: "/users/all" },
       { label: "Roles", to: "/users/roles" },
-      { label: "Teams", to: "/users/teams" },
       { label: "Permissions", to: "/users/permissions" },
     ],
   },
@@ -81,7 +81,7 @@ const NAV: { icon: any; label: string; to?: string; children?: { label: string; 
     ],
   },
   { icon: BarChart3, label: "Reports & Analytics", to: "/reports" },
-  { icon: Sparkles, label: "AI Assistant", to: "/ai" },
+  { icon: Bot, label: "OAK AI", to: "/ai", comingSoon: true },
   { icon: Settings, label: "Settings", to: "/settings" },
 ];
 
@@ -91,7 +91,7 @@ function Sidebar() {
   const [showLogout, setShowLogout] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(() => {
-    const active = NAV.filter((n) => n.children?.some((c) => location.pathname.startsWith(c.to)));
+    const active = NAV.filter((n) => n.children?.some((c) => pathname.startsWith(c.to)));
     return new Set(active.map((n) => n.label));
   });
   const toggleMenu = (label: string) => {
@@ -141,19 +141,28 @@ function Sidebar() {
         {NAV.map((item) => {
           const Icon = item.icon;
           const active = item.to && pathname === item.to;
+          if (item.comingSoon) {
+            return (
+              <div key={item.label} className="flex items-center gap-2 px-2 py-1.5 rounded-md opacity-50 border-l-[3px] border-transparent cursor-not-allowed">
+                <Icon className="h-4 w-4 text-ink-soft" />
+                <span className="flex-1 truncate text-xs">{item.label}</span>
+                <span className="annotation">Coming Soon</span>
+              </div>
+            );
+          }
           if (item.to && !item.children) {
             return (
               <Link key={item.label} to={item.to}
-                className={`flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent ${active ? "bg-sidebar-accent font-medium" : ""}`}>
-                <Icon className="h-4 w-4 text-ink-soft" />
+                className={`flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent transition-colors border-l-[3px] ${active ? "border-primary bg-primary/[0.06] text-primary font-medium" : "border-transparent"}`}>
+                <Icon className={`h-4 w-4 ${active ? "text-primary" : "text-ink-soft"}`} />
                 <span className="truncate">{item.label}</span>
               </Link>
             );
           }
           return (
             <div key={item.label}>
-              <button onClick={() => toggleMenu(item.label)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent text-left cursor-pointer ${expandedMenus.has(item.label) ? "bg-sidebar-accent font-medium" : ""}`}>
-                <Icon className="h-4 w-4 text-ink-soft" />
+              <button onClick={() => toggleMenu(item.label)} className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-sidebar-accent text-left cursor-pointer transition-colors border-l-[3px] ${expandedMenus.has(item.label) ? "border-primary bg-primary/[0.06] text-primary font-medium" : "border-transparent"}`}>
+                <Icon className={`h-4 w-4 ${expandedMenus.has(item.label) ? "text-primary" : "text-ink-soft"}`} />
                 <span className="flex-1 truncate">{item.label}</span>
                 <ChevronDown className={`h-3 w-3 opacity-50 transition-transform duration-200 ${expandedMenus.has(item.label) ? "rotate-180" : ""}`} />
               </button>
@@ -163,7 +172,7 @@ function Sidebar() {
                   const ca = pathname === c.to;
                   return (
                     <Link key={c.to} to={c.to}
-                      className={`block px-2 py-1 rounded text-[13px] text-muted-foreground hover:bg-sidebar-accent hover:text-foreground ${ca ? "bg-sidebar-accent text-foreground font-medium" : ""}`}>
+                      className={`block px-2 py-1 rounded text-[13px] text-muted-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors border-l-[3px] ${ca ? "border-primary bg-primary/[0.06] text-primary font-medium" : "border-transparent"}`}>
                       {c.label}
                     </Link>
                   );
@@ -191,7 +200,7 @@ function Sidebar() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium truncate">{user?.full_name}</div>
-              <div className="annotation">WORKSPACE</div>
+              <div className="annotation">{user?.current_role || "WORKSPACE"}</div>
             </div>
             <button onClick={() => setShowLogout(true)} className="h-6 w-6 grid place-items-center rounded hover:bg-sidebar-accent text-muted-foreground hover:text-foreground" title="Sign out">
               <LogOut className="h-3.5 w-3.5" />
@@ -285,9 +294,9 @@ export function AppShell({ children, title, annotation }: { children: ReactNode;
           {title && (
             <div className="flex items-end justify-between gap-4 flex-wrap">
               <div>
+                {annotation && <Annotation>{annotation}</Annotation>}
                 <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
               </div>
-
             </div>
           )}
           {children}

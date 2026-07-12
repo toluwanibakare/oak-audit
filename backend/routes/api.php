@@ -5,8 +5,11 @@ use App\Http\Controllers\Api\AuditController;
 use App\Http\Controllers\Api\AuditProcessController;
 use App\Http\Controllers\Api\AuditorController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\EntityDataController;
 use App\Http\Controllers\Api\EvidenceController;
 use App\Http\Controllers\Api\FindingController;
+use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\NotificationController as NotificationApiController;
 use App\Http\Controllers\Api\OrganizationController;
@@ -26,6 +29,7 @@ Route::post('auth/refresh', [AuthController::class, 'refresh']);
 Route::post('auth/verify-otp', [AuthController::class, 'verifyOtp']);
 Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('auth/reset-password', [AuthController::class, 'resetPassword']);
+Route::post('team-members/accept-invite/{token}', [\App\Http\Controllers\Api\TeamMemberController::class, 'acceptInvite']);
 
 // Public data
 Route::get('iso-clauses', fn() => response()->json(IsoClause::all()));
@@ -106,6 +110,27 @@ Route::middleware('auth:api')->group(function () {
         Route::get('wallet', [WalletController::class, 'wallet']);
         Route::get('transactions', [WalletController::class, 'transactions']);
         Route::get('licenses', [WalletController::class, 'licenses']);
+
+        // Dashboard
+        Route::get('dashboard', [DashboardController::class, 'index']);
+
+        // Team members
+        Route::get('team-members', [\App\Http\Controllers\Api\TeamMemberController::class, 'index']);
+        Route::post('team-members', [\App\Http\Controllers\Api\TeamMemberController::class, 'store']);
+        Route::put('team-members/{userId}', [\App\Http\Controllers\Api\TeamMemberController::class, 'update']);
+        Route::delete('team-members/{userId}', [\App\Http\Controllers\Api\TeamMemberController::class, 'destroy']);
+
+        // Invitations
+        Route::get('invitations', [InvitationController::class, 'index']);
+        Route::post('invitations', [InvitationController::class, 'store']);
+        Route::delete('invitations/{invitation}', [InvitationController::class, 'destroy']);
+
+        // Entity data (generic CRUD for departments, locations, assets, teams, etc.)
+        Route::get('entities/{entityType}', [EntityDataController::class, 'index']);
+        Route::post('entities/{entityType}', [EntityDataController::class, 'store']);
+        Route::put('entities/{entityType}/{id}', [EntityDataController::class, 'update']);
+        Route::delete('entities/{entityType}/{id}', [EntityDataController::class, 'destroy']);
+        Route::post('entities/seed', [EntityDataController::class, 'seed']);
     });
 
     // Audit processes
@@ -141,8 +166,11 @@ Route::middleware('auth:api')->group(function () {
     Route::delete('notifications/{id}', [NotificationApiController::class, 'destroy']);
 
     // Email notifications
-    Route::post('notifications/send-email', [NotificationController::class, 'sendEmail']);
+    Route::post('notifications/send-email', [NotificationApiController::class, 'sendEmail']);
 
     // Support tickets (authenticated listing)
     Route::get('support-tickets', [SupportTicketController::class, 'index']);
+
+    // Invitation acceptance (auth required but not org-scoped)
+    Route::post('invitations/accept', [InvitationController::class, 'accept']);
 });

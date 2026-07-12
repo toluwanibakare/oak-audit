@@ -126,7 +126,7 @@ function Page() {
   const pct = totalForActive ? Math.round((answeredForActive / totalForActive) * 100) : 0;
 
   return (
-    <ModulePage annotation="03 · EXECUTION" title="Conduct Audit">
+    <ModulePage title="Conduct Audit">
       {/* Audit & checklist picker */}
       <div className="wire-card rounded-lg p-3 flex flex-wrap items-center gap-2">
         <span className="annotation">AUDIT</span>

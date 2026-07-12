@@ -25,6 +25,18 @@
                 We've set up your workspace and you're ready to begin. Here are the first things you can do to get the most out of the platform:
               </p>
 
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;background-color:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+                <tr>
+                  <td style="padding:14px 16px;">
+                    <p style="margin:0;font-size:14px;color:#0f172a;font-weight:600;">Management Representative Role</p>
+                    <p style="margin:4px 0 0;font-size:13px;color:#475569;line-height:1.5;">
+                      You have been automatically assigned the Management Representative role for your organization.
+                      You can transfer this role to someone else within the organization at any time via <strong>Settings &rarr; Team</strong>.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
               {{-- Steps --}}
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
