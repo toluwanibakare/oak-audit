@@ -490,7 +490,7 @@ function HeatMap({ grid }: { grid?: number[][] }) {
   const data = grid ?? [
     [1,2,2,3,4], [1,2,3,4,4], [2,3,3,4,5], [2,3,4,5,5], [3,4,5,5,5],
   ];
-  const tone = (n: number) => ["#ecfdf5","#a7f3d0","#34d399","#10b981","#059669"][n - 1] || "#059669";
+  const tone = (n: number) => ["#22c55e","#86efac","#fde047","#f97316","#ef4444"][n - 1] || "#ef4444";
   return (
     <div>
       <div className="flex">

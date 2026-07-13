@@ -234,6 +234,8 @@ function Auth() {
                   });
 
                   localStorage.setItem("oa_token", result.access_token);
+                  navigatingRef.current = true;
+                  setNavigating(true);
                   await refreshUser();
                   navigate({ to: "/dashboard" });
       } finally {
