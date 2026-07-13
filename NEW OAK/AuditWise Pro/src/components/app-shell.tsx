@@ -137,7 +137,7 @@ function Sidebar() {
           <div className="annotation">AUDIT & COMPLIANCE PLATFORM</div>
         </div>
       </div>
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 text-sm">
+      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 text-sm sidebar-scroll">
         {NAV.map((item) => {
           const Icon = item.icon;
           const active = item.to && pathname === item.to;
@@ -199,8 +199,8 @@ function Sidebar() {
               {user?.full_name?.charAt(0)?.toUpperCase() || "?"}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium truncate">{user?.full_name}</div>
-              <div className="annotation">{user?.current_role || "WORKSPACE"}</div>
+              <div className="text-xs font-medium truncate leading-tight">{user?.full_name}</div>
+              <div className="annotation truncate">{user?.current_role || "WORKSPACE"}</div>
             </div>
             <button onClick={() => setShowLogout(true)} className="h-6 w-6 grid place-items-center rounded hover:bg-sidebar-accent text-muted-foreground hover:text-foreground" title="Sign out">
               <LogOut className="h-3.5 w-3.5" />
