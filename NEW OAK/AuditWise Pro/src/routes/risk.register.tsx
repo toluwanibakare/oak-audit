@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ModulePage, WCard, WPlaceholder, WBadge, Annotation } from "@/components/module-page";
+import { EntityPage, type FieldDef, type ColumnDef } from "@/components/entity";
 import { requireAuth } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/risk/register")({
@@ -8,17 +8,34 @@ export const Route = createFileRoute("/risk/register")({
   component: Page,
 });
 
+const FIELDS: FieldDef[] = [
+  { key: "title", label: "Risk Title", required: true },
+  { key: "category", label: "Category", type: "select", options: ["Strategic", "Operational", "Financial", "Compliance", "Reputational", "IT/Security"] },
+  { key: "likelihood", label: "Likelihood (1-5)", type: "select", options: ["1", "2", "3", "4", "5"] },
+  { key: "impact", label: "Impact (1-5)", type: "select", options: ["1", "2", "3", "4", "5"] },
+  { key: "owner", label: "Risk Owner" },
+  { key: "status", label: "Status", type: "select", options: ["Identified", "Assessed", "Mitigated", "Monitored", "Closed"] },
+];
+
+const COLUMNS: ColumnDef[] = [
+  { key: "id", label: "ID", width: "110px" },
+  { key: "title", label: "Risk" },
+  { key: "category", label: "Category" },
+  { key: "owner", label: "Owner" },
+  { key: "status", label: "Status" },
+  { key: "updated", label: "Updated" },
+];
+
 function Page() {
   return (
-    <ModulePage title="Risk Register">
-      <div className="grid grid-cols-12 gap-4">
-        <WCard className="col-span-12 md:col-span-4" title="Risk Matrix"><WPlaceholder label="5×5 HEAT MAP" height={200} /></WCard>
-        <WCard className="col-span-12 md:col-span-4" title="Top Risks">
-          <div className="py-4 text-center text-xs text-muted-foreground">No risks registered yet.</div>
-        </WCard>
-        <WCard className="col-span-12 md:col-span-4" title="Risk Trends"><WPlaceholder label="LINE CHART · 12M" height={200} /></WCard>
-      </div>
-      <div className="py-8 text-center text-sm text-muted-foreground">Risk data will be available once risks are registered in the system.</div>
-    </ModulePage>
+    <EntityPage
+      entity="risks"
+      title="Risk Register"
+      idPrefix="R"
+      fields={FIELDS}
+      columns={COLUMNS}
+      filterField={{ key: "status", options: ["Identified", "Assessed", "Mitigated", "Monitored", "Closed"] }}
+      defaultValues={{ status: "Identified" }}
+    />
   );
 }

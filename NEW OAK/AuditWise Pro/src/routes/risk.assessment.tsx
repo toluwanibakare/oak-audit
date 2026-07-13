@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ModulePage, FilterBar, WTable, Kanban, WCard, WPlaceholder, WBadge, Annotation } from "@/components/module-page";
+import { EntityKanban } from "@/components/entity";
 import { requireAuth } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/risk/assessment")({
@@ -8,22 +8,26 @@ export const Route = createFileRoute("/risk/assessment")({
   component: Page,
 });
 
+const FIELDS: import("@/components/entity").FieldDef[] = [
+  { key: "title", label: "Risk Title", required: true },
+  { key: "category", label: "Category", type: "select", options: ["Strategic", "Operational", "Financial", "Compliance", "Reputational", "IT/Security"] },
+  { key: "likelihood", label: "Likelihood (1-5)", type: "select", options: ["1", "2", "3", "4", "5"] },
+  { key: "impact", label: "Impact (1-5)", type: "select", options: ["1", "2", "3", "4", "5"] },
+  { key: "owner", label: "Risk Owner" },
+  { key: "mitigation", label: "Mitigation Plan", type: "textarea" },
+];
+
 function Page() {
   return (
-    <ModulePage title="Risk Assessment">
-      <div className="grid grid-cols-12 gap-4">
-        <WCard className="col-span-12 xl:col-span-7" title="Risk Assessment Workspace" hint="Scenario · scoring · controls">
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            {[["Risk ID","R-073"],["Process","Outbound Logistics"],["Threat","Carrier capacity shortage"],["Existing Controls","Multi-carrier contracts"],["Likelihood (1–5)","3"],["Impact (1–5)","4"],["Inherent Rating","12 · High"],["Residual Rating","6 · Medium"]].map(([k,v])=>(
-              <label key={k} className="flex flex-col gap-1">
-                <span className="annotation">{k}</span>
-                <div className="h-9 rounded-md border border-input bg-muted/30 px-2 grid items-center">{v}</div>
-              </label>
-            ))}
-          </div>
-        </WCard>
-        <WCard className="col-span-12 xl:col-span-5" title="Likelihood × Impact"><WPlaceholder label="5×5 RISK MATRIX" height={260} /></WCard>
-      </div>
-    </ModulePage>
+    <EntityKanban
+      entity="risks"
+      title="Risk Assessment"
+      statuses={["Identified", "Assessed", "Mitigated", "Monitored", "Closed"]}
+      fields={FIELDS}
+      idPrefix="R"
+      titleKey="title"
+      metaKeys={["owner", "category"]}
+      tagKey="category"
+    />
   );
 }

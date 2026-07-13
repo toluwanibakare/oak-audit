@@ -140,6 +140,7 @@ Route::middleware('auth:api')->group(function () {
 
     // Evidence upload
     Route::post('audits/{audit}/evidence', [EvidenceController::class, 'upload']);
+    Route::post('organizations/{org}/evidence/upload', [EvidenceController::class, 'uploadOrg']);
 
     // Audit answers
     Route::get('audits/{audit}/answers', [AuditAnswerController::class, 'index']);

@@ -100,15 +100,20 @@ function Page() {
   }
 
   async function save() {
-    if (!orgId) return;
     setSaving(true);
     try {
+      let targetOrgId = orgId;
+      if (!targetOrgId) {
+        const created = await orgsApi.create({ name: orgName || "My Organization", industry: orgIndustry || undefined, address: orgAddress || undefined, type: "organization" });
+        targetOrgId = created.id;
+        setOrgId(targetOrgId);
+      }
       if (fullName !== user?.full_name) {
         await authApi.updateName(fullName);
         await refreshUser();
       }
       const s = { ...settings };
-      await orgsApi.update(orgId, {
+      await orgsApi.update(targetOrgId, {
         name: orgName,
         industry: orgIndustry,
         address: orgAddress || undefined,

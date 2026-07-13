@@ -121,7 +121,7 @@ function Auth() {
   const goToDashboard = () => {
     navigatingRef.current = true;
     setNavigating(true);
-    window.location.href = "/dashboard";
+    navigate({ to: "/dashboard" });
   };
 
   useEffect(() => {
@@ -210,27 +210,12 @@ function Auth() {
           newsletter,
         });
 
-        if (regResponse.access_token) {
-          localStorage.setItem("oa_token", regResponse.access_token);
-          await refreshUser();
-          try {
-            await orgsApi.create({ name: orgParsed.data.orgName, industry: orgParsed.data.industry, address: orgParsed.data.orgAddress || undefined, type: "organization" });
-          } catch {}
-          goToDashboard();
-          setBusy(false);
-          return;
-        }
-
         sessionStorage.setItem("oa_pending_org", JSON.stringify({ name: orgParsed.data.orgName, industry: orgParsed.data.industry, address: orgParsed.data.orgAddress || undefined, type: "organization" }));
         setRegistered(true);
       } catch (err: any) {
-        if (err?.response?.data?.needs_verification && err?.response?.data?.email) {
-          setEmail(err.response.data.email);
-          sessionStorage.setItem("oa_pending_org", JSON.stringify({ name: orgName, industry, address: orgAddress || undefined, type: "organization" }));
-          setRegistered(true);
-          setBusy(false);
-          return;
-        }
+        const msg = err?.response?.data?.errors
+          ? Object.values(err.response.data.errors).flat().join(". ")
+          : err?.response?.data?.error || err?.message || "Registration failed";
       } finally {
         setBusy(false);
       }
@@ -243,14 +228,14 @@ function Auth() {
         localStorage.setItem("oa_remember_me", rememberMe ? "true" : "false");
         sessionStorage.setItem("oa_session_marker", "true");
 
-        const result = await authApi.login({
-          email: parsed.data.email,
-          password: parsed.data.password,
-        });
+                  const result = await authApi.login({
+                    email: parsed.data.email,
+                    password: parsed.data.password,
+                  });
 
-        localStorage.setItem("oa_token", result.access_token);
-        await refreshUser();
-        goToDashboard();
+                  localStorage.setItem("oa_token", result.access_token);
+                  await refreshUser();
+                  navigate({ to: "/dashboard" });
       } finally {
         setBusy(false);
       }
@@ -529,14 +514,32 @@ function Auth() {
                       placeholder="e.g. OAK Global International"
                       required
                     />
-                    <Field
+                    <SelectField
                       label="Industry"
-                      value={industry}
-                      onChange={(e) => setIndustry(e.target.value)}
+                      value={INDUSTRIES.includes(industry) ? industry : "other"}
                       icon={Globe}
-                      placeholder="e.g. Oil & Gas, Manufacturing, Healthcare"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "other") setIndustry("");
+                        else setIndustry(val);
+                      }}
                       required
-                    />
+                    >
+                      <option value="">— Select Industry —</option>
+                      {INDUSTRIES.map((ind) => (
+                        <option key={ind} value={ind}>{ind}</option>
+                      ))}
+                    </SelectField>
+                    {!INDUSTRIES.includes(industry) && industry !== "" && (
+                      <Field
+                        label="Specify Industry"
+                        value={industry}
+                        onChange={(e) => setIndustry(e.target.value)}
+                        icon={Globe}
+                        placeholder="Type your industry"
+                        required
+                      />
+                    )}
                     <Field
                       label="Address (optional)"
                       value={orgAddress}

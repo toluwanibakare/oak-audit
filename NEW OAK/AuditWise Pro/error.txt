@@ -1,19 +1,47 @@
-auth.ts:71 
- GET http://localhost:8000/api/auth/me net::ERR_CONNECTION_REFUSED
-notifications.ts:45 
- GET http://localhost:8000/api/notifications/unread-count net::ERR_CONNECTION_REFUSED
-orgs.ts:32 
- GET http://localhost:8000/api/organizations net::ERR_CONNECTION_REFUSED
-orgs.ts:32 
- GET http://localhost:8000/api/organizations net::ERR_CONNECTION_REFUSED
-Promise.then		
-(anonymous)	@	orgs.ts:32
-(anonymous)	@	dashboard.tsx:91
-<button>		
-(anonymous)	@	jsx-dev-runtime:138
-Dashboard	@	dashboard.tsx:198
-<OutletImpl>		
-(anonymous)	@	jsx-dev-runtime:101
-RootComponent	@	__root.tsx:146
-<StartClient>		
-(anonymous)	@	jsx-dev-runtime:101
+CURRENT GAPS
+
+• Sign-up and Sign-in button at the header of the auth pages does not function
+
+(should be removed).
+
+• Can we have a drop-down when selecting the industry type during sign-up instead of
+
+a manual input. so add all the major industries but still give room to type in as well. 
+
+• I got a welcome email after entering the information for sign-up, but after clicking on
+
+the creating account button the screen/page did not change. But when I clicked on
+
+sign-in my info was already pre-filled for email and password, then I clicked sign-in
+
+to get into the dashboard. sign up should lead to verification, then verification to dashboard. then welcome email should be sent.
+
+• Let the UI be colorful, not black and white. use the background and theme of the landing page and blend all the colors together. 
+
+• Under the settings page - the save changes button not working yet. You cannot save
+
+changes, fix that.
+
+• When adding a new process can we make the department input field a dropdown of
+
+the already registered departments. Also, the primary standard input field too.
+
+• Created/Registered Departments not reflecting in the dropdown for adding new
+
+members under the team management. Can't Add team members (no dropdown to
+
+select roles and dept.) so I am unable to invite team.
+
+• Under ISO Library - Cannot create new standards.
+
+• Risk Management section is not functioning yet.
+
+• Under creating new audit flow - Scope & Schedule page is not opening. The Audit
+
+management section has not been fully implemented. Unable to plan audit.
+
+• Attach evidence button should be included to upload evidence when conducting
+
+audit. and there should be folder that it will be saving evidences for each account. 
+
+• Increase the text size. It is currently tiny. the dashboard. it should be a bit bigger but still neat. 

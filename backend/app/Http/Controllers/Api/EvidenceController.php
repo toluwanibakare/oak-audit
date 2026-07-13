@@ -10,6 +10,29 @@ use Illuminate\Support\Facades\Validator;
 
 class EvidenceController extends Controller
 {
+    public function uploadOrg(Request $request, string $orgId): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'file' => 'required|file|max:102400',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $file = $request->file('file');
+        $storedPath = $file->store("evidence/org/{$orgId}", 'public');
+        $url = Storage::url($storedPath);
+
+        return response()->json([
+            'path' => $storedPath,
+            'url' => $url,
+            'name' => $file->getClientOriginalName(),
+            'size' => $file->getSize(),
+            'mime' => $file->getMimeType(),
+        ], 201);
+    }
+
     public function upload(Request $request, string $auditId): JsonResponse
     {
         $validator = Validator::make($request->all(), [

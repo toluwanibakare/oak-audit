@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ModulePage, WCard, WBadge, Annotation } from "@/components/module-page";
-import { useAuditStore } from "@/lib/audit-store";
+import { auditStore, useAuditStore } from "@/lib/audit-store";
+import { entitiesApi } from "@/lib/api/entities";
+import { orgsApi } from "@/lib/api/orgs";
 import { toast } from "sonner";
-import { Plus, FileText, Download, Trash2, X } from "lucide-react";
+import { Plus, FileText, Download, Trash2, X, RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/library/standards")({
   head: () => ({ meta: [{ title: "ISO Standards — AuditOS" }, { name: "description", content: "Library of ISO standards and normative references." }] }),
@@ -14,7 +16,27 @@ function Page() {
   const standards = useAuditStore((s) => Object.values(s.collections.standards ?? {}));
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [syncing, setSyncing] = useState(true);
   const filtered = standards.filter((s: any) => (s.code + s.title).toLowerCase().includes(q.toLowerCase()));
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const orgs = await orgsApi.list();
+        if (orgs.length > 0) {
+          const remote = await entitiesApi.list(orgs[0].id, "standards");
+          const existingIds = new Set(auditStore.list("standards").map((i) => i.id));
+          for (const item of remote) {
+            if (existingIds.has(item.id)) {
+              auditStore.update("standards", item.id, item);
+            } else {
+              auditStore.create("standards", { ...item, id: item.id }, "");
+            }
+          }
+        }
+      } catch {} finally { setSyncing(false); }
+    })();
+  }, []);
 
   return (
     <ModulePage title="ISO Standards">
@@ -28,34 +50,61 @@ function Page() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-        {filtered.map((s: any) => (
-          <WCard key={s.id} title={s.code} hint={s.title} actions={<WBadge tone="strong">{s.status}</WBadge>}>
-            <div className="grid grid-cols-3 gap-2 text-xs">
-              <div><Annotation>TYPE</Annotation><div>{s.type}</div></div>
-              <div><Annotation>EDITION</Annotation><div>{s.edition}</div></div>
-              <div><Annotation>PAGES</Annotation><div>{s.pages}</div></div>
-            </div>
-            <div className="mt-3 flex items-center gap-2">
-              <button onClick={() => toast.success(`Downloading ${s.code}.pdf`)} className="h-7 px-2 rounded border border-border text-[11px] inline-flex items-center gap-1 hover:bg-muted"><Download className="h-3 w-3" /> PDF</button>
-              <button onClick={() => toast(`Opened ${s.code}`)} className="h-7 px-2 rounded border border-border text-[11px] inline-flex items-center gap-1 hover:bg-muted"><FileText className="h-3 w-3" /> View</button>
-              <button onClick={() => auditStore.remove("standards", s.id)} className="ml-auto h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted"><Trash2 className="h-3 w-3" /></button>
-            </div>
-          </WCard>
-        ))}
-      </div>
+      {syncing ? (
+        <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
+          <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Loading...
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {filtered.map((s: any) => (
+            <WCard key={s.id} title={s.code} hint={s.title} actions={<WBadge tone="strong">{s.status}</WBadge>}>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div><Annotation>TYPE</Annotation><div>{s.type}</div></div>
+                <div><Annotation>EDITION</Annotation><div>{s.edition}</div></div>
+                <div><Annotation>PAGES</Annotation><div>{s.pages}</div></div>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <button onClick={() => toast.success(`Downloading ${s.code}.pdf`)} className="h-7 px-2 rounded border border-border text-[11px] inline-flex items-center gap-1 hover:bg-muted"><Download className="h-3 w-3" /> PDF</button>
+                <button onClick={() => toast(`Opened ${s.code}`)} className="h-7 px-2 rounded border border-border text-[11px] inline-flex items-center gap-1 hover:bg-muted"><FileText className="h-3 w-3" /> View</button>
+                <button onClick={() => { auditStore.remove("standards", s.id); deleteRemote(s.id); }} className="ml-auto h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted"><Trash2 className="h-3 w-3" /></button>
+              </div>
+            </WCard>
+          ))}
+        </div>
+      )}
 
       {open && <CreateDialog onClose={() => setOpen(false)} />}
     </ModulePage>
   );
 }
 
+async function deleteRemote(id: string) {
+  try {
+    const orgs = await orgsApi.list();
+    if (orgs.length > 0) await entitiesApi.delete(orgs[0].id, "standards", id);
+  } catch {}
+}
+
 function CreateDialog({ onClose }: { onClose: () => void }) {
   const [f, setF] = useState({ code: "", title: "", type: "Management System", edition: String(new Date().getFullYear()), pages: 20, status: "Adopted" });
-  function save() {
+  const [saving, setSaving] = useState(false);
+  async function save() {
     if (!f.code || !f.title) { toast.error("Code and title required"); return; }
-    auditStore.create("standards", f, "STD");
-    onClose();
+    setSaving(true);
+    try {
+      const orgs = await orgsApi.list();
+      if (orgs.length > 0) {
+        const created = await entitiesApi.create(orgs[0].id, "standards", f);
+        auditStore.create("standards", { ...created, id: created.id }, "");
+      } else {
+        auditStore.create("standards", f, "STD");
+      }
+      onClose();
+    } catch {
+      toast.error("Failed to create standard");
+    } finally {
+      setSaving(false);
+    }
   }
   return (
     <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onClick={onClose}>

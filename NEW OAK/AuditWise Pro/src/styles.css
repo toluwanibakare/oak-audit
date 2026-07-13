@@ -66,7 +66,7 @@
   --steel: oklch(0.52 0.02 250);
   --surface: oklch(0.975 0.005 250);
 
-  --background: oklch(1 0 0);
+  --background: oklch(0.99 0.002 250);
   --foreground: var(--navy-deep);
   --card: oklch(1 0 0);
   --card-foreground: var(--navy-deep);
@@ -86,22 +86,23 @@
   --warning-foreground: var(--navy-deep);
   --destructive: oklch(0.6 0.22 25);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.92 0.01 250);
-  --input: oklch(0.92 0.01 250);
+  --border: oklch(0.88 0.04 220);
+  --input: oklch(0.88 0.04 220);
   --ring: var(--teal);
 
-  /* Sidebar — keep light and functional for the app shell */
-  --sidebar: oklch(0.97 0 0);
+  /* Sidebar with teal accents */
+  --sidebar: linear-gradient(180deg, oklch(0.97 0.005 250), oklch(0.96 0.008 240));
   --sidebar-foreground: oklch(0.22 0 0);
-  --sidebar-border: oklch(0.88 0 0);
-  --sidebar-accent: oklch(0.91 0 0);
+  --sidebar-border: oklch(0.85 0.03 230);
+  --sidebar-accent: oklch(0.85 0.06 195 / 0.15);
+  --sidebar-ring: var(--teal);
 
   /* Wireframe tokens (kept for existing app components) */
   --wire: oklch(0.85 0 0);
   --wire-strong: oklch(0.7 0 0);
   --ink: oklch(0.22 0 0);
   --ink-soft: oklch(0.55 0 0);
-  --annotation: oklch(0.6 0 0);
+  --annotation: oklch(0.55 0.04 220);
 }
 
 .dark {
@@ -225,7 +226,7 @@
 
 @utility annotation {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-annotation);

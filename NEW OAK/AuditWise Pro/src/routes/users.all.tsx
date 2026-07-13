@@ -172,11 +172,13 @@ function EditMemberModal({ member, onClose, onUpdated }: { member: TeamMember; o
           entitiesApi.list(orgId, "roles").catch(() => []),
           entitiesApi.list(orgId, "departments").catch(() => []),
         ]);
-        const teamRoles = ["Auditor", "Lead Auditor"];
         const allRoles = roleItems.map((r: any) => r.name || r.role || "").filter(Boolean);
-        setRoles(allRoles.filter((r: string) => teamRoles.includes(r)));
+        const fallbackRoles = ["Auditor", "Lead Auditor", "Admin", "Viewer", "Auditee"];
+        setRoles(allRoles.length > 0 ? allRoles : fallbackRoles);
         setDepartments(deptItems.map((d: any) => d.name || "").filter(Boolean));
-      } catch {}
+      } catch {
+        setRoles(["Auditor", "Lead Auditor", "Admin", "Viewer", "Auditee"]);
+      }
     })();
   }, []);
 
@@ -327,14 +329,19 @@ function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCrea
           entitiesApi.list(orgId, "roles").catch(() => []),
           entitiesApi.list(orgId, "departments").catch(() => []),
         ]);
-        const teamRoles = ["Auditor", "Lead Auditor"];
         const allRoles = roleItems.map((r: any) => r.name || r.role || "").filter(Boolean);
-        setRoles(allRoles.filter((r: string) => teamRoles.includes(r)));
-        if (allRoles.length > 0 && teamRoles.some((tr) => allRoles.includes(tr))) {
-          setRole(teamRoles.find((tr) => allRoles.includes(tr)) || "");
+        const fallbackRoles = ["Auditor", "Lead Auditor", "Admin", "Viewer", "Auditee"];
+        setRoles(allRoles.length > 0 ? allRoles : fallbackRoles);
+        if (allRoles.length > 0) {
+          setRole(allRoles[0]);
+        } else {
+          setRole(fallbackRoles[0]);
         }
         setDepartments(deptItems.map((d: any) => d.name || "").filter(Boolean));
-      } catch {}
+      } catch {
+        setRoles(["Auditor", "Lead Auditor", "Admin", "Viewer", "Auditee"]);
+        setRole("Auditor");
+      }
     })();
   }, []);
 

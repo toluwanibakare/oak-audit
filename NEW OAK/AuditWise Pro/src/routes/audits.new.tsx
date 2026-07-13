@@ -463,7 +463,9 @@ function ScopeStep(p: {
     const next = p.departments.includes(d) ? p.departments.filter((x) => x !== d) : [...p.departments, d];
     p.setDepartments(next);
   }
+  function selectAll() { p.setDepartments(availableDepts); }
   function clearAll() { p.setDepartments([]); }
+  const availableDepts = ["Operations", "Quality", "HSE", "Finance", "HR", "IT", "Logistics", "Legal", "Maintenance"];
   function toggleAuditor(dept: string, uid: string) {
     const cur = p.deptAssignments[dept] ?? [];
     const nextIds = cur.includes(uid) ? cur.filter((x) => x !== uid) : [...cur, uid];
@@ -492,9 +494,20 @@ function ScopeStep(p: {
           </div>
         }
       >
-        <input className={inputCls + " w-full"} value={p.departments.join(", ")} onChange={(e) => p.setDepartments(e.target.value.split(",").map((s) => s.trim()).filter(Boolean))} placeholder="e.g. Operations, Quality, HSE" />
+        <div className="flex flex-wrap gap-2">
+          {availableDepts.map((d) => (
+            <button key={d} type="button" onClick={() => toggleDept(d)}
+              className={`h-7 px-2.5 rounded text-xs font-medium border transition-all ${
+                p.departments.includes(d)
+                  ? "bg-foreground text-background border-foreground"
+                  : "border-border text-muted-foreground hover:bg-muted/50"
+              }`}>
+              {d}
+            </button>
+          ))}
+        </div>
         {p.departments.length === 0 && (
-          <div className="annotation mt-2 text-destructive/80">↳ Enter at least one department to continue.</div>
+          <div className="annotation mt-2 text-destructive/80">↳ Select at least one department to continue.</div>
         )}
       </WCard>
 

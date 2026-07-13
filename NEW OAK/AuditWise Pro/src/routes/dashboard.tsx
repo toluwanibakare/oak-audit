@@ -218,7 +218,7 @@ function Dashboard() {
                 >
                   <Annotation>{k.label}</Annotation>
                   <div className="mt-1 flex items-baseline justify-between gap-2">
-                    <div className="text-2xl font-semibold tracking-tight">
+                    <div className="text-3xl font-semibold tracking-tight">
                       <Counter value={isZero ? "0" : k.value} />
                     </div>
                     {!isZero && (
@@ -296,7 +296,7 @@ function Dashboard() {
               actions={<Link to="/audits/calendar" className="text-xs inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors">View calendar <ArrowUpRight className="h-3 w-3" /></Link>}>
               {(data?.upcomingAudits ?? []).length > 0 ? (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
+                  <table className="w-full text-sm">
                     <thead className="text-muted-foreground">
                       <tr className="text-left border-b border-border">
                         {["Audit ID", "Audit Name", "Department", "Date", "Lead Auditor", "Status"].map((h) => (
@@ -364,7 +364,7 @@ function Dashboard() {
             <WCard className="col-span-12 md:col-span-4 card-hover" title="Compliance Score by Standard">
               {(data?.complianceByStandard ?? []).map((s, i) => (
                 <div key={s.standard} className="py-1.5">
-                  <div className="flex justify-between text-xs"><span>{s.standard}</span><span className="font-medium">{s.score}%</span></div>
+                  <div className="flex justify-between text-sm"><span>{s.standard}</span><span className="font-medium">{s.score}%</span></div>
                   <div className="h-2 rounded-full bg-muted mt-1 overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-1000 ease-out"
                       style={{ width: `${s.score}%`, background: COMPLIANCE_COLORS[i % COMPLIANCE_COLORS.length] }} />
@@ -375,7 +375,7 @@ function Dashboard() {
 
             <WCard className="col-span-12 md:col-span-4 card-hover" title="Top Findings (Clauses)">
               {(data?.topFindings ?? []).length > 0 ? (
-                <ol className="text-xs space-y-2">
+                <ol className="text-sm space-y-2">
                   {(data?.topFindings ?? []).map((f) => (
                     <li key={f.clause} className="flex items-center gap-3 group hover:bg-muted/30 rounded-md px-1 -mx-1 transition-colors">
                       <span className="font-mono text-[11px] w-10 text-muted-foreground">{f.clause}</span>

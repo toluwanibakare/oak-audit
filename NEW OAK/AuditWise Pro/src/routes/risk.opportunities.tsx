@@ -1,17 +1,40 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ModulePage, WBadge, Annotation } from "@/components/module-page";
+import { EntityPage, type FieldDef, type ColumnDef } from "@/components/entity";
 import { requireAuth } from "@/lib/require-auth";
 
 export const Route = createFileRoute("/risk/opportunities")({
   beforeLoad: requireAuth,
-  head: () => ({ meta: [{ title: "Opportunities Register — AuditOS" }, { name: "description", content: "Opportunities Register module of the AuditOS ISO management platform." }] }),
+  head: () => ({ meta: [{ title: "Opportunities — AuditOS" }, { name: "description", content: "Opportunities from risk analysis." }] }),
   component: Page,
 });
 
+const FIELDS: FieldDef[] = [
+  { key: "title", label: "Opportunity Title", required: true },
+  { key: "source", label: "Source", type: "select", options: ["Risk Assessment", "Audit Finding", "Management Review", "Stakeholder", "Market"] },
+  { key: "owner", label: "Owner" },
+  { key: "targetDate", label: "Target Date", type: "date" },
+  { key: "status", label: "Status", type: "select", options: ["Identified", "Evaluated", "In Progress", "Realized", "Closed"] },
+];
+
+const COLUMNS: ColumnDef[] = [
+  { key: "id", label: "ID", width: "110px" },
+  { key: "title", label: "Opportunity" },
+  { key: "source", label: "Source" },
+  { key: "owner", label: "Owner" },
+  { key: "status", label: "Status" },
+  { key: "updated", label: "Updated" },
+];
+
 function Page() {
   return (
-    <ModulePage title="Opportunities Register">
-      <div className="py-8 text-center text-sm text-muted-foreground">Opportunities data will appear once registered in the system.</div>
-    </ModulePage>
+    <EntityPage
+      entity="opportunities"
+      title="Opportunities"
+      idPrefix="OP"
+      fields={FIELDS}
+      columns={COLUMNS}
+      filterField={{ key: "status", options: ["Identified", "Evaluated", "In Progress", "Realized", "Closed"] }}
+      defaultValues={{ status: "Identified" }}
+    />
   );
 }

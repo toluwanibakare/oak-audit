@@ -68,7 +68,6 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        $this->sendWelcomeNotification($user);
         $this->generateAndSendOtp($user->email, 'signup');
 
         // Subscribe to newsletter if requested

@@ -37,7 +37,7 @@ function statusTone(v: string): "strong" | "outline" | "default" {
 
 export function EntityPage(props: {
   entity: string;
-  annotation: string;
+  annotation?: string;
   title: string;
   description?: string;
   idPrefix: string;
