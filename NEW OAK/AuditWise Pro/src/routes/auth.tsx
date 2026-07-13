@@ -243,7 +243,7 @@ function Auth() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[var(--surface)] via-background to-[var(--surface)]">
+    <div className="min-h-screen bg-gradient-to-br from-[var(--navy)] via-background to-[var(--navy-deep)]">
       {navigating && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background">
           <div className="flex flex-col items-center gap-4">
@@ -259,8 +259,8 @@ function Auth() {
         }}
       />
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[640px] overflow-hidden">
-        <div className="orb right-[-120px] top-[-80px] h-[460px] w-[460px]" />
-        <div className="orb left-[-100px] top-[300px] h-[260px] w-[260px] opacity-30" />
+        <div className="orb right-[-120px] top-[-80px] h-[460px] w-[460px] opacity-10" />
+        <div className="orb left-[-100px] top-[300px] h-[260px] w-[260px] opacity-10" />
       </div>
       <SiteNav />
 
