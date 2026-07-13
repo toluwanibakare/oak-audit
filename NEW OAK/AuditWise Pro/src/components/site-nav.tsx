@@ -70,14 +70,14 @@ export const SiteNav = () => {
                   Sign Out
                 </button>
               </>
-            ) : (
+            ) : !isAuthPage ? (
               <>
                 <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">Sign In</Link>
                 <Link to="/auth?mode=signup" className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition duration-200">
                   Sign Up
                 </Link>
               </>
-            )}
+            ) : null}
           </div>
         </div>
       </header>
