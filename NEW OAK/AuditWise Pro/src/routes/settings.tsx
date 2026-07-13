@@ -89,6 +89,10 @@ function Page() {
 
   useEffect(() => { if (stored?.data) setSettings(stored.data); /* eslint-disable-next-line */ }, []);
 
+  useEffect(() => {
+    if (user?.full_name) setFullName(user.full_name);
+  }, [user?.full_name]);
+
   function patch<K extends keyof Settings>(k: K, v: Partial<Settings[K]>) {
     setSettings((s) => ({ ...s, [k]: { ...s[k], ...v } as any }));
     setDirty(true);
