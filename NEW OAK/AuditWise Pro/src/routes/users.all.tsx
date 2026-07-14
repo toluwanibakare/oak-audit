@@ -313,6 +313,7 @@ function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCrea
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("");
   const [department, setDepartment] = useState("");
+  const [status, setStatus] = useState("Active");
   const [roles, setRoles] = useState<string[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -359,7 +360,7 @@ function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCrea
     try {
       const orgs = await orgsApi.list();
       if (orgs.length === 0) { setError("No organization found."); setSubmitting(false); return; }
-      const payload: CreateTeamMemberPayload = { name: name.trim(), email: email.trim(), password, role };
+      const payload: CreateTeamMemberPayload = { name: name.trim(), email: email.trim(), password, role, status };
       if (department) payload.department = department;
       await teamMembersApi.create(orgs[0].id, payload);
       setSuccess(true);
@@ -423,10 +424,25 @@ function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCrea
               </label>
               <label className="flex flex-col gap-1">
                 <span className="annotation">Department</span>
-                <select value={department} onChange={(e) => setDepartment(e.target.value)}
+                {departments.length === 0 ? (
+                  <div className="h-9 px-2 rounded-md border border-dashed border-amber-500/40 bg-amber-500/5 flex items-center text-[11px] text-amber-600 dark:text-amber-400">
+                    No departments yet. Create one in Organization &gt; Departments first.
+                  </div>
+                ) : (
+                  <select value={department} onChange={(e) => setDepartment(e.target.value)}
+                    className="h-9 px-2 rounded-md border border-input bg-muted text-xs">
+                    <option value="">— None —</option>
+                    {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                )}
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="annotation">Status</span>
+                <select value={status} onChange={(e) => setStatus(e.target.value)}
                   className="h-9 px-2 rounded-md border border-input bg-muted text-xs">
-                  <option value="">— None —</option>
-                  {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                  <option value="Suspended">Suspended</option>
                 </select>
               </label>
               {error && <div className="text-xs text-destructive">{error}</div>}

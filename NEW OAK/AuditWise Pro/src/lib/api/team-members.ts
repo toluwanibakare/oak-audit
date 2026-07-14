@@ -15,6 +15,7 @@ export interface CreateTeamMemberPayload {
   password: string;
   role: string;
   department?: string;
+  status?: string;
 }
 
 export interface UpdateTeamMemberPayload {
@@ -22,6 +23,7 @@ export interface UpdateTeamMemberPayload {
   email?: string;
   role?: string;
   department?: string;
+  status?: string;
 }
 
 export const teamMembersApi = {
