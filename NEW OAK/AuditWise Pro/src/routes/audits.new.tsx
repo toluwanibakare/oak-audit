@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { z } from "zod";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { WCard, WBadge, Annotation } from "@/components/wire";
 import {
@@ -10,12 +11,18 @@ import {
   auditStore, useAuditStore, nextAuditId,
   type ApprovalStage, type ApprovalStatus, type EditableChecklist, type ChecklistItem,
 } from "@/lib/audit-store";
-import { CHECKLIST_LIBRARY, recommendedFor, getChecklist } from "@/lib/iso-checklists";
+import { CHECKLIST_LIBRARY, recommendedFor, getChecklist, asQuestion } from "@/lib/iso-checklists";
 import { entitiesApi } from "@/lib/api/entities";
 import { teamMembersApi, type TeamMember } from "@/lib/api/team-members";
 import { orgsApi } from "@/lib/api/orgs";
+import { auditsApi } from "@/lib/api/audits";
+
+const newAuditSearchSchema = z.object({
+  planId: z.string().optional(),
+});
 
 export const Route = createFileRoute("/audits/new")({
+  validateSearch: (s) => newAuditSearchSchema.parse(s),
   head: () => ({
     meta: [
       { title: "Create New Audit — AuditOS" },
@@ -49,12 +56,18 @@ let _wizardInit = false;
 
 function NewAuditWizard() {
   const navigate = useNavigate();
+  const { planId: searchPlanId } = Route.useSearch();
 
-  // Restore planId across refreshes via sessionStorage
+  // Restore planId: URL param > sessionStorage > new
   const [planId, setPlanId] = useState(() => {
     if (typeof sessionStorage === "undefined") return nextAuditId();
-    const sid = sessionStorage.getItem("audit_wizard_planId");
-    if (sid && auditStore.getSnapshot().plans[sid]) return sid;
+    const fromUrl = searchPlanId && auditStore.getSnapshot().plans[searchPlanId] ? searchPlanId : null;
+    if (fromUrl) {
+      sessionStorage.setItem("audit_wizard_planId", fromUrl);
+      return fromUrl;
+    }
+    const fromSs = sessionStorage.getItem("audit_wizard_planId");
+    if (fromSs && auditStore.getSnapshot().plans[fromSs]) return fromSs;
     const fresh = nextAuditId();
     sessionStorage.setItem("audit_wizard_planId", fresh);
     return fresh;
@@ -96,32 +109,73 @@ function NewAuditWizard() {
   const department = departments.length ? departments.join(", ") : "";
 
 
-  /* --------- Publish to calendar on mount + log creation --------- */
+  /* --------- Init draft on mount (API + localStorage) --------- */
   useEffect(() => {
     if (_wizardInit) return;
     _wizardInit = true;
-    if (!auditStore.getSnapshot().plans[planId]) {
-      auditStore.upsertPlan({
-        id: planId,
-        title, standard: standard.code, department, location: locations.join(", "),
-        startDate, endDate, lead: lead.name, teamCount: team.length + 1,
-        status: "Draft", createdAt: new Date().toISOString(),
-        wizardState: { step, title, auditType, standardId, objective, scope, criteria, departments, locations, startDate, endDate, leadId, teamIds, checklistIds, checklistItems, deptAssignments, approvers, submitted },
-      });
-      auditStore.logTrail(planId, { step: "wizard", field: "audit_created", to: planId, note: "Draft auto-published to Audit Calendar" });
-      auditStore.snapshot(planId, "basics", "Wizard launched — initial draft", {
-        title, standardId, auditType, department, location: locations.join(", "), startDate, endDate,
-      });
-      auditStore.notify({
-        channel: "in-app", to: "Lead Auditor", subject: `Draft ${planId} created`,
-        body: `Your audit draft ${title} has been added to the calendar.`,
-      });
+
+    const serverId = sessionStorage.getItem("audit_wizard_serverId");
+    if (serverId) {
+      // Resume existing draft — fetch latest from API
+      (async () => {
+        try {
+          const orgs = await orgsApi.list();
+          if (orgs.length === 0) return;
+          const audit = await auditsApi.get(orgs[0].id, serverId);
+          const ws = audit.wizard_state ?? {};
+          if (ws.step) setStep(ws.step);
+          if (ws.title) setTitle(ws.title);
+          if (ws.auditType) setAuditType(ws.auditType);
+          if (ws.standardId) setStandardId(ws.standardId);
+          if (ws.objective) setObjective(ws.objective);
+          if (ws.scope) setScope(ws.scope);
+          if (ws.criteria) setCriteria(ws.criteria);
+          if (ws.departments) setDepartments(ws.departments);
+          if (ws.locations) setLocations(ws.locations);
+          if (ws.startDate) setStartDate(ws.startDate);
+          if (ws.endDate) setEndDate(ws.endDate);
+          if (ws.leadId) setLeadId(ws.leadId);
+          if (ws.teamIds) setTeamIds(ws.teamIds);
+          if (ws.checklistIds) setChecklistIds(ws.checklistIds);
+          if (ws.checklistItems) setChecklistItems(ws.checklistItems);
+          if (ws.deptAssignments) setDeptAssignments(ws.deptAssignments);
+          if (ws.approvers) setApprovers(ws.approvers);
+          if (ws.submitted !== undefined) setSubmitted(ws.submitted);
+          // Also upsert into localStorage for fast cache
+          sessionStorage.setItem("audit_wizard_serverId", audit.id);
+          saveToLocal({
+            serverId: audit.id,
+            wizardState: ws,
+            status: audit.status === "draft" ? "Draft" : audit.status,
+          });
+        } catch {
+          // API unavailable — rely on localStorage cache already loaded
+        }
+      })();
+      return;
     }
+
+    // New draft — create via API
+    (async () => {
+      try {
+        const orgs = await orgsApi.list();
+        if (orgs.length === 0) return;
+        const oid = orgs[0].id;
+        const payload = {
+          title: title || null,
+          status: "draft",
+          wizard_state: { step, title, auditType, standardId, objective, scope, criteria, departments, locations, startDate, endDate, leadId, teamIds, checklistIds, checklistItems, deptAssignments, approvers, submitted },
+        };
+        const created = await auditsApi.create(oid, payload);
+        sessionStorage.setItem("audit_wizard_serverId", created.id);
+      } catch {
+        // offline — proceed with localStorage-only
+      }
+    })();
   }, []);
 
-  /* --------- Keep calendar plan in sync with edits --------- */
-  useEffect(() => {
-    if (!_wizardInit) return;
+  /** Write current wizard state to both localStorage and the API */
+  function saveToLocal(overrides?: Record<string, any>) {
     const named: Record<string, string[]> = {};
     for (const [d, ids] of Object.entries(deptAssignments)) {
       named[d] = ids;
@@ -134,7 +188,36 @@ function NewAuditWizard() {
       createdAt: new Date().toISOString(),
       deptAssignments: named,
       wizardState: { step, title, auditType, standardId, objective, scope, criteria, departments, locations, startDate, endDate, leadId, teamIds, checklistIds, checklistItems, deptAssignments, approvers, submitted },
+      ...overrides,
     });
+  }
+
+  /** Debounced sync to backend API */
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!_wizardInit) return;
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(async () => {
+      syncTimer.current = null;
+      saveToLocal();
+      const serverId = sessionStorage.getItem("audit_wizard_serverId");
+      if (!serverId) return;
+      try {
+        const orgs = await orgsApi.list();
+        if (orgs.length === 0) return;
+        await auditsApi.update(orgs[0].id, serverId, {
+          title: title || null,
+          standard: standard.code || null,
+          start_date: startDate || null,
+          end_date: endDate || null,
+          status: submitted ? "pending_approval" : "draft",
+          wizard_state: { step, title, auditType, standardId, objective, scope, criteria, departments, locations, startDate, endDate, leadId, teamIds, checklistIds, checklistItems, deptAssignments, approvers, submitted },
+        });
+      } catch {
+        // offline — skip API sync
+      }
+    }, 500);
+    return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };
   }, [title, standard.code, department, locations, startDate, endDate, lead.name, team.length, submitted, planId, deptAssignments, step, auditType, standardId, objective, scope, criteria, departments, leadId, teamIds, checklistIds, checklistItems, approvers]);
 
 
@@ -183,9 +266,18 @@ function NewAuditWizard() {
     setChecklistIds((t) => {
       const next = t.includes(id) ? t.filter((x) => x !== id) : [...t, id];
       trackList("checklists", t, next);
-      // Seed items when adding
       if (!t.includes(id)) {
-        setChecklistItems((m) => m[id] ? m : { ...m, [id]: [] });
+        const full = getChecklist(id);
+        const items: ChecklistItem[] = full
+          ? full.questions.map((q) => ({
+              id: q.id,
+              text: asQuestion(q),
+              section: q.section,
+              owner: "",
+              clause: q.clause,
+            }))
+          : [];
+        setChecklistItems((m) => (m[id] ? m : { ...m, [id]: items }));
       }
       return next;
     });
@@ -526,6 +618,18 @@ function ScopeStep(p: {
   deptAssignments: Record<string, string[]>;
   setDeptAssignments: (next: Record<string, string[]>) => void;
 }) {
+  const [auditors, setAuditors] = useState<TeamMember[]>([]);
+  const [auditorsLoading, setAuditorsLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      try {
+        const orgs = await orgsApi.list();
+        if (orgs.length === 0) return;
+        const data = await teamMembersApi.list(orgs[0].id);
+        setAuditors(data.filter((m) => m.status === "Active"));
+      } catch {} finally { setAuditorsLoading(false); }
+    })();
+  }, []);
   const storedDepts = useAuditStore((s) => Object.values(s.collections.departments ?? {}));
   const storedLocations = useAuditStore((s) => Object.values(s.collections.locations ?? {}));
   const availableDepts = storedDepts.map((d) => d.name || "").filter(Boolean);
@@ -589,27 +693,43 @@ function ScopeStep(p: {
         <WCard title="Assign Auditors per Department"
           hint="Each department can be audited by one or more assigned auditors."
           actions={<WBadge tone="outline">{Object.values(p.deptAssignments).reduce((a, ids) => a + ids.length, 0)} assignments</WBadge>}>
-          <div className="space-y-3">
-            {p.departments.map((d) => {
-              const assigned = p.deptAssignments[d] ?? [];
-              return (
-                <div key={d} className="rounded-md border border-border p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm font-medium">{d}</div>
-                    <WBadge tone={assigned.length ? "strong" : "outline"}>
-                      {assigned.length ? `${assigned.length} auditor${assigned.length > 1 ? "s" : ""}` : "Unassigned"}
-                    </WBadge>
+          {auditorsLoading ? (
+            <div className="h-9 px-2 rounded-md border border-input bg-muted/30 flex items-center text-xs text-muted-foreground">Loading team members...</div>
+          ) : auditors.length === 0 ? (
+            <div className="h-9 px-2 rounded-md border border-dashed border-amber-500/40 bg-amber-500/5 flex items-center text-[11px] text-amber-600 dark:text-amber-400">
+              No active team members. Create users in Users first.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {p.departments.map((d) => {
+                const assigned = p.deptAssignments[d] ?? [];
+                return (
+                  <div key={d} className="rounded-md border border-border p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm font-medium">{d}</div>
+                      <WBadge tone={assigned.length ? "strong" : "outline"}>
+                        {assigned.length ? `${assigned.length} auditor${assigned.length > 1 ? "s" : ""}` : "Unassigned"}
+                      </WBadge>
+                    </div>
+                    <div className="max-h-32 overflow-y-auto rounded border border-border bg-muted/20 p-1.5 space-y-0.5">
+                      {auditors.map((a) => {
+                        const sel = assigned.includes(a.name);
+                        return (
+                          <label key={a.id} className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer text-xs hover:bg-muted/80 ${sel ? "bg-primary/10" : ""}`}>
+                            <input type="checkbox" checked={sel} onChange={() => toggleAuditor(d, a.name)} className="accent-primary" />
+                            {a.name} <span className="text-muted-foreground">({a.email})</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {assigned.length === 0 && (
+                      <div className="annotation mt-2 opacity-70">↳ Optional — assign at least one auditor for accountability.</div>
+                    )}
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    Assign auditors by ID (comma-separated) in the text field above.
-                  </div>
-                  {assigned.length === 0 && (
-                    <div className="annotation mt-2 opacity-70">↳ Optional — assign at least one auditor for accountability.</div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </WCard>
       )}
 

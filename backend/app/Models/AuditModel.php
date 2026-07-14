@@ -16,6 +16,7 @@ class AuditModel extends Model
         'end_date' => 'datetime',
         'started_at' => 'datetime',
         'closed_at' => 'datetime',
+        'wizard_state' => 'array',
     ];
 
     protected $fillable = [
@@ -36,6 +37,7 @@ class AuditModel extends Model
         'auditee_email',
         'created_by',
         'lead_auditor_id',
+        'wizard_state',
     ];
 
     public function organization()

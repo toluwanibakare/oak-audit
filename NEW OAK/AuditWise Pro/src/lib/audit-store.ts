@@ -29,6 +29,7 @@ export type AuditPlan = {
   status: "Draft" | "Pending Approval" | "Approved" | "Rejected"; createdAt: string;
   deptAssignments?: Record<string, string[]>; // department -> auditor names
   wizardState?: Record<string, any>;
+  serverId?: string;
 };
 
 

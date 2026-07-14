@@ -34,9 +34,10 @@ class AuditController extends Controller
     public function store(Request $request, string $orgId): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'title' => 'required|string|max:255',
-            'standard' => 'required|string|max:100',
+            'title' => 'nullable|string|max:255',
+            'standard' => 'nullable|string|max:100',
             'status' => 'sometimes|string|max:50',
+            'wizard_state' => 'nullable|array',
             'scope' => 'nullable|string',
             'criteria' => 'nullable|string',
             'object' => 'nullable|string',
@@ -61,7 +62,7 @@ class AuditController extends Controller
             ...$request->only([
                 'title', 'standard', 'status', 'scope', 'criteria', 'object',
                 'conclusion', 'start_date', 'end_date', 'auditee_name',
-                'auditee_email', 'owner', 'lead_auditor_id',
+                'auditee_email', 'owner', 'lead_auditor_id', 'wizard_state',
             ]),
         ]);
 
@@ -104,6 +105,7 @@ class AuditController extends Controller
             'auditee_email' => 'nullable|string|email',
             'owner' => 'nullable|string|max:255',
             'lead_auditor_id' => 'nullable|string|exists:auditors,id',
+            'wizard_state' => 'nullable|array',
             'process_ids' => 'sometimes|array',
             'process_ids.*' => 'string|exists:org_processes,id',
             'process_assignments' => 'sometimes|array',
@@ -118,7 +120,8 @@ class AuditController extends Controller
         $audit->update($request->only([
             'title', 'status', 'scope', 'criteria', 'object',
             'conclusion', 'start_date', 'end_date', 'started_at',
-            'closed_at', 'auditee_name', 'auditee_email', 'owner', 'lead_auditor_id',
+            'closed_at', 'auditee_name', 'auditee_email', 'owner',
+            'lead_auditor_id', 'wizard_state',
         ]));
 
         if ($request->has('process_ids')) {

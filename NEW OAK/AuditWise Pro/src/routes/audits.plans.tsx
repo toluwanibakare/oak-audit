@@ -110,7 +110,13 @@ function Page() {
                         </>
                       )}
                       <button onClick={() => navigate({ to: "/execution/conduct" })} className="h-7 px-2 rounded border border-border text-[11px] hover:bg-muted">Conduct</button>
-                      <button onClick={() => setEditing(p)} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted"><Pencil className="h-3 w-3" /></button>
+                      {p.status === "Draft" ? (
+                        <button onClick={() => navigate({ to: "/audits/new", search: { planId: p.id } })} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted" title="Open in wizard">
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                      ) : (
+                        <button onClick={() => setEditing(p)} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted"><Pencil className="h-3 w-3" /></button>
+                      )}
                       <button onClick={() => { if (confirm(`Delete ${p.id}?`)) auditStore.removePlan(p.id); }} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted"><Trash2 className="h-3 w-3" /></button>
                     </div>
                   </td>

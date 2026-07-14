@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ModulePage, WCard, WBadge, Annotation } from "@/components/module-page";
 import { auditStore, useAuditStore, type AuditPlan } from "@/lib/audit-store";
@@ -22,6 +22,7 @@ const FIELDS: FieldDef[] = [
 ];
 
 function Page() {
+  const navigate = useNavigate();
   const plans = useAuditStore((s) => Object.values(s.plans))
     .slice()
     .sort((a, b) => a.startDate.localeCompare(b.startDate));
@@ -49,7 +50,13 @@ function Page() {
                 <div className="col-span-2 text-xs whitespace-nowrap">{p.startDate} → {p.endDate}</div>
                 <div className="col-span-1"><WBadge tone={p.status === "Approved" ? "strong" : "outline"}>{p.status}</WBadge></div>
                 <div className="col-span-2 flex gap-1 justify-end">
-                  <button onClick={() => setEditing(p)} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted"><Pencil className="h-3 w-3" /></button>
+                  {p.status === "Draft" ? (
+                    <button onClick={() => navigate({ to: "/audits/new", search: { planId: p.id } })} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted" title="Open in wizard">
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                  ) : (
+                    <button onClick={() => setEditing(p)} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted"><Pencil className="h-3 w-3" /></button>
+                  )}
                   <button onClick={() => { if (confirm(`Delete ${p.id}?`)) auditStore.removePlan(p.id); }} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted"><Trash2 className="h-3 w-3" /></button>
                 </div>
               </div>
