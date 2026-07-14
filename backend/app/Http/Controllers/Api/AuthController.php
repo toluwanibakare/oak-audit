@@ -49,7 +49,11 @@ class AuthController extends Controller
             }
 
             if ($request->boolean('newsletter')) {
-                $this->subscribeToNewsletter($existingUser->email, 'signup', $existingUser->id);
+                try {
+                    $this->subscribeToNewsletter($existingUser->email, 'signup', $existingUser->id);
+                } catch (\Exception $e) {
+                    // fail silently
+                }
             }
 
             // Email exists but not verified — resend OTP
@@ -72,7 +76,11 @@ class AuthController extends Controller
 
         // Subscribe to newsletter if requested
         if ($request->boolean('newsletter')) {
-            $this->subscribeToNewsletter($user->email, 'signup', $user->id);
+            try {
+                $this->subscribeToNewsletter($user->email, 'signup', $user->id);
+            } catch (\Exception $e) {
+                // fail silently
+            }
         }
 
         return response()->json([
@@ -433,6 +441,10 @@ class AuthController extends Controller
             'expires_at' => now()->addMinutes(10),
         ]);
 
-        Mail::to($email)->send(new SendOtpMail($otp, $type));
+        try {
+            Mail::to($email)->send(new SendOtpMail($otp, $type));
+        } catch (\Exception $e) {
+            // fail silently — OTP is still stored in the DB for verification
+        }
     }
 }
