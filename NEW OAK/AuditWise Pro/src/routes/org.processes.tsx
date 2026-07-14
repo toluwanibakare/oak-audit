@@ -4,6 +4,7 @@ import { EntityPage, type FieldDef, type ColumnDef } from "@/components/entity";
 import { requireAuth } from "@/lib/require-auth";
 import { entitiesApi } from "@/lib/api/entities";
 import { orgsApi } from "@/lib/api/orgs";
+import { useAuditStore } from "@/lib/audit-store";
 
 export const Route = createFileRoute("/org/processes")({
   beforeLoad: requireAuth,
@@ -24,6 +25,7 @@ const COLUMNS: ColumnDef[] = [
 function Page() {
   const [deptOptions, setDeptOptions] = useState<string[]>([]);
   const [stdOptions, setStdOptions] = useState<string[]>([]);
+  const localDepts = useAuditStore((s) => Object.values(s.collections.departments ?? {}));
 
   useEffect(() => {
     (async () => {
@@ -35,11 +37,14 @@ function Page() {
           entitiesApi.list(oid, "departments").catch(() => []),
           entitiesApi.list(oid, "standards").catch(() => []),
         ]);
-        setDeptOptions(depts.map((d: any) => d.name || "").filter(Boolean));
+        const apiDepts = depts.map((d: any) => d.name || "").filter(Boolean);
+        setDeptOptions(apiDepts.length ? apiDepts : localDepts.map((d: any) => d.name || "").filter(Boolean));
         setStdOptions(stds.map((s: any) => s.code || s.name || s.title || "").filter(Boolean));
-      } catch {}
+      } catch {
+        setDeptOptions(localDepts.map((d: any) => d.name || "").filter(Boolean));
+      }
     })();
-  }, []);
+  }, [localDepts]);
 
   const FIELDS: FieldDef[] = [
     { key: "name", label: "Process Name", required: true },

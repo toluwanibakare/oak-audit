@@ -1,10 +1,10 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard, ClipboardList, Search, AlertTriangle, CheckSquare,
   TrendingUp, Building2, Users, BookOpen, BarChart3, Settings,
   Bell, Plus, Search as SearchIcon, ChevronDown, LogOut, X, User, Bot,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, useRef, type ReactNode } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { NotificationsPanel } from "@/components/notifications-panel";
 import { notificationsApi } from "@/lib/api/notifications";
@@ -130,10 +130,10 @@ function Sidebar() {
         </div>
       )}
     <aside className="w-64 shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col h-screen sticky top-0">
-      <div className="h-14 flex items-center gap-2.5 px-4 border-b border-sidebar-border">
-        <img src={logo} alt="OakAudix" className="h-8 w-auto object-contain" />
+      <div className="h-16 flex items-center gap-3 px-4 border-b border-sidebar-border">
+        <img src={logo} alt="OakAudix" className="h-10 w-auto object-contain" />
         <div className="leading-tight">
-          <div className="text-sm font-semibold">OakAudix</div>
+          <div className="text-base font-semibold">OakAudix</div>
           <div className="annotation">AUDIT & COMPLIANCE PLATFORM</div>
         </div>
       </div>
@@ -200,7 +200,7 @@ function Sidebar() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium truncate leading-tight">{user?.full_name}</div>
-              <div className="annotation truncate">{user?.current_role || "WORKSPACE"}</div>
+              <div className="annotation truncate text-[10px] leading-tight">{user?.current_role || "WORKSPACE"}</div>
             </div>
             <button onClick={() => setShowLogout(true)} className="h-6 w-6 grid place-items-center rounded hover:bg-sidebar-accent text-muted-foreground hover:text-foreground" title="Sign out">
               <LogOut className="h-3.5 w-3.5" />
@@ -284,7 +284,20 @@ function TopBar() {
   );
 }
 
-export function AppShell({ children, title, annotation }: { children: ReactNode; title?: string; annotation?: string }) {
+export function AppShell({ children, title, annotation, actions }: { children: ReactNode; title?: string; annotation?: string; actions?: ReactNode }) {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const redirected = useRef(false);
+
+  useEffect(() => {
+    if (!loading && !user && !redirected.current) {
+      redirected.current = true;
+      navigate({ to: "/" });
+    }
+  }, [user, loading, navigate]);
+
+  if (loading || !user) return null;
+
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
@@ -297,6 +310,7 @@ export function AppShell({ children, title, annotation }: { children: ReactNode;
                 {annotation && <Annotation>{annotation}</Annotation>}
                 <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
               </div>
+              {actions && <div className="flex items-center gap-2">{actions}</div>}
             </div>
           )}
           {children}

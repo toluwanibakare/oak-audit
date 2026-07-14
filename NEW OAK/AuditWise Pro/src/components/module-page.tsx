@@ -5,10 +5,10 @@ import type { ReactNode } from "react";
 type Col = { key: string; w?: string };
 
 export function ModulePage({
-  annotation, title, description, children,
-}: { annotation: string; title: string; description?: string; children?: ReactNode }) {
+  annotation, title, description, children, actions,
+}: { annotation: string; title: string; description?: string; children?: ReactNode; actions?: ReactNode }) {
   return (
-    <AppShell title={title} annotation={annotation}>
+    <AppShell title={title} annotation={annotation} actions={actions}>
       {description && <p className="text-sm text-muted-foreground -mt-2 max-w-3xl">{description}</p>}
       {children}
     </AppShell>

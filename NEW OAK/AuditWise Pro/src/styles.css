@@ -146,6 +146,7 @@
     border-color: var(--color-border);
   }
   html { scroll-behavior: smooth; }
+  button:not(:disabled) { cursor: pointer; }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);

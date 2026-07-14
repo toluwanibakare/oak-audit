@@ -3,7 +3,7 @@ import { ModulePage, WCard, WBadge, Annotation } from "@/components/module-page"
 import { auditStore, useAuditStore, type EntityItem } from "@/lib/audit-store";
 import { entitiesApi } from "@/lib/api/entities";
 import { orgsApi } from "@/lib/api/orgs";
-import { Pencil, Trash2, Plus, X, RefreshCw, AlertTriangle } from "lucide-react";
+import { Pencil, Trash2, Plus, X, RefreshCw, RotateCw, AlertTriangle } from "lucide-react";
 
 let _orgIdPromise: Promise<string | null> | null = null;
 function getOrgId(): Promise<string | null> {
@@ -56,6 +56,8 @@ export function EntityPage(props: {
   const [creating, setCreating] = useState(false);
   const [synced, setSynced] = useState(false);
   const [apiError, setApiError] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   const items = localItems;
 
@@ -68,46 +70,55 @@ export function EntityPage(props: {
       .sort((a, b) => String(b.updated ?? "").localeCompare(String(a.updated ?? "")));
   }, [items, q, filterVal, props]);
 
-  useEffect(() => {
-    (async () => {
-      const orgId = await getOrgId();
-      if (!orgId) { setSynced(true); return; }
-      try {
-        const remote = await entitiesApi.list(orgId, props.entity);
-        const existingIds = new Set(auditStore.list(props.entity).map((i) => i.id));
-        for (const item of remote) {
-          if (existingIds.has(item.id)) {
-            auditStore.update(props.entity, item.id, item);
+  const refresh = async () => {
+    setRefreshing(true);
+    setSynced(false);
+    const orgId = await getOrgId();
+    if (!orgId) { setSynced(true); setRefreshing(false); return; }
+    try {
+      const remote = await entitiesApi.list(orgId, props.entity);
+      const localList = auditStore.list(props.entity);
+      const existingIds = new Set(localList.map((i) => i.id));
+      for (const item of remote) {
+        if (existingIds.has(item.id)) {
+          auditStore.update(props.entity, item.id, item);
+        } else {
+          const nameKey = props.fields.find((f) => f.required)?.key ?? "name";
+          const match = localList.find((l) => l[nameKey] && l[nameKey] === item[nameKey]);
+          if (match) {
+            auditStore.update(props.entity, match.id, item);
           } else {
             auditStore.create(props.entity, { ...item, id: item.id }, "");
           }
         }
-        setApiError(false);
-      } catch {
-        setApiError(true);
-      } finally {
-        setSynced(true);
       }
-    })();
-  }, [props.entity]);
+      setApiError(false);
+    } catch {
+      setApiError(true);
+    } finally {
+      setSynced(true);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => { refresh(); }, [props.entity, refreshKey]);
 
   const saveEntity = async (item: EntityItem | null, values: Partial<EntityItem>) => {
     if (item) {
       auditStore.update(props.entity, item.id, values);
       setEditing(null);
-    } else {
-      auditStore.create(props.entity, values, props.idPrefix);
-      setCreating(null);
-    }
-    const orgId = await getOrgId();
-    if (!orgId) return;
-    try {
-      if (item) {
-        await entitiesApi.update(orgId, props.entity, item.id, values);
-      } else {
-        await entitiesApi.create(orgId, props.entity, values);
+      const orgId = await getOrgId();
+      if (orgId) {
+        try { await entitiesApi.update(orgId, props.entity, item.id, values); } catch {}
       }
-    } catch {}
+    } else {
+      const local = auditStore.create(props.entity, values, props.idPrefix);
+      setCreating(null);
+      const orgId = await getOrgId();
+      if (orgId) {
+        try { await entitiesApi.create(orgId, props.entity, { ...values, id: local.id }); } catch {}
+      }
+    }
   };
 
   const deleteEntity = async (id: string) => {
@@ -123,7 +134,13 @@ export function EntityPage(props: {
   const hasApiData = items.length > 0 && synced && !apiError;
 
   return (
-    <ModulePage annotation={props.annotation} title={props.title} description={props.description}>
+    <ModulePage annotation={props.annotation} title={props.title} description={props.description}
+      actions={
+        <button onClick={refresh} disabled={refreshing}
+          className="h-8 w-8 grid place-items-center rounded-md border border-border hover:bg-muted transition disabled:opacity-40">
+          <RotateCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+        </button>
+      }>
       <div className="wire-card rounded-lg p-3 flex flex-wrap items-center gap-2">
         <input
           value={q}

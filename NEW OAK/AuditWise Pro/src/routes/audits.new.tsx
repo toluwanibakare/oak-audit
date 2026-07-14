@@ -459,13 +459,14 @@ function ScopeStep(p: {
   deptAssignments: Record<string, string[]>;
   setDeptAssignments: (next: Record<string, string[]>) => void;
 }) {
+  const storedDepts = useAuditStore((s) => Object.values(s.collections.departments ?? {}));
+  const availableDepts = storedDepts.map((d) => d.name || "").filter(Boolean);
   function toggleDept(d: string) {
     const next = p.departments.includes(d) ? p.departments.filter((x) => x !== d) : [...p.departments, d];
     p.setDepartments(next);
   }
   function selectAll() { p.setDepartments(availableDepts); }
   function clearAll() { p.setDepartments([]); }
-  const availableDepts = ["Operations", "Quality", "HSE", "Finance", "HR", "IT", "Logistics", "Legal", "Maintenance"];
   function toggleAuditor(dept: string, uid: string) {
     const cur = p.deptAssignments[dept] ?? [];
     const nextIds = cur.includes(uid) ? cur.filter((x) => x !== uid) : [...cur, uid];
