@@ -83,10 +83,18 @@ function Page() {
         const orgs = await orgsApi.list();
         if (orgs.length > 0) {
           const remote = await entitiesApi.list(orgs[0].id, "standards");
-          const existingIds = new Set(auditStore.list("standards").map((i: any) => i.id));
+          const locals = auditStore.list("standards") as any[];
+          const localById = new Map(locals.map((i: any) => [i.id, i]));
+          const localByCode = new Map(locals.map((i: any) => [i.code, i]));
           for (const item of remote) {
-            if (existingIds.has(item.id)) {
+            const code = item.data?.code ?? item.code;
+            if (localById.has(item.id)) {
               auditStore.update("standards", item.id, item);
+            } else if (code && localByCode.has(code)) {
+              // Migrate short ID to UUID
+              const old = localByCode.get(code);
+              auditStore.remove("standards", old.id);
+              auditStore.create("standards", { ...item, id: item.id }, "");
             } else {
               auditStore.create("standards", { ...item, id: item.id }, "");
             }
@@ -513,10 +521,10 @@ async function syncStdStatus(id: string, status: string) {
       await entitiesApi.update(oid, "standards", id, { status });
     } catch (err: any) {
       if (err?.response?.status === 404) {
-        // Standard doesn't exist on server yet — create it
         const std = auditStore.get("standards", id);
         if (std) {
-          const created = await entitiesApi.create(oid, "standards", { ...std, status });
+          const { id: _, ...payload } = std;
+          const created = await entitiesApi.create(oid, "standards", { ...payload, status });
           auditStore.update("standards", id, { id: created.id });
         }
       }
