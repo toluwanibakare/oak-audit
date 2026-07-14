@@ -51,7 +51,7 @@ function Page() {
     { key: "owner", label: "Process Owner", required: true },
     { key: "department", label: "Department", type: "select", options: deptOptions },
     { key: "standard", label: "Primary Standard", type: "select", options: stdOptions },
-    { key: "status", label: "Status" },
+    { key: "status", label: "Status", type: "select", options: ["Active", "Inactive", "Draft", "Retired"] },
   ];
 
   return (

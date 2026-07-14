@@ -8,7 +8,7 @@ export const Route = createFileRoute("/org/departments")({
   component: Page,
 });
 
-const STATUSES = ["Active", "Review", "Inactive"];
+const STATUSES = ["Active", "Review", "Inactive", "Suspended"];
 
 const FIELDS: FieldDef[] = [
   { key: "name", label: "Department", required: true },

@@ -9,7 +9,7 @@ export const Route = createFileRoute("/org/assets")({
 });
 
 const TYPES = ["Equipment", "Software", "Hardware", "Vehicle", "Facility", "Information"];
-const STATUSES = ["Active", "Maintenance", "Retired"];
+const STATUSES = ["Active", "Maintenance", "Suspended", "Retired"];
 
 const FIELDS: FieldDef[] = [
   { key: "name", label: "Asset", required: true },

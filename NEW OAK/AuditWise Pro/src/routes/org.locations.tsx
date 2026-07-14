@@ -9,7 +9,7 @@ export const Route = createFileRoute("/org/locations")({
 });
 
 const TYPES = ["Manufacturing", "Distribution", "Office", "DC", "Lab"];
-const STATUSES = ["Active", "Inactive"];
+const STATUSES = ["Active", "Inactive", "Suspended", "Retired"];
 
 const FIELDS: FieldDef[] = [
   { key: "name", label: "Location", required: true },

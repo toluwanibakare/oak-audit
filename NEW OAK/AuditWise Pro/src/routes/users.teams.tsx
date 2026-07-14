@@ -245,6 +245,7 @@ function TeamFormModal({ item, users, departments, onClose, onSaved }: {
               className="h-9 px-2 rounded-md border border-input bg-muted text-xs">
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
+              <option value="Suspended">Suspended</option>
             </select>
           </label>
           {error && <div className="text-xs text-destructive col-span-2">{error}</div>}
