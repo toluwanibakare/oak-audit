@@ -1,5 +1,267 @@
-Failed to load resource: the server responded with a status of 500 ()
-audits.new.tsx:58 [audit] failed to create draft on API AxiosError: Request failed with status code 500
-
-
-entities.ts:16  PUT https://api.oakaudix.app/api/organizations/019f5ffe-8c9e-7274-9503-2d328d044c8f/entities/standards/STD-5PYURT 404 (Not Found)
+entities.ts:16  PUT https://api.oakaudix.app/api/organizations/019f6166-c402-7174-817d-effb44aaba58/entities/standards/STD-OINQRT 404 (Not Found){
+    "message": "No query results for model [App\\Models\\EntityData] STD-OINQRT",
+    "exception": "Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException",
+    "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php",
+    "line": 668,
+    "trace": [
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/Handler.php",
+            "line": 616,
+            "function": "prepareException",
+            "class": "Illuminate\\Foundation\\Exceptions\\Handler",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Routing/Pipeline.php",
+            "line": 51,
+            "function": "render",
+            "class": "Illuminate\\Foundation\\Exceptions\\Handler",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php",
+            "line": 182,
+            "function": "handleException",
+            "class": "Illuminate\\Routing\\Pipeline",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Routing/Middleware/SubstituteBindings.php",
+            "line": 50,
+            "function": "Illuminate\\Pipeline\\{closure}",
+            "class": "Illuminate\\Pipeline\\Pipeline",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php",
+            "line": 219,
+            "function": "handle",
+            "class": "Illuminate\\Routing\\Middleware\\SubstituteBindings",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Auth/Middleware/Authenticate.php",
+            "line": 63,
+            "function": "Illuminate\\Pipeline\\{closure}",
+            "class": "Illuminate\\Pipeline\\Pipeline",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php",
+            "line": 219,
+            "function": "handle",
+            "class": "Illuminate\\Auth\\Middleware\\Authenticate",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php",
+            "line": 137,
+            "function": "Illuminate\\Pipeline\\{closure}",
+            "class": "Illuminate\\Pipeline\\Pipeline",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Routing/Router.php",
+            "line": 821,
+            "function": "then",
+            "class": "Illuminate\\Pipeline\\Pipeline",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Routing/Router.php",
+            "line": 800,
+            "function": "runRouteWithinStack",
+            "class": "Illuminate\\Routing\\Router",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Routing/Router.php",
+            "line": 764,
+            "function": "runRoute",
+            "class": "Illuminate\\Routing\\Router",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Routing/Router.php",
+            "line": 753,
+            "function": "dispatchToRoute",
+            "class": "Illuminate\\Routing\\Router",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php",
+            "line": 200,
+            "function": "dispatch",
+            "class": "Illuminate\\Routing\\Router",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php",
+            "line": 180,
+            "function": "Illuminate\\Foundation\\Http\\{closure}",
+            "class": "Illuminate\\Foundation\\Http\\Kernel",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/TransformsRequest.php",
+            "line": 21,
+            "function": "Illuminate\\Pipeline\\{closure}",
+            "class": "Illuminate\\Pipeline\\Pipeline",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/ConvertEmptyStringsToNull.php",
+            "line": 31,
+            "function": "handle",
+            "class": "Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php",
+            "line": 219,
+            "function": "handle",
+            "class": "Illuminate\\Foundation\\Http\\Middleware\\ConvertEmptyStringsToNull",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/TransformsRequest.php",
+            "line": 21,
+            "function": "Illuminate\\Pipeline\\{closure}",
+            "class": "Illuminate\\Pipeline\\Pipeline",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/TrimStrings.php",
+            "line": 51,
+            "function": "handle",
+            "class": "Illuminate\\Foundation\\Http\\Middleware\\TransformsRequest",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php",
+            "line": 219,
+            "function": "handle",
+            "class": "Illuminate\\Foundation\\Http\\Middleware\\TrimStrings",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Http/Middleware/ValidatePostSize.php",
+            "line": 27,
+            "function": "Illuminate\\Pipeline\\{closure}",
+            "class": "Illuminate\\Pipeline\\Pipeline",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php",
+            "line": 219,
+            "function": "handle",
+            "class": "Illuminate\\Http\\Middleware\\ValidatePostSize",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/PreventRequestsDuringMaintenance.php",
+            "line": 109,
+            "function": "Illuminate\\Pipeline\\{closure}",
+            "class": "Illuminate\\Pipeline\\Pipeline",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php",
+            "line": 219,
+            "function": "handle",
+            "class": "Illuminate\\Foundation\\Http\\Middleware\\PreventRequestsDuringMaintenance",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Http/Middleware/HandleCors.php",
+            "line": 74,
+            "function": "Illuminate\\Pipeline\\{closure}",
+            "class": "Illuminate\\Pipeline\\Pipeline",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php",
+            "line": 219,
+            "function": "handle",
+            "class": "Illuminate\\Http\\Middleware\\HandleCors",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Http/Middleware/TrustProxies.php",
+            "line": 58,
+            "function": "Illuminate\\Pipeline\\{closure}",
+            "class": "Illuminate\\Pipeline\\Pipeline",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php",
+            "line": 219,
+            "function": "handle",
+            "class": "Illuminate\\Http\\Middleware\\TrustProxies",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Foundation/Http/Middleware/InvokeDeferredCallbacks.php",
+            "line": 22,
+            "function": "Illuminate\\Pipeline\\{closure}",
+            "class": "Illuminate\\Pipeline\\Pipeline",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php",
+            "line": 219,
+            "function": "handle",
+            "class": "Illuminate\\Foundation\\Http\\Middleware\\InvokeDeferredCallbacks",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Http/Middleware/ValidatePathEncoding.php",
+            "line": 26,
+            "function": "Illuminate\\Pipeline\\{closure}",
+            "class": "Illuminate\\Pipeline\\Pipeline",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php",
+            "line": 219,
+            "function": "handle",
+            "class": "Illuminate\\Http\\Middleware\\ValidatePathEncoding",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Pipeline/Pipeline.php",
+            "line": 137,
+            "function": "Illuminate\\Pipeline\\{closure}",
+            "class": "Illuminate\\Pipeline\\Pipeline",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php",
+            "line": 175,
+            "function": "then",
+            "class": "Illuminate\\Pipeline\\Pipeline",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Foundation/Http/Kernel.php",
+            "line": 144,
+            "function": "sendRequestThroughRouter",
+            "class": "Illuminate\\Foundation\\Http\\Kernel",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php",
+            "line": 1220,
+            "function": "handle",
+            "class": "Illuminate\\Foundation\\Http\\Kernel",
+            "type": "->"
+        },
+        {
+            "file": "/home/ibmsspac/api.oakaudix.app/public/index.php",
+            "line": 20,
+            "function": "handleRequest",
+            "class": "Illuminate\\Foundation\\Application",
+            "type": "->"
+        }
+    ]
+}

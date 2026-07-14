@@ -42,7 +42,13 @@ function Page() {
         if (orgs.length === 0) return;
         const records = await auditsApi.list(orgs[0].id);
         const existing = auditStore.getSnapshot().plans;
+        const existingArr = Object.values(existing);
         for (const r of records) {
+          const byServerId = existingArr.find((p) => p.serverId === r.id);
+          if (byServerId) {
+            if (existing[r.id]) auditStore.removePlan(r.id);
+            continue;
+          }
           if (existing[r.id]) continue;
           auditStore.upsertPlan(auditRecordToPlan(r) as any);
         }
