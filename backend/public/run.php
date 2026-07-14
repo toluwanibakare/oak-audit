@@ -40,6 +40,7 @@ $allowed = [
     'curl -o ' . escapeshellarg($backend_dir . '/resources/views/emails/otp.blade.php') . ' https://raw.githubusercontent.com/toluwanibakare/oak-audit/main/backend/resources/views/emails/otp.blade.php 2>&1 && echo "OK: otp.blade.php updated"',
     'ls -la ' . escapeshellarg($backend_dir) . '/artisan 2>/dev/null || echo "artisan not found at ' . addslashes($backend_dir) . '/artisan"',
     'id',
+    'cd ' . escapeshellarg($backend_dir) . ' && ' . $prefix . ' artisan migrate',
 ];
 
 function run_command(string $cmd): string
