@@ -129,14 +129,14 @@ export const auditStore = {
   get(entity: string, id: string): EntityItem | undefined {
     return state.collections[entity]?.[id];
   },
-  create(entity: string, item: Partial<EntityItem>, idPrefix = "ID"): EntityItem {
+  create(entity: string, item: Partial<EntityItem>, idPrefix = "ID", silent = false): EntityItem {
     const id = item.id ?? genId(idPrefix);
     const updated = new Date().toISOString().slice(0, 10);
     const full = { id, updated, ...item };
     const coll = { ...(state.collections[entity] ?? {}), [id]: full };
     state = { ...state, collections: { ...state.collections, [entity]: coll } };
     persist();
-    toast.success(`Created ${id}`);
+    if (!silent) toast.success(`Created ${id}`);
     return full;
   },
   update(entity: string, id: string, patch: Partial<EntityItem>) {

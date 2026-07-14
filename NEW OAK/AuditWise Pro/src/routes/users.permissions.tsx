@@ -33,20 +33,20 @@ function Page() {
           entitiesApi.list(orgId, "permissions").catch(() => []),
         ]);
 
-        // Populate roles store if empty
+        // Populate roles store if empty (silent — no toasts on sync)
         const localRoles = Object.values(auditStore.list("roles"));
         if (localRoles.length === 0 && remoteRoles.length > 0) {
           for (const r of remoteRoles) {
-            auditStore.create("roles", r as any, "R");
+            auditStore.create("roles", r as any, "R", true);
           }
         }
 
-        // Populate permissions store
+        // Populate permissions store (silent — no toasts on sync)
         for (const p of remotePerms) {
           const key = `${p.role}__${p.module}`;
           const existing = auditStore.get("permissions", key);
           if (!existing) {
-            auditStore.create("permissions", { ...p, id: key } as any, "PERM");
+            auditStore.create("permissions", { ...p, id: key } as any, "PERM", true);
           }
         }
       } catch {}
