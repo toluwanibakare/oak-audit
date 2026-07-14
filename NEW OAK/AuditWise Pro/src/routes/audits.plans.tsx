@@ -49,7 +49,9 @@ function Page() {
             if (existing[r.id]) auditStore.removePlan(r.id);
             continue;
           }
-          if (existing[r.id]) continue;
+          if (existing[r.id]) {
+            auditStore.removePlan(r.id);
+          }
           auditStore.upsertPlan({ ...auditRecordToPlan(r), id: nextAuditId() } as any);
         }
       } catch (e) {
