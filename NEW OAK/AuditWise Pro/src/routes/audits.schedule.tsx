@@ -45,7 +45,7 @@ function Page() {
             continue;
           }
           if (existing[r.id]) continue;
-          auditStore.upsertPlan(auditRecordToPlan(r) as any);
+          auditStore.upsertPlan({ ...auditRecordToPlan(r), id: nextAuditId() } as any);
         }
       } catch (e) {
         console.error("[schedule] failed to load audits from API", e);
