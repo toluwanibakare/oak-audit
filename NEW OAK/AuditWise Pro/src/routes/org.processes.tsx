@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { EntityPage, type FieldDef, type ColumnDef } from "@/components/entity";
+import { WBadge } from "@/components/module-page";
 import { requireAuth } from "@/lib/require-auth";
 import { entitiesApi } from "@/lib/api/entities";
 import { orgsApi } from "@/lib/api/orgs";
@@ -17,15 +18,23 @@ const COLUMNS: ColumnDef[] = [
   { key: "name", label: "Process" },
   { key: "owner", label: "Owner" },
   { key: "department", label: "Department" },
-  { key: "standard", label: "Standard" },
+  { key: "standard", label: "Standard(s)", render: (item: any) => (
+    <div className="flex flex-wrap gap-1">
+      {(item.standard ?? "").split(",").map((s: string) => s.trim()).filter(Boolean).map((s: string) => (
+        <WBadge key={s} tone="outline">{s}</WBadge>
+      ))}
+    </div>
+  )},
   { key: "status", label: "Status" },
   { key: "updated", label: "Updated" },
 ];
 
 function Page() {
-  const [deptOptions, setDeptOptions] = useState<string[]>([]);
-  const [stdOptions, setStdOptions] = useState<string[]>([]);
+  const [deptOptions, setDeptOptions] = useState<string[] | undefined>(undefined);
+  const [stdOptions, setStdOptions] = useState<string[] | undefined>(undefined);
   const localDepts = useAuditStore((s) => Object.values(s.collections.departments ?? {}));
+
+  const storeStds = useAuditStore((s) => Object.values(s.collections.standards ?? {}));
 
   useEffect(() => {
     (async () => {
@@ -33,24 +42,23 @@ function Page() {
         const orgs = await orgsApi.list();
         if (orgs.length === 0) return;
         const oid = orgs[0].id;
-        const [depts, stds] = await Promise.all([
+        const [depts] = await Promise.all([
           entitiesApi.list(oid, "departments").catch(() => []),
-          entitiesApi.list(oid, "standards").catch(() => []),
         ]);
         const apiDepts = depts.map((d: any) => d.name || "").filter(Boolean);
         setDeptOptions(apiDepts.length ? apiDepts : localDepts.map((d: any) => d.name || "").filter(Boolean));
-        setStdOptions(stds.map((s: any) => s.code || s.name || s.title || "").filter(Boolean));
+        setStdOptions(storeStds.filter((s: any) => s.status === "Active").map((s: any) => s.code).filter(Boolean));
       } catch {
         setDeptOptions(localDepts.map((d: any) => d.name || "").filter(Boolean));
       }
     })();
-  }, [localDepts]);
+  }, [localDepts, storeStds]);
 
   const FIELDS: FieldDef[] = [
     { key: "name", label: "Process Name", required: true },
     { key: "owner", label: "Process Owner", required: true },
     { key: "department", label: "Department", type: "select", options: deptOptions },
-    { key: "standard", label: "Primary Standard", type: "select", options: stdOptions },
+    { key: "standard", label: "Standard(s)", type: "multi-select", options: stdOptions },
     { key: "status", label: "Status", type: "select", options: ["Active", "Inactive", "Draft", "Retired"] },
   ];
 

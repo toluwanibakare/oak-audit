@@ -1,12 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ModulePage, WCard, Annotation, WBadge } from "@/components/module-page";
 import { auditStore, useAuditStore } from "@/lib/audit-store";
 import { authApi } from "@/lib/api/auth";
+import { entitiesApi } from "@/lib/api/entities";
 import { orgsApi } from "@/lib/api/orgs";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
-import { Save, RotateCcw, Check, Loader2, Mail, Lock } from "lucide-react";
+import { Save, RotateCcw, Check, Loader2, Mail, Lock, Plus, X, RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Settings — OakAudix" }, { name: "description", content: "Configure organization, account, and compliance settings." }] }),
@@ -18,7 +19,6 @@ type Settings = {
     region: string; taxId: string;
     timezone: string; fiscalStart: string; dateFormat: string; language: string;
   };
-  standards: Record<string, boolean>;
   workflows: { requireMRApproval: boolean; autoAssignActions: boolean; ncDueDays: number; reminderCadence: string };
   notifications: { email: boolean; inApp: boolean; digest: string; escalation: boolean; notificationEmail: string };
   integrations: Record<string, boolean>;
@@ -27,7 +27,6 @@ type Settings = {
 
 const DEFAULT: Settings = {
   organization: { region: "", taxId: "", timezone: "Africa/Lagos", fiscalStart: "January", dateFormat: "YYYY-MM-DD", language: "English (UK)" },
-  standards: { "ISO 9001:2015": false, "ISO 14001:2015": false, "ISO 45001:2018": false, "ISO/IEC 27001:2022": false, "ISO 22301:2019": false, "ISO 50001:2018": false },
   workflows: { requireMRApproval: false, autoAssignActions: false, ncDueDays: 30, reminderCadence: "Weekly" },
   notifications: { email: true, inApp: true, digest: "Daily", escalation: false, notificationEmail: "" },
   integrations: {},
@@ -63,7 +62,45 @@ function Page() {
   const [emailStep, setEmailStep] = useState<"idle" | "otp_old" | "otp_new">("idle");
   const [emailBusy, setEmailBusy] = useState(false);
 
+  // Standards
+  const standards = useAuditStore((s) => Object.values(s.collections.standards ?? {}));
+  const [showStdDialog, setShowStdDialog] = useState(false);
+  const [stdSyncing, setStdSyncing] = useState(true);
+  const [stdSearch, setStdSearch] = useState("");
 
+  const DEFAULT_STANDARDS = [
+    { code: "ISO 9001:2015", title: "Quality Management Systems — Requirements", type: "Management System", edition: "2015", status: "Active" },
+    { code: "ISO 14001:2015", title: "Environmental Management Systems — Requirements", type: "Management System", edition: "2015", status: "Active" },
+    { code: "ISO 45001:2018", title: "Occupational Health & Safety Management Systems", type: "Management System", edition: "2018", status: "Active" },
+    { code: "ISO/IEC 27001:2022", title: "Information Security Management Systems", type: "Management System", edition: "2022", status: "Active" },
+    { code: "ISO 22301:2019", title: "Security & Resilience — Business Continuity", type: "Management System", edition: "2019", status: "Active" },
+    { code: "ISO 50001:2018", title: "Energy Management Systems — Requirements", type: "Management System", edition: "2018", status: "Active" },
+  ];
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const orgs = await orgsApi.list();
+        if (orgs.length > 0) {
+          const remote = await entitiesApi.list(orgs[0].id, "standards");
+          const existingIds = new Set(auditStore.list("standards").map((i: any) => i.id));
+          for (const item of remote) {
+            if (existingIds.has(item.id)) {
+              auditStore.update("standards", item.id, item);
+            } else {
+              auditStore.create("standards", { ...item, id: item.id }, "");
+            }
+          }
+        }
+        const local = auditStore.list("standards");
+        if (local.length === 0) {
+          for (const s of DEFAULT_STANDARDS) {
+            auditStore.create("standards", s, "STD");
+          }
+        }
+      } catch {} finally { setStdSyncing(false); }
+    })();
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -95,11 +132,6 @@ function Page() {
 
   function patch<K extends keyof Settings>(k: K, v: Partial<Settings[K]>) {
     setSettings((s) => ({ ...s, [k]: { ...s[k], ...v } as any }));
-    setDirty(true);
-  }
-
-  function toggleMap<K extends "standards">(k: K, key: string) {
-    setSettings((s) => ({ ...s, [k]: { ...s[k], [key]: !s[k][key] } }));
     setDirty(true);
   }
 
@@ -293,17 +325,52 @@ function Page() {
           )}
 
           {section === "Standards" && (
-            <WCard title="Adopted ISO Standards" hint="Toggle standards active in this tenant">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {Object.entries(settings.standards).map(([name, on]) => (
-                  <button key={name} onClick={() => toggleMap("standards", name)}
-                    className={`text-left rounded border p-2.5 inline-flex items-center gap-2 text-sm ${on ? "border-foreground bg-muted" : "border-border hover:bg-muted/40"}`}>
-                    <span className={`h-4 w-4 rounded border grid place-items-center ${on ? "bg-foreground border-foreground text-background" : "border-border"}`}>{on && <Check className="h-3 w-3" />}</span>
-                    <span className="flex-1">{name}</span>
-                    <WBadge tone={on ? "strong" : "outline"}>{on ? "Active" : "Off"}</WBadge>
-                  </button>
-                ))}
+            <WCard title="ISO Standards" hint="Manage standards. Only Active ones appear in Processes.">
+              <div className="flex items-center gap-2 mb-3">
+                <input value={stdSearch} onChange={(e) => setStdSearch(e.target.value)} placeholder="Search standards…" className="h-8 px-2 rounded-md border border-input bg-muted/30 text-xs flex-1 min-w-0" />
+                <button onClick={() => setShowStdDialog(true)} className="h-8 px-3 rounded-md bg-foreground text-background text-xs font-medium inline-flex items-center gap-1.5">
+                  <Plus className="h-3.5 w-3.5" /> Add Standard
+                </button>
               </div>
+              {stdSyncing ? (
+                <div className="flex items-center justify-center py-10 text-xs text-muted-foreground">
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Loading standards…
+                </div>
+              ) : standards.length === 0 ? (
+                <div className="py-10 text-center text-xs text-muted-foreground">
+                  No standards yet. Click "Add Standard" to create one.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {standards
+                    .filter((s: any) => `${s.code} ${s.title}`.toLowerCase().includes(stdSearch.toLowerCase()))
+                    .map((s: any) => {
+                      const active = s.status === "Active";
+                      return (
+                        <div key={s.id} className="rounded border border-border p-2.5 text-xs flex items-center gap-2">
+                          <button onClick={() => {
+                            auditStore.update("standards", s.id, { status: active ? "Adopted" : "Active" });
+                            syncStdStatus(s.id, active ? "Adopted" : "Active");
+                          }}
+                            className={`h-5 w-9 rounded-full relative transition-colors shrink-0 ${active ? "bg-foreground" : "bg-muted"}`}>
+                            <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-background transition-all ${active ? "left-4" : "left-0.5"}`} />
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{s.code}</div>
+                            <div className="text-[11px] text-muted-foreground truncate">{s.title}</div>
+                          </div>
+                          <WBadge tone={active ? "strong" : "outline"}>{active ? "Active" : "Inactive"}</WBadge>
+                          <button onClick={() => {
+                            auditStore.remove("standards", s.id);
+                            deleteRemote("standards", s.id);
+                          }} className="h-6 w-6 grid place-items-center rounded hover:bg-muted text-muted-foreground">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </WCard>
           )}
 
@@ -431,8 +498,23 @@ function Page() {
           {section === "Audit Log" && <AuditLogView />}
         </div>
       </div>
+      {showStdDialog && <StandardCreateDialog onClose={() => setShowStdDialog(false)} />}
     </ModulePage>
   );
+}
+
+async function syncStdStatus(id: string, status: string) {
+  try {
+    const orgs = await orgsApi.list();
+    if (orgs.length > 0) await entitiesApi.update(orgs[0].id, "standards", id, { status });
+  } catch {}
+}
+
+async function deleteRemote(entity: string, id: string) {
+  try {
+    const orgs = await orgsApi.list();
+    if (orgs.length > 0) await entitiesApi.delete(orgs[0].id, entity, id);
+  } catch {}
 }
 
 function AuditLogView() {
@@ -483,4 +565,56 @@ function ToggleField({ label, v, on }: { label: string; v: boolean; on: (v: bool
       </span>
     </button>
   );
+}
+
+function StandardCreateDialog({ onClose }: { onClose: () => void }) {
+  const [f, setF] = useState({ code: "", title: "", type: "Management System", edition: String(new Date().getFullYear()), status: "Active" });
+  const [saving, setSaving] = useState(false);
+  async function save() {
+    if (!f.code || !f.title) { toast.error("Code and title required"); return; }
+    setSaving(true);
+    try {
+      const orgs = await orgsApi.list();
+      if (orgs.length > 0) {
+        const created = await entitiesApi.create(orgs[0].id, "standards", f);
+        auditStore.create("standards", { ...created, id: created.id }, "");
+      } else {
+        auditStore.create("standards", f, "STD");
+      }
+      onClose();
+    } catch {
+      toast.error("Failed to create standard");
+    } finally {
+      setSaving(false);
+    }
+  }
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onClick={onClose}>
+      <div className="wire-card rounded-lg bg-background w-full max-w-lg p-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">Create ISO Standard</div>
+          <button onClick={onClose} className="h-7 w-7 grid place-items-center rounded border border-border"><X className="h-3.5 w-3.5" /></button>
+        </div>
+        <div className="grid grid-cols-2 gap-3 mt-3 text-xs">
+          <div className="col-span-2"><Field label="Code*"><input value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} placeholder="ISO 50001:2018" className="input" /></Field></div>
+          <div className="col-span-2"><Field label="Title*"><input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Energy Management Systems — Requirements" className="input" /></Field></div>
+          <Field label="Type">
+            <select value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })} className="input">
+              {["Management System", "Guideline", "Technical Spec", "Regulation"].map((t) => <option key={t}>{t}</option>)}
+            </select>
+          </Field>
+          <Field label="Edition"><input value={f.edition} onChange={(e) => setF({ ...f, edition: e.target.value })} className="input" /></Field>
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={onClose} className="h-8 px-3 rounded border border-border text-xs">Cancel</button>
+          <button onClick={save} disabled={saving} className="h-8 px-3 rounded bg-foreground text-background text-xs font-medium disabled:opacity-40">{saving ? "Saving..." : "Create Standard"}</button>
+        </div>
+        <style>{`.input{width:100%;height:32px;padding:0 8px;border-radius:6px;border:1px solid hsl(var(--input));background:hsl(var(--muted)/0.3);font-size:12px}`}</style>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label className="flex flex-col gap-1"><Annotation>{label}</Annotation>{children}</label>;
 }

@@ -17,7 +17,7 @@ function getOrgId(): Promise<string | null> {
 export type FieldDef = {
   key: string;
   label: string;
-  type?: "text" | "textarea" | "select" | "date" | "number" | "country";
+  type?: "text" | "textarea" | "select" | "multi-select" | "date" | "number" | "country";
   options?: string[];
   placeholder?: string;
   required?: boolean;
@@ -286,22 +286,40 @@ export function EntityDialog({
             <label key={f.key} className={`flex flex-col gap-1 ${f.type === "textarea" ? "col-span-2" : ""}`}>
               <span className="annotation">{f.label}{f.required && " *"}</span>
               {f.sourceEntity ? (
-                <select
-                  value={values[f.key] ?? ""}
-                  onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
-                  className="h-9 px-2 rounded-md border border-input bg-muted text-xs"
-                >
-                  <option value="">— Select —</option>
-                  {auditStore.list(f.sourceEntity).map((item) => (
-                    <option key={item.id} value={item.name ?? item.id}>{item.name ?? item.id}</option>
-                  ))}
-                </select>
+                (() => {
+                  const items = auditStore.list(f.sourceEntity);
+                  if (items.length === 0) {
+                    const label = f.sourceEntity.charAt(0).toUpperCase() + f.sourceEntity.slice(1);
+                    return (
+                      <div className="h-9 px-2 rounded-md border border-dashed border-amber-500/40 bg-amber-500/5 flex items-center text-[11px] text-amber-600 dark:text-amber-400">
+                        No {label.toLowerCase()} yet. Create one in the {label} page first.
+                      </div>
+                    );
+                  }
+                  return (
+                    <select
+                      value={values[f.key] ?? ""}
+                      onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
+                      className="h-9 px-2 rounded-md border border-input bg-muted text-xs"
+                    >
+                      <option value="">— Select —</option>
+                      {items.map((item) => (
+                        <option key={item.id} value={item.name ?? item.id}>{item.name ?? item.id}</option>
+                      ))}
+                    </select>
+                  );
+                })()
               ) : f.type === "country" ? (
                 <CountrySelect
                   value={values[f.key] ?? ""}
                   onChange={(v) => setValues({ ...values, [f.key]: v })}
                 />
               ) : f.type === "select" ? (
+                f.options != null && f.options.length === 0 ? (
+                  <div className="h-9 px-2 rounded-md border border-dashed border-amber-500/40 bg-amber-500/5 flex items-center text-[11px] text-amber-600 dark:text-amber-400">
+                    No {f.label.toLowerCase()} options available. Set them up in the relevant page first.
+                  </div>
+                ) : (
                 <select
                   value={values[f.key] ?? ""}
                   onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
@@ -310,6 +328,24 @@ export function EntityDialog({
                   <option value="">— Select —</option>
                   {f.options?.map((o) => <option key={o}>{o}</option>)}
                 </select>
+              )) : f.type === "multi-select" ? (
+                <div className="max-h-32 overflow-y-auto rounded-md border border-input bg-muted p-1 space-y-0.5">
+                  {f.options != null && f.options.length === 0 ? (
+                    <div className="px-2 py-1 text-[11px] text-amber-600 dark:text-amber-400">No options available.</div>
+                  ) : (f.options ?? []).map((o) => {
+                    const selected = (values[f.key] ?? "").split(",").map((s: string) => s.trim()).includes(o);
+                    return (
+                      <label key={o} className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer text-xs hover:bg-muted/80 ${selected ? "bg-primary/10" : ""}`}>
+                        <input type="checkbox" checked={selected} onChange={() => {
+                          const current = (values[f.key] ?? "").split(",").map((s: string) => s.trim()).filter(Boolean);
+                          const next = selected ? current.filter((s: string) => s !== o) : [...current, o];
+                          setValues({ ...values, [f.key]: next.join(", ") });
+                        }} className="accent-primary" />
+                        {o}
+                      </label>
+                    );
+                  })}
+                </div>
               ) : f.type === "textarea" ? (
                 <textarea
                   value={values[f.key] ?? ""}
