@@ -174,7 +174,6 @@ function TeamFormModal({ item, users, departments, onClose, onSaved }: {
 }) {
   const standards = useAuditStore((s) => Object.values(s.collections.standards ?? {})).filter((s: any) => s.status === "Active");
   const [name, setName] = useState(item?.name || "");
-  const [department, setDepartment] = useState(item?.department || "");
   const [lead, setLead] = useState(item?.lead || "");
   const [selectedMembers, setSelectedMembers] = useState<string[]>(item?.members ? item.members.split(", ").filter(Boolean) : []);
   const [selectedStandards, setSelectedStandards] = useState<string[]>(item?.standards ? item.standards.split(", ").filter(Boolean) : []);
@@ -190,7 +189,7 @@ function TeamFormModal({ item, users, departments, onClose, onSaved }: {
       const orgs = await orgsApi.list();
       if (orgs.length === 0) { setError("No organization found."); setSubmitting(false); return; }
       const orgId = orgs[0].id;
-      const payload = { name: name.trim(), department, lead, members: selectedMembers.join(", "), standards: selectedStandards.join(", "), status };
+      const payload = { name: name.trim(), lead, members: selectedMembers.join(", "), standards: selectedStandards.join(", "), status };
       if (item) {
         await entitiesApi.update(orgId, "teams", item.id, payload);
       } else {
@@ -216,20 +215,6 @@ function TeamFormModal({ item, users, departments, onClose, onSaved }: {
             <span className="annotation">Team Name *</span>
             <input value={name} onChange={(e) => setName(e.target.value)}
               className="h-9 px-2 rounded-md border border-input bg-muted text-xs" placeholder="e.g. ISO Audit Team" />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="annotation">Department</span>
-            {departments.length === 0 ? (
-              <div className="h-9 px-2 rounded-md border border-dashed border-amber-500/40 bg-amber-500/5 flex items-center text-[11px] text-amber-600 dark:text-amber-400">
-                No departments yet. Create one in Organization &gt; Departments first.
-              </div>
-            ) : (
-              <select value={department} onChange={(e) => setDepartment(e.target.value)}
-                className="h-9 px-2 rounded-md border border-input bg-muted text-xs">
-                <option value="">— Select Department —</option>
-                {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-            )}
           </label>
           <label className="flex flex-col gap-1">
             <span className="annotation">Standard(s)</span>
