@@ -200,8 +200,8 @@ function TeamFormModal({ item, users, departments, onClose, onSaved }: {
           <div className="text-sm font-semibold">{item ? "Edit Team" : "Add Team"}</div>
           <button onClick={onClose} className="h-7 w-7 grid place-items-center rounded hover:bg-muted cursor-pointer"><X className="h-4 w-4" /></button>
         </div>
-        <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
-          <label className="flex flex-col gap-1">
+        <div className="p-4 grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto">
+          <label className="flex flex-col gap-1 col-span-2">
             <span className="annotation">Team Name *</span>
             <input value={name} onChange={(e) => setName(e.target.value)}
               className="h-9 px-2 rounded-md border border-input bg-muted text-xs" placeholder="e.g. ISO Audit Team" />
@@ -224,11 +224,8 @@ function TeamFormModal({ item, users, departments, onClose, onSaved }: {
           </label>
           <label className="flex flex-col gap-1">
             <span className="annotation">Members</span>
-            <select value={members} onChange={(e) => setMembers(e.target.value)}
-              className="h-9 px-2 rounded-md border border-input bg-muted text-xs">
-              <option value="">— Select Members —</option>
-              {users.map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}
-            </select>
+            <input value={members} onChange={(e) => setMembers(e.target.value)}
+              className="h-9 px-2 rounded-md border border-input bg-muted text-xs" placeholder="e.g. John, Sarah, Mike" />
           </label>
           <label className="flex flex-col gap-1">
             <span className="annotation">Status</span>
@@ -238,7 +235,7 @@ function TeamFormModal({ item, users, departments, onClose, onSaved }: {
               <option value="Inactive">Inactive</option>
             </select>
           </label>
-          {error && <div className="text-xs text-destructive">{error}</div>}
+          {error && <div className="text-xs text-destructive col-span-2">{error}</div>}
         </div>
         <div className="px-4 h-12 border-t border-border flex items-center justify-end gap-2">
           <button onClick={onClose} className="h-8 px-3 rounded-md border border-border text-xs hover:bg-muted cursor-pointer">Cancel</button>
