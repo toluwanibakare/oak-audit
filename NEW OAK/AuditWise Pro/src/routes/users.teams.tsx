@@ -166,7 +166,7 @@ function TeamFormModal({ item, users, departments, onClose, onSaved }: {
   const [name, setName] = useState(item?.name || "");
   const [department, setDepartment] = useState(item?.department || "");
   const [lead, setLead] = useState(item?.lead || "");
-  const [members, setMembers] = useState(item?.members || "");
+  const [selectedMembers, setSelectedMembers] = useState<string[]>(item?.members ? item.members.split(", ").filter(Boolean) : []);
   const [status, setStatus] = useState(item?.status || "Active");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -179,7 +179,7 @@ function TeamFormModal({ item, users, departments, onClose, onSaved }: {
       const orgs = await orgsApi.list();
       if (orgs.length === 0) { setError("No organization found."); setSubmitting(false); return; }
       const orgId = orgs[0].id;
-      const payload = { name: name.trim(), department, lead, members, status };
+      const payload = { name: name.trim(), department, lead, members: selectedMembers.join(", "), status };
       if (item) {
         await entitiesApi.update(orgId, "teams", item.id, payload);
       } else {
@@ -223,9 +223,21 @@ function TeamFormModal({ item, users, departments, onClose, onSaved }: {
             </select>
           </label>
           <label className="flex flex-col gap-1">
-            <span className="annotation">Members</span>
-            <input value={members} onChange={(e) => setMembers(e.target.value)}
-              className="h-9 px-2 rounded-md border border-input bg-muted text-xs" placeholder="e.g. John, Sarah, Mike" />
+            <span className="annotation">Members ({selectedMembers.length} selected)</span>
+            <div className="max-h-28 overflow-y-auto rounded-md border border-input bg-muted p-1 space-y-0.5">
+              {users.length === 0 && <p className="text-[11px] text-muted-foreground px-1 py-1">No users available</p>}
+              {users.map((u) => {
+                const checked = selectedMembers.includes(u.name);
+                return (
+                  <label key={u.id} className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer text-xs hover:bg-muted/80 ${checked ? "bg-primary/10" : ""}`}>
+                    <input type="checkbox" checked={checked} onChange={() => {
+                      setSelectedMembers(checked ? selectedMembers.filter((n) => n !== u.name) : [...selectedMembers, u.name]);
+                    }} className="accent-primary" />
+                    {u.name}
+                  </label>
+                );
+              })}
+            </div>
           </label>
           <label className="flex flex-col gap-1">
             <span className="annotation">Status</span>
