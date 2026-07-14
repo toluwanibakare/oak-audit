@@ -268,7 +268,7 @@ function Auth() {
 
       <main className="mx-auto flex max-w-lg flex-col px-6 py-10">
         {registered ? (
-          <div className="mt-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <div className="mt-4 wire-card rounded-2xl p-6 shadow-sm">
             <div className="text-center space-y-5">
               <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Mail className="h-7 w-7" />
@@ -362,7 +362,7 @@ function Auth() {
             </div>
           </div>
         ) : (
-          <div className="mt-4 rounded-2xl border border-border bg-card p-8 shadow-sm">
+          <div className="mt-4 wire-card rounded-2xl p-8 shadow-sm">
             <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
               {mode === "signup"
                 ? (step === 1 ? "Create Your Account" : "About Your Company")
