@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ModulePage, WCard, WBadge, Annotation } from "@/components/module-page";
 import { auditStore, useAuditStore, type AuditPlan } from "@/lib/audit-store";
+import { auditsApi, auditRecordToPlan } from "@/lib/api/audits";
+import { orgsApi } from "@/lib/api/orgs";
 import { EntityDialog, type FieldDef } from "@/components/entity";
 import { Pencil, Trash2 } from "lucide-react";
 import { requireAuth } from "@/lib/require-auth";
@@ -27,6 +29,23 @@ function Page() {
     .slice()
     .sort((a, b) => a.startDate.localeCompare(b.startDate));
   const [editing, setEditing] = useState<AuditPlan | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const orgs = await orgsApi.list();
+        if (orgs.length === 0) return;
+        const records = await auditsApi.list(orgs[0].id);
+        const existing = auditStore.getSnapshot().plans;
+        for (const r of records) {
+          if (existing[r.id]) continue;
+          auditStore.upsertPlan(auditRecordToPlan(r) as any);
+        }
+      } catch (e) {
+        console.error("[schedule] failed to load audits from API", e);
+      }
+    })();
+  }, []);
 
   return (
     <ModulePage title="Audit Schedule" description="Timeline view of all audits. Reschedule by editing dates inline.">

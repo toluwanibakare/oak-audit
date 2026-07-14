@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ModulePage, WCard, WBadge, Annotation } from "@/components/module-page";
 import { auditStore, useAuditStore, type AuditPlan } from "@/lib/audit-store";
+import { auditsApi, auditRecordToPlan } from "@/lib/api/audits";
+import { orgsApi } from "@/lib/api/orgs";
 import { EntityDialog, type FieldDef } from "@/components/entity";
 import { Pencil, Trash2, Plus, CheckCircle2, XCircle, Send } from "lucide-react";
 import { requireAuth } from "@/lib/require-auth";
@@ -32,6 +34,23 @@ function Page() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("All");
   const [editing, setEditing] = useState<AuditPlan | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const orgs = await orgsApi.list();
+        if (orgs.length === 0) return;
+        const records = await auditsApi.list(orgs[0].id);
+        const existing = auditStore.getSnapshot().plans;
+        for (const r of records) {
+          if (existing[r.id]) continue;
+          auditStore.upsertPlan(auditRecordToPlan(r) as any);
+        }
+      } catch (e) {
+        console.error("[plans] failed to load audits from API", e);
+      }
+    })();
+  }, []);
 
   const filtered = useMemo(() => plans
     .filter((p) => status === "All" || p.status === status)

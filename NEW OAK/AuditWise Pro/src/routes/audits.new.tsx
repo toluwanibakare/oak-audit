@@ -53,7 +53,7 @@ type StepKey = typeof STEPS[number]["key"];
 
 /* ---------------- wizard ---------------- */
 
-let _wizardInit = false;
+
 
 function NewAuditWizard() {
   const navigate = useNavigate();
@@ -108,12 +108,19 @@ function NewAuditWizard() {
   });
   const totalItems = selectedChecklists.reduce((a, c) => a + c.items.length, 0);
   const department = departments.length ? departments.join(", ") : "";
+  const auditorNames = useMemo(() => {
+    const names = new Set<string>();
+    if (leadId) names.add(leadId);
+    for (const id of teamIds) names.add(id);
+    return Array.from(names);
+  }, [leadId, teamIds]);
 
+  const wizardInitRef = useRef(false);
 
   /* --------- Init draft on mount (API + localStorage) --------- */
   useEffect(() => {
-    if (_wizardInit) return;
-    _wizardInit = true;
+    if (wizardInitRef.current) return;
+    wizardInitRef.current = true;
 
     const serverId = sessionStorage.getItem("audit_wizard_serverId");
     if (serverId) {
@@ -198,7 +205,7 @@ function NewAuditWizard() {
   /** Debounced sync to backend API */
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!_wizardInit) return;
+    if (!wizardInitRef.current) return;
     if (syncTimer.current) clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(async () => {
       syncTimer.current = null;
@@ -453,6 +460,7 @@ function NewAuditWizard() {
                 standard={standard.code}
                 selectedChecklists={selectedChecklists}
                 updateItems={updateItems}
+                auditors={auditorNames}
               />
             )}
             {step === "approval" && (
@@ -844,10 +852,28 @@ function ChecklistsStep(p: {
   selected: string[]; toggle: (id: string) => void; standard: string;
   selectedChecklists: EditableChecklist[];
   updateItems: (clId: string, updater: (items: ChecklistItem[]) => ChecklistItem[], note: string) => void;
+  auditors: string[];
 }) {
+  const [activeCodes, setActiveCodes] = useState<string[]>([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const orgs = await orgsApi.list();
+        if (orgs.length === 0) return;
+        const records = await entitiesApi.list(orgs[0].id, "standards");
+        setActiveCodes(records.filter((s: any) => s.status === "Active").map((s: any) => s.code));
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
+  const visible = useMemo(() => {
+    if (activeCodes.length === 0) return CHECKLISTS;
+    return CHECKLISTS.filter((c) => activeCodes.some((ac) => ac.startsWith(c.standard)));
+  }, [activeCodes]);
+
   const recIds = new Set(recommendedFor(p.standard).map((c) => c.id));
-  const recommended = CHECKLISTS.filter((c) => recIds.has(c.id));
-  const others = CHECKLISTS.filter((c) => !recIds.has(c.id));
+  const recommended = visible.filter((c) => recIds.has(c.id));
+  const others = visible.filter((c) => !recIds.has(c.id));
 
   const total = p.selectedChecklists.reduce((a, c) => a + c.items.length, 0);
 
@@ -859,15 +885,16 @@ function ChecklistsStep(p: {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
           {recommended.map((c) => <ChecklistCard key={c.id} c={c} on={p.selected.includes(c.id)} toggle={() => p.toggle(c.id)} recommended />)}
         </div>
-        <Annotation>OTHER LIBRARY CHECKLISTS</Annotation>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+        {others.length > 0 && <Annotation>OTHER ACTIVE STANDARDS</Annotation>}
+        {others.length > 0 && <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
           {others.map((c) => <ChecklistCard key={c.id} c={c} on={p.selected.includes(c.id)} toggle={() => p.toggle(c.id)} />)}
-        </div>
+        </div>}
       </WCard>
 
       {p.selectedChecklists.map((cl) => (
         <ChecklistEditor key={cl.id} cl={cl}
-          onChange={(updater, note) => p.updateItems(cl.id, updater, note)} />
+          onChange={(updater, note) => p.updateItems(cl.id, updater, note)}
+          auditors={p.auditors} />
       ))}
 
       {p.selectedChecklists.length === 0 && (
@@ -899,9 +926,10 @@ function ChecklistCard({ c, on, toggle, recommended }: { c: typeof CHECKLISTS[nu
   );
 }
 
-function ChecklistEditor({ cl, onChange }: {
+function ChecklistEditor({ cl, onChange, auditors }: {
   cl: EditableChecklist;
   onChange: (updater: (items: ChecklistItem[]) => ChecklistItem[], note: string) => void;
+  auditors: string[];
 }) {
   function addItem() {
     onChange((items) => [...items, {
@@ -941,8 +969,11 @@ function ChecklistEditor({ cl, onChange }: {
                 className="w-full h-8 px-2 rounded border border-input bg-muted/30" />
             </div>
             <div className="col-span-2">
-              <input value={it.owner} onChange={(e) => update(it.id, { owner: e.target.value })}
-                className="w-full h-8 px-2 rounded border border-input bg-muted/30" placeholder="Owner ID" />
+              <select value={it.owner} onChange={(e) => update(it.id, { owner: e.target.value })}
+                className="w-full h-8 px-2 rounded border border-input bg-muted/30 text-xs">
+                <option value="">— Unassigned —</option>
+                {auditors.map((name) => <option key={name} value={name}>{name}</option>)}
+              </select>
             </div>
             <div className="col-span-1 flex justify-end">
               <button onClick={() => remove(it.id)} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted">
