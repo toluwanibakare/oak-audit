@@ -97,14 +97,14 @@ function Page() {
                   <tr key={m.id} className="border-b border-dashed border-border hover:bg-muted">
                     <td className="py-2.5 px-3">{m.name}</td>
                     <td className="py-2.5 px-3 text-muted-foreground">{m.email}</td>
-                    <td className="py-2.5 px-3">{m.role}</td>
+                    <td className="py-2.5 px-3">{m.role === "admin" ? "Management Representative" : m.role}</td>
                     <td className="py-2.5 px-3">{m.department}</td>
                     <td className="py-2.5 px-3">
                       <WBadge tone={m.status === "Active" ? "strong" : "outline"}>{m.status}</WBadge>
                     </td>
                     <td className="py-2.5 px-3">
                       <div className="flex items-center gap-1">
-                        {m.role === "Management Representative" ? (
+                        {m.role === "Management Representative" || m.role === "admin" ? (
                           <span className="text-[11px] text-muted-foreground italic">Protected</span>
                         ) : (
                           <>
