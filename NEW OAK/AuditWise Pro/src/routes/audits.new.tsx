@@ -11,6 +11,7 @@ import {
   auditStore, useAuditStore, nextAuditId,
   type ApprovalStage, type ApprovalStatus, type EditableChecklist, type ChecklistItem,
 } from "@/lib/audit-store";
+import { toast } from "sonner";
 import { CHECKLIST_LIBRARY, recommendedFor, getChecklist, asQuestion } from "@/lib/iso-checklists";
 import { entitiesApi } from "@/lib/api/entities";
 import { teamMembersApi, type TeamMember } from "@/lib/api/team-members";
@@ -148,8 +149,9 @@ function NewAuditWizard() {
             wizardState: ws,
             status: audit.status === "draft" ? "Draft" : audit.status,
           });
-        } catch {
-          // API unavailable — rely on localStorage cache already loaded
+        } catch (e) {
+          console.error("[audit] failed to load draft from API", e);
+          toast.error("Failed to load draft from server — using local cache");
         }
       })();
       return;
@@ -168,8 +170,9 @@ function NewAuditWizard() {
         };
         const created = await auditsApi.create(oid, payload);
         sessionStorage.setItem("audit_wizard_serverId", created.id);
-      } catch {
-        // offline — proceed with localStorage-only
+      } catch (e) {
+        console.error("[audit] failed to create draft on API", e);
+        toast.error("Server unreachable — saving locally only");
       }
     })();
   }, []);
@@ -213,8 +216,9 @@ function NewAuditWizard() {
           status: submitted ? "pending_approval" : "draft",
           wizard_state: { step, title, auditType, standardId, objective, scope, criteria, departments, locations, startDate, endDate, leadId, teamIds, checklistIds, checklistItems, deptAssignments, approvers, submitted },
         });
-      } catch {
-        // offline — skip API sync
+      } catch (e) {
+        console.error("[audit] failed to sync to API", e);
+        toast.error("Failed to save to server");
       }
     }, 500);
     return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };
