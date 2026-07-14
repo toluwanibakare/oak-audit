@@ -14,7 +14,7 @@ const STATUSES = ["Active", "Maintenance", "Retired"];
 const FIELDS: FieldDef[] = [
   { key: "name", label: "Asset", required: true },
   { key: "type", label: "Type", type: "select", options: TYPES },
-  { key: "location", label: "Location" },
+  { key: "location", label: "Location", sourceEntity: "locations" },
   { key: "owner", label: "Owner" },
   { key: "status", label: "Status", type: "select", options: STATUSES },
 ];

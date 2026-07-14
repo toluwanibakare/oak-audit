@@ -13,7 +13,7 @@ const STATUSES = ["Active", "Inactive"];
 
 const FIELDS: FieldDef[] = [
   { key: "name", label: "Location", required: true },
-  { key: "country", label: "Country" },
+  { key: "country", label: "Country", type: "country" },
   { key: "type", label: "Type", type: "select", options: TYPES },
   { key: "manager", label: "Site Manager" },
   { key: "status", label: "Status", type: "select", options: STATUSES },

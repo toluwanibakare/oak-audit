@@ -4,6 +4,8 @@ import { auditStore, useAuditStore, type EntityItem } from "@/lib/audit-store";
 import { entitiesApi } from "@/lib/api/entities";
 import { orgsApi } from "@/lib/api/orgs";
 import { Pencil, Trash2, Plus, X, RefreshCw, RotateCw, AlertTriangle } from "lucide-react";
+import { CountrySelect } from "@/components/country-select";
+import { auditStore } from "@/lib/audit-store";
 
 let _orgIdPromise: Promise<string | null> | null = null;
 function getOrgId(): Promise<string | null> {
@@ -16,10 +18,11 @@ function getOrgId(): Promise<string | null> {
 export type FieldDef = {
   key: string;
   label: string;
-  type?: "text" | "textarea" | "select" | "date" | "number";
+  type?: "text" | "textarea" | "select" | "date" | "number" | "country";
   options?: string[];
   placeholder?: string;
   required?: boolean;
+  sourceEntity?: string;
 };
 export type ColumnDef = {
   key: string;
@@ -146,13 +149,13 @@ export function EntityPage(props: {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search…"
-          className="h-8 px-2 rounded-md border border-input bg-muted/30 text-xs min-w-[220px]"
+          className="h-8 px-2 rounded-md border border-input bg-muted text-xs min-w-[220px]"
         />
         {props.filterField && (
           <select
             value={filterVal}
             onChange={(e) => setFilterVal(e.target.value)}
-            className="h-8 px-2 rounded-md border border-input bg-muted/30 text-xs"
+            className="h-8 px-2 rounded-md border border-input bg-muted text-xs"
           >
             <option>All</option>
             {props.filterField.options.map((o) => <option key={o}>{o}</option>)}
@@ -204,7 +207,7 @@ export function EntityPage(props: {
                   <tr><td colSpan={props.columns.length + 1} className="py-10 text-center text-muted-foreground">No records. Click <span className="font-medium">+ New</span> to create one.</td></tr>
                 )}
                 {filtered.map((it) => (
-                  <tr key={it.id} className="border-b border-dashed border-border hover:bg-muted/30">
+                  <tr key={it.id} className="border-b border-dashed border-border hover:bg-muted">
                     {props.columns.map((c) => (
                       <td key={c.key} className="py-2.5 px-3 align-middle">
                         {c.render
@@ -283,11 +286,27 @@ export function EntityDialog({
           {fields.map((f) => (
             <label key={f.key} className={`flex flex-col gap-1 ${f.type === "textarea" ? "col-span-2" : ""}`}>
               <span className="annotation">{f.label}{f.required && " *"}</span>
-              {f.type === "select" ? (
+              {f.sourceEntity ? (
                 <select
                   value={values[f.key] ?? ""}
                   onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
-                  className="h-9 px-2 rounded-md border border-input bg-muted/30 text-xs"
+                  className="h-9 px-2 rounded-md border border-input bg-muted text-xs"
+                >
+                  <option value="">— Select —</option>
+                  {auditStore.list(f.sourceEntity).map((item) => (
+                    <option key={item.id} value={item.name ?? item.id}>{item.name ?? item.id}</option>
+                  ))}
+                </select>
+              ) : f.type === "country" ? (
+                <CountrySelect
+                  value={values[f.key] ?? ""}
+                  onChange={(v) => setValues({ ...values, [f.key]: v })}
+                />
+              ) : f.type === "select" ? (
+                <select
+                  value={values[f.key] ?? ""}
+                  onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
+                  className="h-9 px-2 rounded-md border border-input bg-muted text-xs"
                 >
                   <option value="">— Select —</option>
                   {f.options?.map((o) => <option key={o}>{o}</option>)}
@@ -297,7 +316,7 @@ export function EntityDialog({
                   value={values[f.key] ?? ""}
                   onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
                   placeholder={f.placeholder}
-                  className="min-h-[80px] p-2 rounded-md border border-input bg-muted/30 text-xs"
+                  className="min-h-[80px] p-2 rounded-md border border-input bg-muted text-xs"
                 />
               ) : (
                 <input
@@ -305,7 +324,7 @@ export function EntityDialog({
                   value={values[f.key] ?? ""}
                   onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
                   placeholder={f.placeholder}
-                  className="h-9 px-2 rounded-md border border-input bg-muted/30 text-xs"
+                  className="h-9 px-2 rounded-md border border-input bg-muted text-xs"
                 />
               )}
             </label>
