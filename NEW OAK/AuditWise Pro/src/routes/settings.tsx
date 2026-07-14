@@ -507,7 +507,20 @@ function Page() {
 async function syncStdStatus(id: string, status: string) {
   try {
     const orgs = await orgsApi.list();
-    if (orgs.length > 0) await entitiesApi.update(orgs[0].id, "standards", id, { status });
+    if (!orgs.length) return;
+    const oid = orgs[0].id;
+    try {
+      await entitiesApi.update(oid, "standards", id, { status });
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        // Standard doesn't exist on server yet — create it
+        const std = auditStore.get("standards", id);
+        if (std) {
+          const created = await entitiesApi.create(oid, "standards", { ...std, status });
+          auditStore.update("standards", id, { id: created.id });
+        }
+      }
+    }
   } catch {}
 }
 
