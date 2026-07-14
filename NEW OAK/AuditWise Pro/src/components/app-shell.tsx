@@ -201,7 +201,7 @@ function Sidebar() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium truncate leading-tight">{user?.full_name}</div>
-              <div className="text-[11px] text-muted-foreground truncate leading-tight">{user?.current_role === "admin" || user?.current_role === "Management Representative" ? "MR" : (user?.current_role || "WORKSPACE")}</div>
+              <div className="text-[11px] text-muted-foreground truncate leading-tight">{user?.current_role === "admin" ? "MANAGEMENT REPRESENTATIVE" : (user?.current_role?.toUpperCase() || "WORKSPACE")}</div>
             </div>
             <button onClick={() => setShowLogout(true)} className="h-6 w-6 grid place-items-center rounded hover:bg-sidebar-accent text-muted-foreground hover:text-foreground" title="Sign out">
               <LogOut className="h-3.5 w-3.5" />
