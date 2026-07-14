@@ -28,6 +28,7 @@ export type AuditPlan = {
   startDate: string; endDate: string; lead: string; teamCount: number;
   status: "Draft" | "Pending Approval" | "Approved" | "Rejected"; createdAt: string;
   deptAssignments?: Record<string, string[]>; // department -> auditor names
+  wizardState?: Record<string, any>;
 };
 
 

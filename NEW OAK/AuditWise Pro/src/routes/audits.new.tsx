@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { WCard, WBadge, Annotation } from "@/components/wire";
 import {
@@ -11,6 +11,9 @@ import {
   type ApprovalStage, type ApprovalStatus, type EditableChecklist, type ChecklistItem,
 } from "@/lib/audit-store";
 import { CHECKLIST_LIBRARY, recommendedFor, getChecklist } from "@/lib/iso-checklists";
+import { entitiesApi } from "@/lib/api/entities";
+import { teamMembersApi, type TeamMember } from "@/lib/api/team-members";
+import { orgsApi } from "@/lib/api/orgs";
 
 export const Route = createFileRoute("/audits/new")({
   head: () => ({
@@ -42,31 +45,41 @@ type StepKey = typeof STEPS[number]["key"];
 
 /* ---------------- wizard ---------------- */
 
+let _wizardInit = false;
+
 function NewAuditWizard() {
   const navigate = useNavigate();
-  const [step, setStep] = useState<StepKey>("basics");
-  const [planId, setPlanId] = useState(() => "AUD-2026-…");
 
-  // state
-  const [title, setTitle] = useState("");
-  const [auditType, setAuditType] = useState("Internal");
-  const [standardId, setStandardId] = useState("");
-  const [objective, setObjective] = useState("");
-  const [scope, setScope] = useState("");
-  const [criteria, setCriteria] = useState("");
-  const [departments, setDepartments] = useState<string[]>([]);
-  const [location, setLocation] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [leadId, setLeadId] = useState("");
-  const [teamIds, setTeamIds] = useState<string[]>([]);
-  const [checklistIds, setChecklistIds] = useState<string[]>([]);
-  const [checklistItems, setChecklistItems] = useState<Record<string, ChecklistItem[]>>({});
-  const [deptAssignments, setDeptAssignments] = useState<Record<string, string[]>>({});
+  // Restore planId across refreshes via sessionStorage
+  const [planId, setPlanId] = useState(() => {
+    if (typeof sessionStorage === "undefined") return nextAuditId();
+    const sid = sessionStorage.getItem("audit_wizard_planId");
+    if (sid && auditStore.getSnapshot().plans[sid]) return sid;
+    const fresh = nextAuditId();
+    sessionStorage.setItem("audit_wizard_planId", fresh);
+    return fresh;
+  });
+  const storedPlan = auditStore.getSnapshot().plans[planId];
+  const ws = storedPlan?.wizardState;
 
-
-  const [approvers, setApprovers] = useState<ApprovalStage[]>([]);
-  const [submitted, setSubmitted] = useState(false);
+  const [step, setStep] = useState<StepKey>(ws?.step ?? "basics");
+  const [title, setTitle] = useState(ws?.title ?? "");
+  const [auditType, setAuditType] = useState(ws?.auditType ?? "Internal");
+  const [standardId, setStandardId] = useState(ws?.standardId ?? "");
+  const [objective, setObjective] = useState(ws?.objective ?? "");
+  const [scope, setScope] = useState(ws?.scope ?? "");
+  const [criteria, setCriteria] = useState(ws?.criteria ?? "");
+  const [departments, setDepartments] = useState<string[]>(ws?.departments ?? []);
+  const [locations, setLocations] = useState<string[]>(ws?.locations ?? []);
+  const [startDate, setStartDate] = useState(ws?.startDate ?? "");
+  const [endDate, setEndDate] = useState(ws?.endDate ?? "");
+  const [leadId, setLeadId] = useState(ws?.leadId ?? "");
+  const [teamIds, setTeamIds] = useState<string[]>(ws?.teamIds ?? []);
+  const [checklistIds, setChecklistIds] = useState<string[]>(ws?.checklistIds ?? []);
+  const [checklistItems, setChecklistItems] = useState<Record<string, ChecklistItem[]>>(ws?.checklistItems ?? {});
+  const [deptAssignments, setDeptAssignments] = useState<Record<string, string[]>>(ws?.deptAssignments ?? {});
+  const [approvers, setApprovers] = useState<ApprovalStage[]>(ws?.approvers ?? []);
+  const [submitted, setSubmitted] = useState(ws?.submitted ?? false);
 
   const idx = STEPS.findIndex((s) => s.key === step);
   const standard = { id: standardId, code: standardId, name: standardId };
@@ -84,45 +97,45 @@ function NewAuditWizard() {
 
 
   /* --------- Publish to calendar on mount + log creation --------- */
-  const bootRef = useRef(false);
   useEffect(() => {
-    if (bootRef.current) return;
-    bootRef.current = true;
-    const id = nextAuditId();
-    setPlanId(id);
-    auditStore.upsertPlan({
-      id,
-      title, standard: standard.code, department, location,
-      startDate, endDate, lead: lead.name, teamCount: team.length + 1,
-      status: "Draft", createdAt: new Date().toISOString(),
-    });
-    auditStore.logTrail(id, { step: "wizard", field: "audit_created", to: id, note: "Draft auto-published to Audit Calendar" });
-    auditStore.snapshot(id, "basics", "Wizard launched — initial draft", {
-      title, standardId, auditType, department, location, startDate, endDate,
-    });
-    auditStore.notify({
-      channel: "in-app", to: "Lead Auditor", subject: `Draft ${id} created`,
-      body: `Your audit draft ${title} has been added to the calendar.`,
-    });
+    if (_wizardInit) return;
+    _wizardInit = true;
+    if (!auditStore.getSnapshot().plans[planId]) {
+      auditStore.upsertPlan({
+        id: planId,
+        title, standard: standard.code, department, location: locations.join(", "),
+        startDate, endDate, lead: lead.name, teamCount: team.length + 1,
+        status: "Draft", createdAt: new Date().toISOString(),
+        wizardState: { step, title, auditType, standardId, objective, scope, criteria, departments, locations, startDate, endDate, leadId, teamIds, checklistIds, checklistItems, deptAssignments, approvers, submitted },
+      });
+      auditStore.logTrail(planId, { step: "wizard", field: "audit_created", to: planId, note: "Draft auto-published to Audit Calendar" });
+      auditStore.snapshot(planId, "basics", "Wizard launched — initial draft", {
+        title, standardId, auditType, department, location: locations.join(", "), startDate, endDate,
+      });
+      auditStore.notify({
+        channel: "in-app", to: "Lead Auditor", subject: `Draft ${planId} created`,
+        body: `Your audit draft ${title} has been added to the calendar.`,
+      });
+    }
   }, []);
 
   /* --------- Keep calendar plan in sync with edits --------- */
   useEffect(() => {
-    if (!bootRef.current) return;
-    // Map user IDs to display names for storage
+    if (!_wizardInit) return;
     const named: Record<string, string[]> = {};
     for (const [d, ids] of Object.entries(deptAssignments)) {
       named[d] = ids;
     }
     auditStore.upsertPlan({
       id: planId,
-      title, standard: standard.code, department, location,
+      title, standard: standard.code, department, location: locations.join(", "),
       startDate, endDate, lead: lead.name, teamCount: team.length + 1,
       status: submitted ? "Pending Approval" : "Draft",
       createdAt: new Date().toISOString(),
       deptAssignments: named,
+      wizardState: { step, title, auditType, standardId, objective, scope, criteria, departments, locations, startDate, endDate, leadId, teamIds, checklistIds, checklistItems, deptAssignments, approvers, submitted },
     });
-  }, [title, standard.code, department, location, startDate, endDate, lead.name, team.length, submitted, planId, deptAssignments]);
+  }, [title, standard.code, department, locations, startDate, endDate, lead.name, team.length, submitted, planId, deptAssignments, step, auditType, standardId, objective, scope, criteria, departments, leadId, teamIds, checklistIds, checklistItems, approvers]);
 
 
   /* --------- Tracking helper --------- */
@@ -139,19 +152,19 @@ function NewAuditWizard() {
 
   const validation = useMemo(() => ({
     basics: !!title && !!standardId && !!auditType,
-    scope: !!scope && departments.length >= 1 && !!location && !!startDate && !!endDate,
+    scope: !!scope && departments.length >= 1 && locations.length >= 1 && !!startDate && !!endDate,
     team: !!leadId && team.length >= 1,
     checklists: selectedChecklists.length >= 1 && totalItems >= 1,
     approval: approvers.filter((a) => a.required).every((a) => !!a.who),
     review: true,
-  } satisfies Record<StepKey, boolean>), [title, standardId, auditType, scope, department, location, startDate, endDate, leadId, team.length, selectedChecklists.length, totalItems, approvers]);
+  } satisfies Record<StepKey, boolean>), [title, standardId, auditType, scope, department, locations, startDate, endDate, leadId, team.length, selectedChecklists.length, totalItems, approvers]);
 
   const canNext = validation[step];
   function goNext() {
     if (idx < STEPS.length - 1) {
       const next = STEPS[idx + 1].key;
       auditStore.snapshot(planId, step, `Advanced to ${next}`, {
-        title, standardId, scope, department, location, startDate, endDate,
+        title, standardId, scope, department, location: locations.join(", "), startDate, endDate,
         leadId, teamIds, checklistIds, checklistItems, approvers,
       });
       setStep(next);
@@ -211,7 +224,7 @@ function NewAuditWizard() {
     setSubmitted(true);
     auditStore.logTrail(planId, { step: "review", field: "submitted_for_approval", to: "Pending Approval" });
     auditStore.snapshot(planId, "review", "Submitted for approval", {
-      title, standardId, department, location, startDate, endDate, leadId, teamIds, checklistIds, approvers,
+      title, standardId, department, location: locations.join(", "), startDate, endDate, leadId, teamIds, checklistIds, approvers,
     });
     // Notify first required pending stage + auto-mark as Notified
     const firstIdx = approvers.findIndex((a) => a.required && a.status === "Pending");
@@ -250,25 +263,31 @@ function NewAuditWizard() {
             <div className="wire-card rounded-lg p-3 xl:sticky xl:top-20">
               <Annotation>WIZARD STEPS</Annotation>
               <ol className="mt-2 space-y-1">
-                {STEPS.map((s, i) => {
-                  const Icon = s.icon;
-                  const active = s.key === step;
-                  const done = i < idx;
-                  return (
-                    <li key={s.key}>
-                      <button
-                        onClick={() => setStep(s.key)}
-                        className={`w-full flex items-center gap-3 px-2 py-2 rounded-md text-left text-sm ${active ? "bg-foreground text-background" : "hover:bg-muted"}`}>
-                        <span className={`h-6 w-6 grid place-items-center rounded-full text-[11px] border ${active ? "border-background" : done ? "bg-foreground text-background border-foreground" : "border-border bg-card"}`}>
-                          {done ? <Check className="h-3 w-3" /> : i + 1}
-                        </span>
-                        <Icon className="h-4 w-4 opacity-70" />
-                        <span className="flex-1 truncate">{s.label}</span>
-                        {validation[s.key] ? null : <span className="annotation opacity-70">REQ</span>}
-                      </button>
-                    </li>
-                  );
-                })}
+                  {STEPS.map((s, i) => {
+                    const Icon = s.icon;
+                    const active = s.key === step;
+                    const done = i < idx;
+                    const missing = done && !validation[s.key];
+                    return (
+                      <li key={s.key}>
+                        <button
+                          onClick={() => setStep(s.key)}
+                          className={`w-full flex items-center gap-3 px-2 py-2 rounded-md text-left text-sm ${active ? "bg-foreground text-background" : "hover:bg-muted"}`}>
+                          <span className={`h-6 w-6 grid place-items-center rounded-full text-[11px] border ${
+                            active ? "border-background" :
+                            missing ? "bg-destructive text-destructive-foreground border-destructive" :
+                            done ? "bg-foreground text-background border-foreground" :
+                            "border-border bg-card"
+                          }`}>
+                            {missing ? <X className="h-3 w-3" /> : done ? <Check className="h-3 w-3" /> : i + 1}
+                          </span>
+                          <Icon className="h-4 w-4 opacity-70" />
+                          <span className="flex-1 truncate">{s.label}</span>
+                          {validation[s.key] ? null : <span className="annotation opacity-70">REQ</span>}
+                        </button>
+                      </li>
+                    );
+                  })}
               </ol>
               <div className="border-t border-border mt-3 pt-3 space-y-1.5 text-xs">
                 <Row k="Ref." v={planId} />
@@ -313,7 +332,7 @@ function NewAuditWizard() {
                     return next;
                   });
                 }}
-                location={location} setLocation={(v) => { track("location", location, v); setLocation(v); }}
+                locations={locations} setLocations={(v) => { trackList("locations", locations, v); setLocations(v); }}
                 startDate={startDate} setStartDate={(v) => { track("start_date", startDate, v); setStartDate(v); }}
                 endDate={endDate} setEndDate={(v) => { track("end_date", endDate, v); setEndDate(v); }}
                 deptAssignments={deptAssignments}
@@ -359,7 +378,7 @@ function NewAuditWizard() {
             {step === "review" && (
               <ReviewStep
                 title={title} standard={standard.code} objective={objective} scope={scope} criteria={criteria}
-                department={department} location={location} startDate={startDate} endDate={endDate}
+                department={department} location={locations.join(", ")} startDate={startDate} endDate={endDate}
                 lead={lead} team={team} checklists={selectedChecklists} approvers={approvers}
               />
             )}
@@ -414,7 +433,8 @@ function Field({ label, hint, children, className }: { label: string; hint?: str
   );
 }
 
-const inputCls = "h-9 px-2 rounded-md border border-input bg-muted/30 text-sm outline-none focus:border-ring";
+const inputCls = "h-9 px-2 rounded-md border border-input bg-muted text-xs outline-none focus:border-ring";
+const selectCls = "h-9 px-2 rounded-md border border-input bg-muted text-xs text-foreground outline-none focus:border-ring";
 const areaCls = "min-h-[90px] w-full p-2 rounded-md border border-input bg-muted/30 text-sm outline-none focus:border-ring";
 
 /* ---------------- step components ---------------- */
@@ -425,6 +445,44 @@ function BasicsStep(p: {
   standardId: string; setStandardId: (v: string) => void;
   objective: string; setObjective: (v: string) => void;
 }) {
+  const [options, setOptions] = useState<any[] | undefined>(undefined);
+  const storeStds = useAuditStore((s) => Object.values(s.collections.standards ?? {}));
+  useEffect(() => {
+    (async () => {
+      try {
+        const orgs = await orgsApi.list();
+        if (orgs.length === 0) return;
+        const remote = await entitiesApi.list(orgs[0].id, "standards").catch(() => []);
+        if (remote.length > 0) {
+          for (const s of remote) {
+            if (!auditStore.get("standards", s.id)) {
+              auditStore.create("standards", { ...s, id: s.id }, "", true);
+            }
+          }
+        }
+      } catch {}
+      const all = auditStore.list("standards");
+      const active = all.filter((s: any) => s.status === "Active");
+      if (active.length > 0) {
+        setOptions(active);
+      } else if (all.length === 0) {
+        const defaults = [
+          { code: "ISO 9001:2015", title: "Quality Management Systems", status: "Active" },
+          { code: "ISO 14001:2015", title: "Environmental Management Systems", status: "Active" },
+          { code: "ISO 45001:2018", title: "Occupational Health & Safety Management Systems", status: "Active" },
+          { code: "ISO/IEC 27001:2022", title: "Information Security Management Systems", status: "Active" },
+          { code: "ISO 22301:2019", title: "Security & Resilience — Business Continuity", status: "Active" },
+          { code: "ISO 50001:2018", title: "Energy Management Systems", status: "Active" },
+        ];
+        for (const d of defaults) auditStore.create("standards", d, "STD", true);
+        setOptions(defaults);
+      } else {
+        // All standards exist but none are Active
+        setOptions([]);
+      }
+    })();
+  }, []);
+  const activeStandards = options ?? storeStds.filter((s: any) => s.status === "Active");
   return (
     <WCard title="Audit Basics" hint="Identify the audit and its objective">
       <div className="grid grid-cols-12 gap-3">
@@ -433,12 +491,21 @@ function BasicsStep(p: {
         </Field>
         <div className="col-span-12 grid grid-cols-2 gap-3">
           <Field label="Audit Type*">
-            <select className={inputCls} value={p.auditType} onChange={(e) => p.setAuditType(e.target.value)}>
+            <select className={selectCls} value={p.auditType} onChange={(e) => p.setAuditType(e.target.value)}>
               {["Internal", "Supplier", "Surveillance", "Certification", "Follow-up", "Process"].map((t) => <option key={t}>{t}</option>)}
             </select>
           </Field>
-          <Field label="ISO Standard*" hint="e.g. ISO 9001:2015, ISO 14001:2015">
-            <input className={inputCls} value={p.standardId} onChange={(e) => p.setStandardId(e.target.value)} placeholder="ISO 9001:2015" />
+          <Field label="ISO Standard*" hint="Select an active ISO standard">
+            {activeStandards.length === 0 ? (
+              <div className="h-9 px-2 rounded-md border border-dashed border-amber-500/40 bg-amber-500/5 flex items-center text-[11px] text-amber-600 dark:text-amber-400">
+                No active standards. Activate one in Settings &gt; Standards first.
+              </div>
+            ) : (
+              <select className={selectCls} value={p.standardId} onChange={(e) => p.setStandardId(e.target.value)}>
+                <option value="">— Select Standard —</option>
+                {activeStandards.map((s: any) => <option key={s.code} value={s.code}>{s.code} — {s.title}</option>)}
+              </select>
+            )}
           </Field>
         </div>
         <Field label="Audit Objective*" className="col-span-12" hint="What this audit is intended to verify or assess">
@@ -453,17 +520,23 @@ function ScopeStep(p: {
   scope: string; setScope: (v: string) => void;
   criteria: string; setCriteria: (v: string) => void;
   departments: string[]; setDepartments: (v: string[]) => void;
-  location: string; setLocation: (v: string) => void;
+  locations: string[]; setLocations: (v: string[]) => void;
   startDate: string; setStartDate: (v: string) => void;
   endDate: string; setEndDate: (v: string) => void;
   deptAssignments: Record<string, string[]>;
   setDeptAssignments: (next: Record<string, string[]>) => void;
 }) {
   const storedDepts = useAuditStore((s) => Object.values(s.collections.departments ?? {}));
+  const storedLocations = useAuditStore((s) => Object.values(s.collections.locations ?? {}));
   const availableDepts = storedDepts.map((d) => d.name || "").filter(Boolean);
+  const availableLocations = storedLocations.map((l: any) => l.name || "").filter(Boolean);
   function toggleDept(d: string) {
     const next = p.departments.includes(d) ? p.departments.filter((x) => x !== d) : [...p.departments, d];
     p.setDepartments(next);
+  }
+  function toggleLoc(l: string) {
+    const next = p.locations.includes(l) ? p.locations.filter((x) => x !== l) : [...p.locations, l];
+    p.setLocations(next);
   }
   function selectAll() { p.setDepartments(availableDepts); }
   function clearAll() { p.setDepartments([]); }
@@ -540,12 +613,31 @@ function ScopeStep(p: {
         </WCard>
       )}
 
-      <WCard title="Where & When">
+      <WCard title="Where & When"
+        hint="Select one or more locations"
+        actions={<WBadge tone="strong">{p.locations.length} selected</WBadge>}>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {availableLocations.length === 0 ? (
+            <div className="h-9 px-2 rounded-md border border-dashed border-amber-500/40 bg-amber-500/5 flex items-center text-[11px] text-amber-600 dark:text-amber-400">
+              No locations yet. Create one in Organization &gt; Locations first.
+            </div>
+          ) : (
+            availableLocations.map((l: string) => (
+              <button key={l} type="button" onClick={() => toggleLoc(l)}
+                className={`h-7 px-2.5 rounded text-xs font-medium border transition-all ${
+                  p.locations.includes(l)
+                    ? "bg-foreground text-background border-foreground"
+                    : "border-border text-muted-foreground hover:bg-muted/50"
+                }`}>
+                {l}
+              </button>
+            ))
+          )}
+        </div>
+        {p.locations.length === 0 && (
+          <div className="annotation text-destructive/80 mb-3">↳ Select at least one location to continue.</div>
+        )}
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Location*" hint="e.g. Plant A — Hamburg">
-            <input className={inputCls} value={p.location} onChange={(e) => p.setLocation(e.target.value)} placeholder="Plant A — Hamburg" />
-          </Field>
-          <div />
           <Field label="Start Date*">
             <input type="date" className={inputCls} value={p.startDate} onChange={(e) => p.setStartDate(e.target.value)} />
           </Field>
@@ -561,21 +653,63 @@ function ScopeStep(p: {
 
 
 function TeamStep(p: { leadId: string; setLeadId: (v: string) => void; teamIds: string[]; toggleTeam: (id: string) => void; standard: string }) {
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    (async () => {
+      try {
+        const orgs = await orgsApi.list();
+        if (orgs.length === 0) return;
+        const data = await teamMembersApi.list(orgs[0].id);
+        setMembers(data);
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+  const activeMembers = members.filter((m) => m.status === "Active");
   return (
-    <WCard title="Assign Audit Team" hint={`Enter team member emails or IDs`}>
+    <WCard title="Assign Audit Team" hint="Select team members from the organization">
       <div className="space-y-3">
-        <Field label="Lead Auditor ID">
-          <input className={inputCls} value={p.leadId} onChange={(e) => p.setLeadId(e.target.value)} placeholder="e.g. lead@org.com" />
+        <Field label="Lead Auditor*">
+          {loading ? (
+            <div className="h-9 px-2 rounded-md border border-input bg-muted/30 flex items-center text-xs text-muted-foreground">Loading team members...</div>
+          ) : activeMembers.length === 0 ? (
+            <div className="h-9 px-2 rounded-md border border-dashed border-amber-500/40 bg-amber-500/5 flex items-center text-[11px] text-amber-600 dark:text-amber-400">
+              No active team members. Create users in Users first.
+            </div>
+          ) : (
+            <select className={selectCls} value={p.leadId} onChange={(e) => p.setLeadId(e.target.value)}>
+              <option value="">— Select Lead Auditor —</option>
+              {activeMembers.map((m) => <option key={m.id} value={m.name}>{m.name} ({m.email})</option>)}
+            </select>
+          )}
         </Field>
-        <Field label="Team Member IDs (comma-separated)">
-          <input className={inputCls} value={p.teamIds.join(", ")} onChange={(e) => {
-            const ids = e.target.value.split(",").map((s) => s.trim()).filter(Boolean);
-            ids.forEach((id) => { if (!p.teamIds.includes(id)) p.toggleTeam(id); });
-            p.teamIds.forEach((id) => { if (!ids.includes(id)) p.toggleTeam(id); });
-          }} placeholder="e.g. auditor1, auditor2" />
+        <Field label="Team Members*">
+          {loading ? (
+            <div className="h-9 px-2 rounded-md border border-input bg-muted/30 flex items-center text-xs text-muted-foreground">Loading team members...</div>
+          ) : activeMembers.length === 0 ? (
+            <div className="h-9 px-2 rounded-md border border-dashed border-amber-500/40 bg-amber-500/5 flex items-center text-[11px] text-amber-600 dark:text-amber-400">
+              No active team members. Create users in Users first.
+            </div>
+          ) : (
+            <div className="max-h-40 overflow-y-auto rounded-md border border-input bg-muted p-2 space-y-1">
+              {activeMembers.filter((m) => m.name !== p.leadId).map((m) => {
+                const selected = p.teamIds.includes(m.name);
+                return (
+                  <label key={m.id} className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer text-xs hover:bg-muted/80 ${selected ? "bg-primary/10" : ""}`}>
+                    <input type="checkbox" checked={selected} onChange={() => p.toggleTeam(m.name)} className="accent-primary" />
+                    {m.name} <span className="text-muted-foreground">({m.email})</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
         </Field>
       </div>
-      <div className="annotation pt-3">↳ Team members are loaded from the organization directory. Set up your team in Settings first.</div>
+      <div className="annotation pt-3">↳ {activeMembers.length} active team member{activeMembers.length !== 1 ? "s" : ""} in the organization.</div>
     </WCard>
   );
 }

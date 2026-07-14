@@ -63,6 +63,7 @@ class TeamMemberController extends Controller
             'org_id' => $orgId,
             'user_id' => $user->id,
             'status' => 'Active',
+            'department' => $request->department,
         ]);
 
         // Create user role
@@ -180,6 +181,11 @@ class TeamMemberController extends Controller
             );
         }
 
+        if ($request->has('department')) {
+            $member->department = $request->department;
+            $member->save();
+        }
+
         $role = $request->role;
         if (!$role) {
             $ur = UserRole::where('org_id', $orgId)->where('user_id', $userId)->first();
@@ -191,7 +197,7 @@ class TeamMemberController extends Controller
             'name' => $user->full_name,
             'email' => $user->email,
             'role' => $role,
-            'department' => $request->department ?? '—',
+            'department' => $member->department ?? '—',
             'status' => $member->status,
         ]);
     }
@@ -244,7 +250,7 @@ class TeamMemberController extends Controller
                     'name' => $m->user?->full_name ?? 'Unknown',
                     'email' => $m->user?->email ?? '—',
                     'role' => $ur?->role ?? '—',
-                    'department' => '—',
+                    'department' => $m->department ?? '—',
                     'status' => $m->status,
                     'updated' => $m->updated_at->toISOString(),
                 ];

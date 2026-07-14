@@ -19,28 +19,49 @@ function Page() {
   }, [plans]);
   const byDept = useMemo(() => {
     const m = new Map<string, number>();
-    for (const p of plans) m.set(p.department, (m.get(p.department) ?? 0) + 1);
+    for (const p of plans) {
+      const depts = p.department.split(",").map((s) => s.trim()).filter(Boolean);
+      for (const d of depts) m.set(d, (m.get(d) ?? 0) + 1);
+    }
+    return Array.from(m.entries());
+  }, [plans]);
+  const byLoc = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of plans) {
+      const locs = p.location.split(",").map((s) => s.trim()).filter(Boolean);
+      for (const l of locs) m.set(l, (m.get(l) ?? 0) + 1);
+    }
     return Array.from(m.entries());
   }, [plans]);
 
   return (
-    <ModulePage title="Audit Program" description="Strategic coverage across standards, departments, and quarters.">
+    <ModulePage title="Audit Program" description="Strategic coverage across standards, departments, locations, and quarters.">
       <div className="grid grid-cols-12 gap-4">
-        <WCard className="col-span-6" title="By ISO Standard">
+        <WCard className="col-span-4" title="By ISO Standard">
           {byStd.length === 0 ? <Annotation>No data yet</Annotation> :
             byStd.map(([s, n]) => (
               <div key={s} className="flex items-center gap-3 py-1.5">
-                <div className="text-xs w-40 truncate">{s}</div>
+                <div className="text-xs w-32 truncate">{s}</div>
                 <div className="flex-1 h-2 bg-muted rounded overflow-hidden"><div className="h-full bg-foreground" style={{ width: `${Math.min(100, n * 20)}%` }} /></div>
                 <div className="text-xs w-6 text-right">{n}</div>
               </div>
             ))}
         </WCard>
-        <WCard className="col-span-6" title="By Department">
+        <WCard className="col-span-4" title="By Department">
           {byDept.length === 0 ? <Annotation>No data yet</Annotation> :
             byDept.map(([s, n]) => (
               <div key={s} className="flex items-center gap-3 py-1.5">
-                <div className="text-xs w-40 truncate">{s}</div>
+                <div className="text-xs w-32 truncate">{s}</div>
+                <div className="flex-1 h-2 bg-muted rounded overflow-hidden"><div className="h-full bg-foreground" style={{ width: `${Math.min(100, n * 20)}%` }} /></div>
+                <div className="text-xs w-6 text-right">{n}</div>
+              </div>
+            ))}
+        </WCard>
+        <WCard className="col-span-4" title="By Location">
+          {byLoc.length === 0 ? <Annotation>No data yet</Annotation> :
+            byLoc.map(([s, n]) => (
+              <div key={s} className="flex items-center gap-3 py-1.5">
+                <div className="text-xs w-32 truncate">{s}</div>
                 <div className="flex-1 h-2 bg-muted rounded overflow-hidden"><div className="h-full bg-foreground" style={{ width: `${Math.min(100, n * 20)}%` }} /></div>
                 <div className="text-xs w-6 text-right">{n}</div>
               </div>
@@ -52,7 +73,7 @@ function Page() {
               <div key={p.id} className="border border-border rounded p-2 text-xs">
                 <div className="font-mono text-[10px] text-muted-foreground">{p.id}</div>
                 <div className="font-medium truncate">{p.title}</div>
-                <div className="text-muted-foreground">{p.standard.split(":")[0]} · {p.department}</div>
+                <div className="text-muted-foreground">{p.standard.split(":")[0]} · {p.department} · {p.location}</div>
                 <WBadge tone={p.status === "Approved" ? "strong" : "outline"}>{p.status}</WBadge>
               </div>
             ))}
