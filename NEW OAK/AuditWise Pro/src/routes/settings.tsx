@@ -69,12 +69,12 @@ function Page() {
   const [stdSearch, setStdSearch] = useState("");
 
   const DEFAULT_STANDARDS = [
-    { code: "ISO 9001:2015", title: "Quality Management Systems — Requirements", type: "Management System", edition: "2015", status: "Active" },
-    { code: "ISO 14001:2015", title: "Environmental Management Systems — Requirements", type: "Management System", edition: "2015", status: "Active" },
-    { code: "ISO 45001:2018", title: "Occupational Health & Safety Management Systems", type: "Management System", edition: "2018", status: "Active" },
-    { code: "ISO/IEC 27001:2022", title: "Information Security Management Systems", type: "Management System", edition: "2022", status: "Active" },
-    { code: "ISO 22301:2019", title: "Security & Resilience — Business Continuity", type: "Management System", edition: "2019", status: "Active" },
-    { code: "ISO 50001:2018", title: "Energy Management Systems — Requirements", type: "Management System", edition: "2018", status: "Active" },
+    { code: "ISO 9001:2015", title: "Quality Management Systems — Requirements", type: "Management System", edition: "2015", status: "Adopted" },
+    { code: "ISO 14001:2015", title: "Environmental Management Systems — Requirements", type: "Management System", edition: "2015", status: "Adopted" },
+    { code: "ISO 45001:2018", title: "Occupational Health & Safety Management Systems", type: "Management System", edition: "2018", status: "Adopted" },
+    { code: "ISO/IEC 27001:2022", title: "Information Security Management Systems", type: "Management System", edition: "2022", status: "Adopted" },
+    { code: "ISO 22301:2019", title: "Security & Resilience — Business Continuity", type: "Management System", edition: "2019", status: "Adopted" },
+    { code: "ISO 50001:2018", title: "Energy Management Systems — Requirements", type: "Management System", edition: "2018", status: "Adopted" },
   ];
 
   useEffect(() => {
