@@ -12,7 +12,7 @@ import {
 
 export const Route = createFileRoute("/users/all")({
   beforeLoad: requireAuth,
-  head: () => ({ meta: [{ title: "Team Members — OakAudix" }, { name: "description", content: "Manage team members, roles, and departments." }] }),
+  head: () => ({ meta: [{ title: "Users — OakAudix" }, { name: "description", content: "Manage users, roles, and departments." }] }),
   component: Page,
 });
 
@@ -42,15 +42,15 @@ function Page() {
   useEffect(() => { loadMembers(); }, []);
 
   return (
-    <AppShell title="Team Members">
+      <AppShell title="Users">
       <div className="wire-card rounded-lg p-3 flex flex-wrap items-center gap-2">
-        <Annotation>{members.length} members</Annotation>
+        <Annotation>{members.length} users</Annotation>
         <div className="ml-auto">
           <button
             onClick={() => setShowModal(true)}
             className="h-8 px-3 inline-flex items-center gap-1 rounded-md bg-foreground text-background text-xs font-medium hover:opacity-90 cursor-pointer"
           >
-            <UserPlus className="h-3.5 w-3.5" /> Add Member
+            <UserPlus className="h-3.5 w-3.5" /> Create New User
           </button>
         </div>
       </div>
@@ -89,12 +89,12 @@ function Page() {
                 {members.length === 0 && (
                   <tr>
                     <td colSpan={6} className="py-10 text-center text-muted-foreground">
-                      No team members yet. Click <span className="font-medium">Add Member</span> to invite someone.
+                      No users yet. Click <span className="font-medium">Create New User</span> to invite someone.
                     </td>
                   </tr>
                 )}
                 {members.map((m) => (
-                  <tr key={m.id} className="border-b border-dashed border-border hover:bg-muted/30">
+                  <tr key={m.id} className="border-b border-dashed border-border hover:bg-muted">
                     <td className="py-2.5 px-3">{m.name}</td>
                     <td className="py-2.5 px-3 text-muted-foreground">{m.email}</td>
                     <td className="py-2.5 px-3">{m.role}</td>
@@ -213,7 +213,7 @@ function EditMemberModal({ member, onClose, onUpdated }: { member: TeamMember; o
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-card border border-border rounded-lg w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 h-12 border-b border-border">
-          <div className="text-sm font-semibold">Edit Team Member</div>
+          <div className="text-sm font-semibold">Edit User</div>
           <button onClick={onClose} className="h-7 w-7 grid place-items-center rounded hover:bg-muted cursor-pointer">
             <X className="h-4 w-4" />
           </button>
@@ -222,17 +222,17 @@ function EditMemberModal({ member, onClose, onUpdated }: { member: TeamMember; o
           <label className="flex flex-col gap-1">
             <span className="annotation">Full Name *</span>
             <input value={name} onChange={(e) => setName(e.target.value)}
-              className="h-9 px-2 rounded-md border border-input bg-muted/30 text-xs" />
+              className="h-9 px-2 rounded-md border border-input bg-muted text-xs" />
           </label>
           <label className="flex flex-col gap-1">
             <span className="annotation">Email *</span>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-              className="h-9 px-2 rounded-md border border-input bg-muted/30 text-xs" />
+              className="h-9 px-2 rounded-md border border-input bg-muted text-xs" />
           </label>
           <label className="flex flex-col gap-1">
             <span className="annotation">Role *</span>
             <select value={role} onChange={(e) => setRole(e.target.value)}
-              className="h-9 px-2 rounded-md border border-input bg-muted/30 text-xs">
+              className="h-9 px-2 rounded-md border border-input bg-muted text-xs">
               <option value="">— Select Role —</option>
               {roles.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
@@ -240,7 +240,7 @@ function EditMemberModal({ member, onClose, onUpdated }: { member: TeamMember; o
           <label className="flex flex-col gap-1">
             <span className="annotation">Department</span>
             <select value={department} onChange={(e) => setDepartment(e.target.value)}
-              className="h-9 px-2 rounded-md border border-input bg-muted/30 text-xs">
+              className="h-9 px-2 rounded-md border border-input bg-muted text-xs">
               <option value="">— None —</option>
               {departments.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
@@ -282,7 +282,7 @@ function DeleteConfirmModal({ member, onClose, onDeleted }: { member: TeamMember
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-card border border-border rounded-lg w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 h-12 border-b border-border">
-          <div className="text-sm font-semibold text-destructive">Remove Member</div>
+          <div className="text-sm font-semibold text-destructive">Remove User</div>
           <button onClick={onClose} className="h-7 w-7 grid place-items-center rounded hover:bg-muted cursor-pointer">
             <X className="h-4 w-4" />
           </button>
@@ -378,7 +378,7 @@ function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCrea
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-card border border-border rounded-lg w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 h-12 border-b border-border">
-          <div className="text-sm font-semibold">Add Team Member</div>
+          <div className="text-sm font-semibold">Create New User</div>
           <button onClick={onClose} className="h-7 w-7 grid place-items-center rounded hover:bg-muted cursor-pointer">
             <X className="h-4 w-4" />
           </button>
@@ -398,25 +398,25 @@ function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCrea
               <label className="flex flex-col gap-1">
                 <span className="annotation">Full Name *</span>
                 <input value={name} onChange={(e) => setName(e.target.value)}
-                  className="h-9 px-2 rounded-md border border-input bg-muted/30 text-xs"
+                  className="h-9 px-2 rounded-md border border-input bg-muted text-xs"
                   placeholder="e.g. John Doe" />
               </label>
               <label className="flex flex-col gap-1">
                 <span className="annotation">Email *</span>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                  className="h-9 px-2 rounded-md border border-input bg-muted/30 text-xs"
+                  className="h-9 px-2 rounded-md border border-input bg-muted text-xs"
                   placeholder="e.g. john@company.com" />
               </label>
               <label className="flex flex-col gap-1">
                 <span className="annotation">Password *</span>
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                  className="h-9 px-2 rounded-md border border-input bg-muted/30 text-xs"
+                  className="h-9 px-2 rounded-md border border-input bg-muted text-xs"
                   placeholder="Min. 8 characters" />
               </label>
               <label className="flex flex-col gap-1">
                 <span className="annotation">Role *</span>
                 <select value={role} onChange={(e) => setRole(e.target.value)}
-                  className="h-9 px-2 rounded-md border border-input bg-muted/30 text-xs">
+                  className="h-9 px-2 rounded-md border border-input bg-muted text-xs">
                   <option value="">— Select Role —</option>
                   {roles.map((r) => <option key={r} value={r}>{r}</option>)}
                 </select>
@@ -424,7 +424,7 @@ function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCrea
               <label className="flex flex-col gap-1">
                 <span className="annotation">Department</span>
                 <select value={department} onChange={(e) => setDepartment(e.target.value)}
-                  className="h-9 px-2 rounded-md border border-input bg-muted/30 text-xs">
+                  className="h-9 px-2 rounded-md border border-input bg-muted text-xs">
                   <option value="">— None —</option>
                   {departments.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>

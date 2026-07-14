@@ -81,7 +81,7 @@ function Page() {
         <div className="ml-auto">
           <button onClick={() => { setEditItem(null); setShowModal(true); }}
             className="h-8 px-3 inline-flex items-center gap-1 rounded-md bg-foreground text-background text-xs font-medium hover:opacity-90 cursor-pointer">
-            <Plus className="h-3.5 w-3.5" /> Add Team
+            <Plus className="h-3.5 w-3.5" /> Create Team
           </button>
         </div>
       </div>
@@ -197,7 +197,7 @@ function TeamFormModal({ item, users, departments, onClose, onSaved }: {
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-card border border-border rounded-lg w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 h-12 border-b border-border">
-          <div className="text-sm font-semibold">{item ? "Edit Team" : "Add Team"}</div>
+          <div className="text-sm font-semibold">{item ? "Edit Team" : "Create Team"}</div>
           <button onClick={onClose} className="h-7 w-7 grid place-items-center rounded hover:bg-muted cursor-pointer"><X className="h-4 w-4" /></button>
         </div>
         <div className="p-4 grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto">
