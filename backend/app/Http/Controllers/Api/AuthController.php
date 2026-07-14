@@ -22,72 +22,81 @@ class AuthController extends Controller
 {
     public function register(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'full_name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255',
-            'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
-        ]);
+        try {
+            $validator = Validator::make($request->all(), [
+                'full_name' => 'required|string|max:255',
+                'email' => 'required|string|email|max:255',
+                'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()->symbols()],
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        // Check if email already exists
-        $existingUser = User::where('email', $request->email)->first();
-
-        if ($existingUser) {
-            if ($existingUser->email_verified_at) {
-                // Account exists and is verified — try to log in with the provided password
-                if (Hash::check($request->password, $existingUser->password)) {
-                    $token = JWTAuth::fromUser($existingUser);
-                    return $this->respondWithToken($token);
-                }
-
-                return response()->json([
-                    'errors' => ['email' => ['This email is already registered. Sign in instead.']],
-                ], 422);
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
             }
 
+            // Check if email already exists
+            $existingUser = User::where('email', $request->email)->first();
+
+            if ($existingUser) {
+                if ($existingUser->email_verified_at) {
+                    // Account exists and is verified — try to log in with the provided password
+                    if (Hash::check($request->password, $existingUser->password)) {
+                        $token = JWTAuth::fromUser($existingUser);
+                        return $this->respondWithToken($token);
+                    }
+
+                    return response()->json([
+                        'errors' => ['email' => ['This email is already registered. Sign in instead.']],
+                    ], 422);
+                }
+
+                if ($request->boolean('newsletter')) {
+                    try {
+                        $this->subscribeToNewsletter($existingUser->email, 'signup', $existingUser->id);
+                    } catch (\Exception $e) {
+                        // fail silently
+                    }
+                }
+
+                // Email exists but not verified — resend OTP
+                $this->generateAndSendOtp($existingUser->email, 'signup');
+
+                return response()->json([
+                    'message' => 'Email already registered but not verified. A new OTP has been sent.',
+                    'needs_verification' => true,
+                    'email' => $existingUser->email,
+                ], 200);
+            }
+
+            $user = User::create([
+                'full_name' => $request->full_name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+            ]);
+
+            $this->generateAndSendOtp($user->email, 'signup');
+
+            // Subscribe to newsletter if requested
             if ($request->boolean('newsletter')) {
                 try {
-                    $this->subscribeToNewsletter($existingUser->email, 'signup', $existingUser->id);
+                    $this->subscribeToNewsletter($user->email, 'signup', $user->id);
                 } catch (\Exception $e) {
                     // fail silently
                 }
             }
 
-            // Email exists but not verified — resend OTP
-            $this->generateAndSendOtp($existingUser->email, 'signup');
-
             return response()->json([
-                'message' => 'Email already registered but not verified. A new OTP has been sent.',
+                'message' => 'User registered successfully. Please verify your email with the OTP sent.',
                 'needs_verification' => true,
-                'email' => $existingUser->email,
-            ], 200);
+                'user' => $user,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Registration failed',
+                'detail' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 500);
         }
-
-        $user = User::create([
-            'full_name' => $request->full_name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        $this->generateAndSendOtp($user->email, 'signup');
-
-        // Subscribe to newsletter if requested
-        if ($request->boolean('newsletter')) {
-            try {
-                $this->subscribeToNewsletter($user->email, 'signup', $user->id);
-            } catch (\Exception $e) {
-                // fail silently
-            }
-        }
-
-        return response()->json([
-            'message' => 'User registered successfully. Please verify your email with the OTP sent.',
-            'needs_verification' => true,
-            'user' => $user,
-        ], 201);
     }
 
     public function verifyOtp(Request $request): JsonResponse
