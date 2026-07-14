@@ -92,13 +92,14 @@ function Page() {
             }
           }
         }
-        const local = auditStore.list("standards");
-        if (local.length === 0) {
-          for (const s of DEFAULT_STANDARDS) {
-            auditStore.create("standards", s, "STD");
-          }
+      } catch {}
+      const local = auditStore.list("standards");
+      if (local.length === 0) {
+        for (const s of DEFAULT_STANDARDS) {
+          auditStore.create("standards", s, "STD");
         }
-      } catch {} finally { setStdSyncing(false); }
+      }
+      setStdSyncing(false);
     })();
   }, []);
 
@@ -596,20 +597,19 @@ function StandardCreateDialog({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} className="h-7 w-7 grid place-items-center rounded border border-border"><X className="h-3.5 w-3.5" /></button>
         </div>
         <div className="grid grid-cols-2 gap-3 mt-3 text-xs">
-          <div className="col-span-2"><Field label="Code*"><input value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} placeholder="ISO 50001:2018" className="input" /></Field></div>
-          <div className="col-span-2"><Field label="Title*"><input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Energy Management Systems — Requirements" className="input" /></Field></div>
+          <div className="col-span-2"><Field label="Code*"><input value={f.code} onChange={(e) => setF({ ...f, code: e.target.value })} placeholder="ISO 50001:2018" className="h-9 w-full px-2 rounded-md border border-input bg-muted text-xs" /></Field></div>
+          <div className="col-span-2"><Field label="Title*"><input value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} placeholder="Energy Management Systems — Requirements" className="h-9 w-full px-2 rounded-md border border-input bg-muted text-xs" /></Field></div>
           <Field label="Type">
-            <select value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })} className="input">
+            <select value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })} className="h-9 w-full px-2 rounded-md border border-input bg-muted text-xs">
               {["Management System", "Guideline", "Technical Spec", "Regulation"].map((t) => <option key={t}>{t}</option>)}
             </select>
           </Field>
-          <Field label="Edition"><input value={f.edition} onChange={(e) => setF({ ...f, edition: e.target.value })} className="input" /></Field>
+          <Field label="Edition"><input value={f.edition} onChange={(e) => setF({ ...f, edition: e.target.value })} className="h-9 w-full px-2 rounded-md border border-input bg-muted text-xs" /></Field>
         </div>
         <div className="flex justify-end gap-2 mt-4">
           <button onClick={onClose} className="h-8 px-3 rounded border border-border text-xs">Cancel</button>
           <button onClick={save} disabled={saving} className="h-8 px-3 rounded bg-foreground text-background text-xs font-medium disabled:opacity-40">{saving ? "Saving..." : "Create Standard"}</button>
         </div>
-        <style>{`.input{width:100%;height:32px;padding:0 8px;border-radius:6px;border:1px solid hsl(var(--input));background:hsl(var(--muted)/0.3);font-size:12px}`}</style>
       </div>
     </div>
   );
