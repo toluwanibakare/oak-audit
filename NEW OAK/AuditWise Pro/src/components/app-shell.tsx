@@ -66,7 +66,8 @@ const NAV: NavItem[] = [
   },
   {
     icon: Users, label: "User Management", children: [
-      { label: "Team Management", to: "/users/all" },
+      { label: "Users", to: "/users/all" },
+      { label: "Teams", to: "/users/teams" },
       { label: "Roles", to: "/users/roles" },
       { label: "Permissions", to: "/users/permissions" },
     ],
