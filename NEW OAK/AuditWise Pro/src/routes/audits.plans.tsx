@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ModulePage, WCard, WBadge, Annotation } from "@/components/module-page";
-import { auditStore, useAuditStore, type AuditPlan } from "@/lib/audit-store";
+import { auditStore, useAuditStore, nextAuditId, type AuditPlan } from "@/lib/audit-store";
 import { auditsApi, auditRecordToPlan } from "@/lib/api/audits";
 import { orgsApi } from "@/lib/api/orgs";
 import { EntityDialog, type FieldDef } from "@/components/entity";
