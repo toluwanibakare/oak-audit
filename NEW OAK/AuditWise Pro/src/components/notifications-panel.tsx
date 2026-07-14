@@ -58,7 +58,7 @@ export function NotificationsPanel({ open, onClose }: Props) {
     <>
       {open && <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" onClick={onClose} />}
       <div
-        className={`fixed top-0 right-0 z-50 h-full w-full max-w-md bg-white/80 backdrop-blur-xl border-l border-border shadow-2xl transition-transform duration-300 ease-out ${
+        className={`fixed top-0 right-0 z-50 h-full w-full max-w-md bg-background/95 backdrop-blur-xl border-l border-border shadow-2xl transition-transform duration-300 ease-out ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
