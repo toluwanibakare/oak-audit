@@ -31,6 +31,9 @@ export const auditsApi = {
 
   update: (orgId: string, id: string, data: Record<string, any>) =>
     apiClient.put<AuditRecord>(`/organizations/${orgId}/audits/${id}`, data).then((r) => r.data),
+
+  delete: (orgId: string, id: string) =>
+    apiClient.delete<{ message: string }>(`/organizations/${orgId}/audits/${id}`).then((r) => r.data),
 };
 
 const STATUS_MAP: Record<string, string> = {

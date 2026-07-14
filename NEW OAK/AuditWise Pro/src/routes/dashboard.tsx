@@ -30,22 +30,22 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 const BAR_COLORS = [
-  "linear-gradient(0deg, var(--navy-deep), var(--teal))",
-  "linear-gradient(0deg, #10b981, #2dd4bf)",
-  "linear-gradient(0deg, #8b5cf6, #a855f7)",
-  "linear-gradient(0deg, #0ea5e9, #06b6d4)",
-  "linear-gradient(0deg, #f43f5e, #f472b6)",
-  "linear-gradient(0deg, #f59e0b, #fb923c)",
-  "linear-gradient(0deg, #6366f1, #3b82f6)",
-  "linear-gradient(0deg, #14b8a6, #34d399)",
+  "linear-gradient(0deg, #0d9488, var(--teal))",
+  "linear-gradient(0deg, #059669, #34d399)",
+  "linear-gradient(0deg, #7c3aed, #a855f7)",
+  "linear-gradient(0deg, #0284c7, #38bdf8)",
+  "linear-gradient(0deg, #dc2626, #f87171)",
+  "linear-gradient(0deg, #d97706, #fbbf24)",
+  "linear-gradient(0deg, #4f46e5, #818cf8)",
+  "linear-gradient(0deg, #0d9488, #5eead4)",
 ];
 
 const COMPLIANCE_COLORS = [
-  "linear-gradient(90deg, var(--navy-deep), var(--teal))",
-  "linear-gradient(90deg, #10b981, #2dd4bf)",
-  "linear-gradient(90deg, #8b5cf6, #a855f7)",
-  "linear-gradient(90deg, #0ea5e9, #06b6d4)",
-  "linear-gradient(90deg, #f43f5e, #f472b6)",
+  "linear-gradient(90deg, #0d9488, var(--teal))",
+  "linear-gradient(90deg, #059669, #34d399)",
+  "linear-gradient(90deg, #7c3aed, #a855f7)",
+  "linear-gradient(90deg, #0284c7, #38bdf8)",
+  "linear-gradient(90deg, #dc2626, #f87171)",
 ];
 
 const ACTIVITY_ICONS = [FileText, AlertTriangle, CheckCircle2, TrendingUp, FileText] as const;
@@ -103,8 +103,8 @@ function Dashboard() {
 
   const grad = (label: string) => {
     const palette = [
-      "linear-gradient(90deg, var(--navy-deep), var(--teal))",
-      "linear-gradient(90deg, #10b981, #2dd4bf)",
+      "linear-gradient(90deg, #0d9488, var(--teal))",
+      "linear-gradient(90deg, #059669, #34d399)",
       "linear-gradient(90deg, #f59e0b, #fb923c)",
       "linear-gradient(90deg, #f43f5e, #f472b6)",
       "linear-gradient(90deg, #8b5cf6, #a855f7)",
@@ -262,8 +262,8 @@ function Dashboard() {
               {chartData && <LineChart data={chartData[period]} />}
               {!chartData && <div className="h-[220px] grid place-items-center text-sm text-muted-foreground">No audit records yet. Schedule your first audit to get started.</div>}
               <div className="flex items-center gap-4 mt-3 text-[11px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--navy-deep)]" />Conducted</span>
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--teal)]" />Completed</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[var(--teal)]" />Conducted</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full border-2 border-[var(--teal)] bg-transparent" />Completed</span>
               </div>
             </WCard>
 
@@ -426,8 +426,8 @@ function LineChart({ data }: { data: { conducted: number[]; completed: number[];
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-[220px]">
       <defs><linearGradient id="lineChartGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="var(--navy-deep)" stopOpacity="0.15" />
-        <stop offset="100%" stopColor="var(--navy-deep)" stopOpacity="0" />
+        <stop offset="0%" stopColor="var(--teal)" stopOpacity="0.2" />
+        <stop offset="100%" stopColor="var(--teal)" stopOpacity="0" />
       </linearGradient></defs>
       {ticks.map((t, i) => (
         <line key={i} x1={P} x2={W - P} y1={H - P - t * scale} y2={H - P - t * scale} stroke="var(--wire)" strokeDasharray="3 4" />
@@ -438,8 +438,8 @@ function LineChart({ data }: { data: { conducted: number[]; completed: number[];
       {data.labels.map((m, i) => (
         <text key={i} x={P + (i * (W - 2 * P)) / (Math.max(data.labels.length - 1, 1))} y={H - 8} fontSize="10" fill="var(--annotation)" textAnchor="middle">{m}</text>
       ))}
-      <path d={path(data.completed)} fill="none" stroke="var(--teal)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
-      <path d={path(data.conducted)} fill="none" stroke="var(--navy-deep)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={path(data.completed)} fill="none" stroke="var(--teal)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.4" strokeDasharray="6 3" />
+      <path d={path(data.conducted)} fill="none" stroke="var(--teal)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       <path d={path(data.conducted) + ` L${W - P},${H - P} L${P},${H - P} Z`} fill="url(#lineChartGrad)" />
     </svg>
   );

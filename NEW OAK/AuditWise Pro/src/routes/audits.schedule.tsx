@@ -84,7 +84,7 @@ function Page() {
                   ) : (
                     <button onClick={() => setEditing(p)} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted"><Pencil className="h-3 w-3" /></button>
                   )}
-                  <button onClick={() => { if (confirm(`Delete ${p.id}?`)) auditStore.removePlan(p.id); }} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted"><Trash2 className="h-3 w-3" /></button>
+                  <button onClick={async () => { if (!confirm(`Delete ${p.id}?`)) return; const orgs = await orgsApi.list(); if (orgs.length) try { await auditsApi.delete(orgs[0].id, p.serverId || p.id); } catch {} auditStore.removePlan(p.id); }} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted"><Trash2 className="h-3 w-3" /></button>
                 </div>
               </div>
             ))}
