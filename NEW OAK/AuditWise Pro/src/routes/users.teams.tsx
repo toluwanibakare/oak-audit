@@ -46,7 +46,7 @@ function Page() {
         teamMembersApi.list(orgId).catch(() => [] as TeamMember[]),
         entitiesApi.list(orgId, "departments").catch(() => [] as any[]),
       ]);
-      setTeams(teamItems.map((t: any) => ({ id: t.id, name: t.name || "", department: t.department || "", lead: t.lead || "", members: t.members || "", status: t.status || "Active", updated: t.updated })));
+      setTeams(teamItems.map((t: any) => ({ id: t.id, name: t.name || "", department: t.department || "", lead: t.lead || "", members: t.members || "", standards: t.standards || "", status: t.status || "Active", updated: t.updated })));
       setUsers(userItems);
       setDepartments(deptItems.map((d: any) => d.name || "").filter(Boolean));
     } catch {} finally {
@@ -150,7 +150,13 @@ function Page() {
           users={users}
           departments={departments}
           onClose={() => setShowModal(false)}
-          onSaved={() => { setShowModal(false); loadData(); }}
+          onSaved={(saved: any) => {
+            setShowModal(false);
+            if (editItem) {
+              setTeams((prev) => prev.map((t) => t.id === editItem.id ? { ...t, ...saved } : t));
+            }
+            loadData();
+          }}
         />
       )}
 
@@ -170,7 +176,7 @@ function TeamFormModal({ item, users, departments, onClose, onSaved }: {
   users: TeamMember[];
   departments: string[];
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (payload: any) => void;
 }) {
   const standards = useAuditStore((s) => Object.values(s.collections.standards ?? {})).filter((s: any) => s.status === "Active");
   const [name, setName] = useState(item?.name || "");
@@ -195,7 +201,7 @@ function TeamFormModal({ item, users, departments, onClose, onSaved }: {
       } else {
         await entitiesApi.create(orgId, "teams", payload);
       }
-      onSaved();
+      onSaved(payload);
     } catch (e: any) {
       setError(e?.response?.data?.message || e?.message || "Failed to save team.");
     } finally {
