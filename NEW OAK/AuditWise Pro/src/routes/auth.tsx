@@ -686,7 +686,7 @@ const Field = ({
       )}
       <input
         {...rest}
-        className={`h-11 w-full rounded-xl border border-border bg-background/50 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 ${
+        className={`h-11 w-full rounded-xl border border-border bg-muted text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 ${
           Icon ? "pl-10 pr-4" : "px-3.5"
         }`}
       />
@@ -714,7 +714,7 @@ const SelectField = ({
       )}
       <select
         {...rest}
-        className={`h-11 w-full rounded-xl border border-border bg-background/50 text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 cursor-pointer ${
+        className={`h-11 w-full rounded-xl border border-border bg-muted text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 cursor-pointer ${
           Icon ? "pl-10 pr-8" : "px-3.5"
         }`}
       >
@@ -742,7 +742,7 @@ const TextareaField = ({
       )}
       <textarea
         {...rest}
-        className={`w-full rounded-xl border border-border bg-background/50 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 pt-2.5 min-h-[72px] resize-none ${
+        className={`w-full rounded-xl border border-border bg-muted text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 pt-2.5 min-h-[72px] resize-none ${
           Icon ? "pl-10 pr-4" : "px-3.5"
         }`}
       />
@@ -774,7 +774,7 @@ const PasswordField = ({
             {...rest}
             value={value}
             type={show ? "text" : "password"}
-            className="h-11 w-full rounded-xl border border-border bg-background/50 text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 pl-10 pr-11"
+            className="h-11 w-full rounded-xl border border-border bg-muted text-sm font-medium text-foreground placeholder:text-muted-foreground/60 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 pl-10 pr-11"
           />
           <button
             type="button"

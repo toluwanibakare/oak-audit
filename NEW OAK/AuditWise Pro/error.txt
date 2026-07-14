@@ -1,30 +1,5 @@
-__root.tsx:38 TypeError: Cannot read properties of undefined (reading 'AUD-2026-050')
-    at audits.new.tsx:50:1
-    at Object.react_stack_bottom_frame (react-dom_client.js?v=923a1609:12902:13)
-    at runWithFiberInDEV (react-dom_client.js?v=923a1609:851:66)
-    at commitHookEffectListMount (react-dom_client.js?v=923a1609:6617:153)
-    at commitHookPassiveMountEffects (react-dom_client.js?v=923a1609:6652:55)
-    at reconnectPassiveEffects (react-dom_client.js?v=923a1609:7701:6)
-    at recursivelyTraverseReconnectPassiveEffects (react-dom_client.js?v=923a1609:7688:5)
-    at reconnectPassiveEffects (react-dom_client.js?v=923a1609:7700:6)
-    at recursivelyTraverseReconnectPassiveEffects (react-dom_client.js?v=923a1609:7688:5)
-    at reconnectPassiveEffects (react-dom_client.js?v=923a1609:7700:6)
-ErrorComponent @ __root.tsx:38
-react-dom_client.js?v=923a1609:5274 TypeError: Cannot read properties of undefined (reading 'AUD-2026-050')
-    at audits.new.tsx:50:1
-    at Object.react_stack_bottom_frame (react-dom_client.js?v=923a1609:12902:13)
-    at runWithFiberInDEV (react-dom_client.js?v=923a1609:851:66)
-    at commitHookEffectListMount (react-dom_client.js?v=923a1609:6617:153)
-    at commitHookPassiveMountEffects (react-dom_client.js?v=923a1609:6652:55)
-    at reconnectPassiveEffects (react-dom_client.js?v=923a1609:7701:6)
-    at recursivelyTraverseReconnectPassiveEffects (react-dom_client.js?v=923a1609:7688:5)
-    at reconnectPassiveEffects (react-dom_client.js?v=923a1609:7700:6)
-    at recursivelyTraverseReconnectPassiveEffects (react-dom_client.js?v=923a1609:7688:5)
-    at reconnectPassiveEffects (react-dom_client.js?v=923a1609:7700:6)
+Failed to load resource: the server responded with a status of 500 ()
+audits.new.tsx:58 [audit] failed to create draft on API AxiosError: Request failed with status code 500
 
-The above error occurred in the <NewAuditWizard> component.
 
-React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundaryImpl.
-
-defaultOnCaughtError @ react-dom_client.js?v=923a1609:5274
-Match.js?v=923a1609:92 Warning: Error in route match: __root__/
+entities.ts:16  PUT https://api.oakaudix.app/api/organizations/019f5ffe-8c9e-7274-9503-2d328d044c8f/entities/standards/STD-5PYURT 404 (Not Found)
