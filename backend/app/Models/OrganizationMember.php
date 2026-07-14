@@ -14,6 +14,7 @@ class OrganizationMember extends Model
         'user_id',
         'invited_email',
         'status',
+        'department',
     ];
 
     public function organization()

@@ -147,4 +147,11 @@ class AuditController extends Controller
 
         return response()->json($audit->fresh()->load(['findings', 'answers', 'processes']));
     }
+
+    public function destroy(string $orgId, string $id): JsonResponse
+    {
+        $audit = AuditModel::where('org_id', $orgId)->findOrFail($id);
+        $audit->delete();
+        return response()->json(['message' => 'Audit deleted.']);
+    }
 }

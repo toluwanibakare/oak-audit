@@ -5,9 +5,10 @@ import { notificationsApi, type NotificationItem } from "@/lib/api/notifications
 type Props = {
   open: boolean;
   onClose: () => void;
+  onUnreadChanged?: () => void;
 };
 
-export function NotificationsPanel({ open, onClose }: Props) {
+export function NotificationsPanel({ open, onClose, onUnreadChanged }: Props) {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewing, setViewing] = useState<NotificationItem | null>(null);

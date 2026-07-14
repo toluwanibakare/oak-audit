@@ -221,14 +221,14 @@ function TopBar() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await notificationsApi.unreadCount();
-        setUnreadCount(res.count);
-      } catch {}
-    })();
-  }, []);
+  const refreshUnread = async () => {
+    try {
+      const res = await notificationsApi.unreadCount();
+      setUnreadCount(res.count);
+    } catch {}
+  };
+
+  useEffect(() => { refreshUnread(); }, []);
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -280,7 +280,7 @@ function TopBar() {
           )}
         </div>
       </div>
-      <NotificationsPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+      <NotificationsPanel open={notifOpen} onClose={() => { setNotifOpen(false); refreshUnread(); }} onUnreadChanged={refreshUnread} />
     </header>
   );
 }

@@ -216,7 +216,7 @@ class TeamMemberController extends Controller
             abort(403, 'You do not have permission to remove team members.');
         }
 
-        if ((int) $userId === (int) $admin->id) {
+        if ((string) $userId === (string) $admin->id) {
             abort(400, 'You cannot remove yourself from the organization.');
         }
 

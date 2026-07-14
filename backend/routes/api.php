@@ -97,6 +97,7 @@ Route::middleware('auth:api')->group(function () {
         Route::post('audits', [AuditController::class, 'store']);
         Route::get('audits/{audit}', [AuditController::class, 'show']);
         Route::put('audits/{audit}', [AuditController::class, 'update']);
+        Route::delete('audits/{audit}', [AuditController::class, 'destroy']);
 
         // Findings
         Route::get('findings', [FindingController::class, 'index']);

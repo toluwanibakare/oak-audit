@@ -174,7 +174,7 @@ function EditMemberModal({ member, onClose, onUpdated }: { member: TeamMember; o
         ]);
         const allRoles = roleItems.map((r: any) => r.name || r.role || "").filter(Boolean);
         const fallbackRoles = ["Auditor", "Lead Auditor", "Admin", "Viewer", "Auditee"];
-        setRoles(allRoles.length > 0 ? allRoles : fallbackRoles);
+        setRoles((allRoles.length > 0 ? allRoles : fallbackRoles).filter((r) => r !== "Management Representative"));
         setDepartments(deptItems.map((d: any) => d.name || "").filter(Boolean));
       } catch {
         setRoles(["Auditor", "Lead Auditor", "Admin", "Viewer", "Auditee"]);
@@ -332,12 +332,9 @@ function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCrea
         ]);
         const allRoles = roleItems.map((r: any) => r.name || r.role || "").filter(Boolean);
         const fallbackRoles = ["Auditor", "Lead Auditor", "Admin", "Viewer", "Auditee"];
-        setRoles(allRoles.length > 0 ? allRoles : fallbackRoles);
-        if (allRoles.length > 0) {
-          setRole(allRoles[0]);
-        } else {
-          setRole(fallbackRoles[0]);
-        }
+        const filtered = (allRoles.length > 0 ? allRoles : fallbackRoles).filter((r) => r !== "Management Representative");
+        setRoles(filtered);
+        setRole(filtered[0] ?? "Auditor");
         setDepartments(deptItems.map((d: any) => d.name || "").filter(Boolean));
       } catch {
         setRoles(["Auditor", "Lead Auditor", "Admin", "Viewer", "Auditee"]);
