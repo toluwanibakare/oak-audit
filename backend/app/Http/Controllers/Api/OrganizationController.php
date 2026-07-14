@@ -54,16 +54,59 @@ class OrganizationController extends Controller
             'status' => 'Active',
         ]);
 
-        $roleName = 'Management Representative';
-        $roleExists = \App\Models\EntityData::where('org_id', $org->id)
-            ->where('entity_type', 'roles')
-            ->where('data->name', $roleName)
-            ->exists();
+        // Seed default roles
+        $defaultRoles = ['Management Representative', 'Admin', 'Lead Auditor', 'Auditor', 'Viewer', 'Auditee'];
+        foreach ($defaultRoles as $roleName) {
+            $exists = \App\Models\EntityData::where('org_id', $org->id)
+                ->where('entity_type', 'roles')
+                ->where('data->name', $roleName)
+                ->exists();
+            if (!$exists) {
+                \App\Models\EntityData::create([
+                    'org_id' => $org->id,
+                    'entity_type' => 'roles',
+                    'data' => [
+                        'name' => $roleName,
+                        'scope' => 'Global',
+                        'members' => 0,
+                        'description' => '',
+                        'status' => 'Active',
+                    ],
+                ]);
+            }
+        }
 
+        // Seed default permissions for each role
+        $modules = ['Audits', 'Findings', 'Corrective Actions', 'Risk', 'Reports', 'Organization', 'Users', 'Settings'];
+        $adminRoles = ['Management Representative', 'Admin'];
+        $fullRoles = ['Lead Auditor', 'Auditor'];
+        foreach ($defaultRoles as $roleName) {
+            foreach ($modules as $module) {
+                $level = in_array($roleName, $adminRoles) ? 3 : (in_array($roleName, $fullRoles) ? 2 : 0);
+                $exists = \App\Models\EntityData::where('org_id', $org->id)
+                    ->where('entity_type', 'permissions')
+                    ->where('data->role', $roleName)
+                    ->where('data->module', $module)
+                    ->exists();
+                if (!$exists) {
+                    \App\Models\EntityData::create([
+                        'org_id' => $org->id,
+                        'entity_type' => 'permissions',
+                        'data' => [
+                            'role' => $roleName,
+                            'module' => $module,
+                            'level' => $level,
+                        ],
+                    ]);
+                }
+            }
+        }
+
+        // Assign Management Representative role to the org creator
         \App\Models\UserRole::create([
             'org_id' => $org->id,
             'user_id' => $userId,
-            'role' => $roleExists ? $roleName : 'admin',
+            'role' => 'Management Representative',
         ]);
 
         Cache::forget("user_orgs:{$userId}");
