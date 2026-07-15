@@ -498,7 +498,7 @@ function HeatMap({ grid }: { grid?: number[][] }) {
         <div className="grid grid-cols-5 gap-1 flex-1">
           {data.map((row, ri) => row.map((v, ci) => (
             <div key={`${ri}-${ci}`} className="aspect-square rounded-lg border border-border/50 grid place-items-center text-[11px] font-medium transition-all duration-200 hover:scale-110 hover:shadow-md"
-              style={{ background: tone(v), color: v >= 4 ? "white" : "var(--ink)" }}>
+              style={{ background: tone(v), color: "black" }}>
               {v * 2 + ((ri + ci) % 4)}
             </div>
           )))}

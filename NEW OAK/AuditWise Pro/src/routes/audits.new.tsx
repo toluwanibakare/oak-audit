@@ -42,8 +42,8 @@ const CHECKLISTS = CHECKLIST_LIBRARY.map((c) => ({
 
 const STEPS = [
   { key: "basics", label: "Basics", icon: FileText },
-  { key: "scope", label: "Scope & Schedule", icon: CalendarRange },
   { key: "team", label: "Team", icon: Users },
+  { key: "scope", label: "Scope & Schedule", icon: CalendarRange },
   { key: "checklists", label: "Checklists", icon: ListChecks },
   { key: "approval", label: "Approval", icon: ShieldCheck },
   { key: "review", label: "Review & Launch", icon: Send },
@@ -156,9 +156,13 @@ function NewAuditWizard() {
             wizardState: ws,
             status: audit.status === "draft" ? "Draft" : audit.status,
           });
-        } catch (e) {
+        } catch (e: any) {
           console.error("[audit] failed to load draft from API", e);
-          toast.error("Failed to load draft from server — using local cache");
+          if (e?.response?.status === 404) {
+            sessionStorage.removeItem("audit_wizard_serverId");
+          } else {
+            toast.error("Failed to load draft from server — using local cache");
+          }
         }
       })();
       return;
@@ -177,6 +181,7 @@ function NewAuditWizard() {
         };
         const created = await auditsApi.create(oid, payload);
         sessionStorage.setItem("audit_wizard_serverId", created.id);
+        saveToLocal({ serverId: created.id });
       } catch (e) {
         console.error("[audit] failed to create draft on API", e);
         toast.error("Server unreachable — saving locally only");
@@ -209,8 +214,8 @@ function NewAuditWizard() {
     if (syncTimer.current) clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(async () => {
       syncTimer.current = null;
-      saveToLocal();
       const serverId = sessionStorage.getItem("audit_wizard_serverId");
+      saveToLocal({ serverId: serverId ?? undefined });
       if (!serverId) return;
       try {
         const orgs = await orgsApi.list();
@@ -223,9 +228,13 @@ function NewAuditWizard() {
           status: submitted ? "pending_approval" : "draft",
           wizard_state: { step, title, auditType, standardId, objective, scope, criteria, departments, locations, startDate, endDate, leadId, teamIds, checklistIds, checklistItems, deptAssignments, approvers, submitted },
         });
-      } catch (e) {
+      } catch (e: any) {
         console.error("[audit] failed to sync to API", e);
-        toast.error("Failed to save to server");
+        if (e?.response?.status === 404) {
+          sessionStorage.removeItem("audit_wizard_serverId");
+        } else {
+          toast.error("Failed to save to server");
+        }
       }
     }, 500);
     return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };
@@ -421,6 +430,14 @@ function NewAuditWizard() {
                 objective={objective} setObjective={(v) => { track("objective", objective, v); setObjective(v); }}
               />
             )}
+            {step === "team" && (
+              <TeamStep
+                leadId={leadId}
+                setLeadId={(v) => { track("lead_auditor", leadId, v); setLeadId(v); }}
+                teamIds={teamIds} toggleTeam={toggleTeam}
+                standard={standard.code}
+              />
+            )}
             {step === "scope" && (
               <ScopeStep
                 scope={scope} setScope={(v) => { track("scope", scope, v); setScope(v); }}
@@ -428,7 +445,6 @@ function NewAuditWizard() {
                 departments={departments} setDepartments={(v) => {
                   trackList("departments", departments, v);
                   setDepartments(v);
-                  // Prune assignments for removed depts; seed new depts empty
                   setDeptAssignments((prev) => {
                     const next: Record<string, string[]> = {};
                     v.forEach((d) => { next[d] = prev[d] ?? []; });
@@ -443,15 +459,8 @@ function NewAuditWizard() {
                   auditStore.logTrail(planId, { step: "scope", field: "dept_assignments", to: JSON.stringify(Object.fromEntries(Object.entries(next).map(([d, ids]) => [d, ids.length]))) });
                   setDeptAssignments(next);
                 }}
-              />
-            )}
-
-            {step === "team" && (
-              <TeamStep
+                teamAuditors={auditorNames}
                 leadId={leadId}
-                setLeadId={(v) => { track("lead_auditor", leadId, v); setLeadId(v); }}
-                teamIds={teamIds} toggleTeam={toggleTeam}
-                standard={standard.code}
               />
             )}
             {step === "checklists" && (
@@ -629,19 +638,42 @@ function ScopeStep(p: {
   endDate: string; setEndDate: (v: string) => void;
   deptAssignments: Record<string, string[]>;
   setDeptAssignments: (next: Record<string, string[]>) => void;
+  teamAuditors: string[];
+  leadId: string;
 }) {
-  const [auditors, setAuditors] = useState<TeamMember[]>([]);
+  const [allAuditors, setAllAuditors] = useState<TeamMember[]>([]);
   const [auditorsLoading, setAuditorsLoading] = useState(true);
   useEffect(() => {
     (async () => {
       try {
         const orgs = await orgsApi.list();
         if (orgs.length === 0) return;
-        const data = await teamMembersApi.list(orgs[0].id);
-        setAuditors(data.filter((m) => m.status === "Active"));
+        const oid = orgs[0].id;
+        const [data, depts, locs] = await Promise.all([
+          teamMembersApi.list(oid),
+          entitiesApi.list(oid, "departments").catch(() => []),
+          entitiesApi.list(oid, "locations").catch(() => []),
+        ]);
+        setAllAuditors(data.filter((m) => m.status === "Active"));
+        for (const d of depts) {
+          if (!auditStore.get("departments", d.id)) {
+            auditStore.create("departments", { ...d, id: d.id }, "", true);
+          }
+        }
+        for (const l of locs) {
+          if (!auditStore.get("locations", l.id)) {
+            auditStore.create("locations", { ...l, id: l.id }, "", true);
+          }
+        }
       } catch {} finally { setAuditorsLoading(false); }
     })();
   }, []);
+  const auditors = useMemo(() =>
+    p.teamAuditors.length
+      ? allAuditors.filter((m) => p.teamAuditors.includes(m.name))
+      : allAuditors,
+    [allAuditors, p.teamAuditors]
+  );
   const storedDepts = useAuditStore((s) => Object.values(s.collections.departments ?? {}));
   const storedLocations = useAuditStore((s) => Object.values(s.collections.locations ?? {}));
   const availableDepts = storedDepts.map((d) => d.name || "").filter(Boolean);
@@ -709,7 +741,7 @@ function ScopeStep(p: {
             <div className="h-9 px-2 rounded-md border border-input bg-muted/30 flex items-center text-xs text-muted-foreground">Loading team members...</div>
           ) : auditors.length === 0 ? (
             <div className="h-9 px-2 rounded-md border border-dashed border-amber-500/40 bg-amber-500/5 flex items-center text-[11px] text-amber-600 dark:text-amber-400">
-              No active team members. Create users in Users first.
+              No team auditors selected. Go back to Team step and select auditors first.
             </div>
           ) : (
             <div className="space-y-3">
@@ -726,10 +758,11 @@ function ScopeStep(p: {
                     <div className="max-h-32 overflow-y-auto rounded border border-border bg-muted/20 p-1.5 space-y-0.5">
                       {auditors.map((a) => {
                         const sel = assigned.includes(a.name);
+                        const role = a.name === p.leadId ? "Lead Auditor" : "Auditor";
                         return (
                           <label key={a.id} className={`flex items-center gap-2 px-2 py-1 rounded cursor-pointer text-xs hover:bg-muted/80 ${sel ? "bg-primary/10" : ""}`}>
                             <input type="checkbox" checked={sel} onChange={() => toggleAuditor(d, a.name)} className="accent-primary" />
-                            {a.name} <span className="text-muted-foreground">({a.email})</span>
+                            {a.name} <span className="text-muted-foreground">({role})</span>
                           </label>
                         );
                       })}
