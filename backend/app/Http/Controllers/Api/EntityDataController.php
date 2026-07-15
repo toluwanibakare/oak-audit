@@ -45,7 +45,19 @@ class EntityDataController extends Controller
     {
         $entity = EntityData::where('org_id', $orgId)
             ->where('entity_type', $entityType)
-            ->findOrFail($id);
+            ->find($id);
+
+        // Fallback: lookup by data->id (for prefixed temp IDs from frontend)
+        if (!$entity) {
+            $entity = EntityData::where('org_id', $orgId)
+                ->where('entity_type', $entityType)
+                ->where('data->id', $id)
+                ->first();
+        }
+
+        if (!$entity) {
+            return response()->json(['message' => 'Entity not found.'], 404);
+        }
 
         $request->validate(['data' => 'required|array']);
 
@@ -58,7 +70,19 @@ class EntityDataController extends Controller
     {
         $entity = EntityData::where('org_id', $orgId)
             ->where('entity_type', $entityType)
-            ->findOrFail($id);
+            ->find($id);
+
+        if (!$entity) {
+            $entity = EntityData::where('org_id', $orgId)
+                ->where('entity_type', $entityType)
+                ->where('data->id', $id)
+                ->first();
+        }
+
+        if (!$entity) {
+            return response()->json(['message' => 'Entity not found.'], 404);
+        }
+
         $entity->delete();
 
         return response()->json(['message' => 'Deleted.']);

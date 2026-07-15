@@ -1,13 +1,14 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { requireAuth } from "@/lib/require-auth";
 import { AppShell } from "@/components/app-shell";
 import { Annotation, WBadge } from "@/components/wire";
 import { teamMembersApi, type TeamMember, type CreateTeamMemberPayload } from "@/lib/api/team-members";
 import { entitiesApi } from "@/lib/api/entities";
-import { orgsApi } from "@/lib/api/orgs";
+import { orgsApi, type Organization } from "@/lib/api/orgs";
+import { useAuth } from "@/hooks/use-auth";
 import {
-  Plus, X, RefreshCw, AlertTriangle, Mail, UserPlus, Pencil, Trash2,
+  X, RefreshCw, AlertTriangle, Mail, UserPlus, Pencil, Trash2, Shield, ArrowRight,
 } from "lucide-react";
 
 export const Route = createFileRoute("/users/all")({
@@ -18,11 +19,16 @@ export const Route = createFileRoute("/users/all")({
 
 function Page() {
   const [members, setMembers] = useState<TeamMember[]>([]);
+  const [org, setOrg] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [showSetManager, setShowSetManager] = useState(false);
   const [editMember, setEditMember] = useState<TeamMember | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<TeamMember | null>(null);
+  const [managerTarget, setManagerTarget] = useState<TeamMember | null>(null);
+  const { user } = useAuth();
+  const isManager = user && org?.manager_id === user.id;
 
   const loadMembers = async () => {
     setLoading(true);
@@ -30,6 +36,14 @@ function Page() {
     try {
       const orgs = await orgsApi.list();
       if (orgs.length === 0) return;
+      let currentOrg = orgs[0];
+      try {
+        const freshOrg = await orgsApi.get(orgs[0].id);
+        if (freshOrg) currentOrg = freshOrg;
+      } catch {
+        // fallback to cached list data
+      }
+      setOrg(currentOrg);
       const data = await teamMembersApi.list(orgs[0].id);
       setMembers(data);
     } catch (e: any) {
@@ -45,7 +59,19 @@ function Page() {
       <AppShell title="Users">
       <div className="wire-card rounded-lg p-3 flex flex-wrap items-center gap-2">
         <Annotation>{members.length} users</Annotation>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {!org?.manager_id ? (
+            <button
+              onClick={() => setShowSetManager(true)}
+              className="h-8 px-3 inline-flex items-center gap-1 rounded-md border border-amber-400/50 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 text-xs font-medium hover:opacity-90 cursor-pointer"
+            >
+              <Shield className="h-3.5 w-3.5" /> Set Manager
+            </button>
+          ) : isManager ? (
+            <span className="h-8 px-3 inline-flex items-center gap-1 rounded-md bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 text-xs font-medium">
+              <Shield className="h-3.5 w-3.5" /> You are the Manager
+            </span>
+          ) : null}
           <button
             onClick={() => setShowModal(true)}
             className="h-8 px-3 inline-flex items-center gap-1 rounded-md bg-foreground text-background text-xs font-medium hover:opacity-90 cursor-pointer"
@@ -104,7 +130,16 @@ function Page() {
                     </td>
                     <td className="py-2.5 px-3">
                       <div className="flex items-center gap-1">
-                        {m.role === "Management Representative" || m.role === "admin" ? (
+                        {m.id === org?.manager_id ? (
+                          <>
+                            <span className="text-[11px] text-muted-foreground italic">Protected</span>
+                            {isManager && (
+                              <button onClick={() => setManagerTarget(m)} className="h-7 px-2 inline-flex items-center gap-1 rounded hover:bg-muted cursor-pointer text-xs text-muted-foreground hover:text-foreground" title="Transfer Manager role">
+                                <ArrowRight className="h-3 w-3" /> Transfer
+                              </button>
+                            )}
+                          </>
+                        ) : m.role === "Management Representative" || m.role === "admin" ? (
                           <span className="text-[11px] text-muted-foreground italic">Protected</span>
                         ) : (
                           <>
@@ -133,6 +168,15 @@ function Page() {
         />
       )}
 
+      {showSetManager && (
+        <CreateMemberModal
+          fixedRole="Manager"
+          orgId={org!.id}
+          onClose={() => setShowSetManager(false)}
+          onCreated={() => { setShowSetManager(false); loadMembers(); }}
+        />
+      )}
+
       {editMember && (
         <EditMemberModal
           member={editMember}
@@ -146,6 +190,16 @@ function Page() {
           member={deleteTarget}
           onClose={() => setDeleteTarget(null)}
           onDeleted={() => { setDeleteTarget(null); loadMembers(); }}
+        />
+      )}
+
+      {managerTarget !== null && (
+        <SetTransferManagerModal
+          org={org!}
+          members={members}
+          existingManagerId={org?.manager_id}
+          onClose={() => setManagerTarget(null)}
+          onDone={() => { setManagerTarget(null); loadMembers(); }}
         />
       )}
     </AppShell>
@@ -307,11 +361,76 @@ function DeleteConfirmModal({ member, onClose, onDeleted }: { member: TeamMember
   );
 }
 
-function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+function SetTransferManagerModal({
+  org, members, existingManagerId, onClose, onDone,
+}: {
+  org: Organization; members: TeamMember[]; existingManagerId?: string; onClose: () => void; onDone: () => void;
+}) {
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const isTransfer = !!existingManagerId;
+
+  const candidates = members.filter((m) => m.id !== existingManagerId && m.status === "Active");
+
+  const handleSubmit = async () => {
+    setError(null);
+    if (!selectedUserId) { setError("Please select a user."); return; }
+    setSubmitting(true);
+    try {
+      await orgsApi.update(org.id, { manager_id: selectedUserId });
+      onDone();
+    } catch (e: any) {
+      setError(e?.response?.data?.message || e?.message || "Failed to set manager.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-lg w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 h-12 border-b border-border">
+          <div className="text-sm font-semibold">{isTransfer ? "Transfer Manager" : "Set Manager"}</div>
+          <button onClick={onClose} className="h-7 w-7 grid place-items-center rounded hover:bg-muted cursor-pointer">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-4 space-y-3">
+          {isTransfer && (
+            <p className="text-xs text-muted-foreground">
+              Only the current manager can transfer the role. Select a new manager below.
+            </p>
+          )}
+          <label className="flex flex-col gap-1">
+            <span className="annotation">Select User *</span>
+            <select value={selectedUserId} onChange={(e) => setSelectedUserId(e.target.value)}
+              className="h-9 px-2 rounded-md border border-input bg-muted text-xs">
+              <option value="">— Select a user —</option>
+              {candidates.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.email})</option>)}
+            </select>
+          </label>
+          {error && <div className="text-xs text-destructive">{error}</div>}
+        </div>
+        <div className="px-4 h-12 border-t border-border flex items-center justify-end gap-2">
+          <button onClick={onClose} className="h-8 px-3 rounded-md border border-border text-xs hover:bg-muted cursor-pointer">Cancel</button>
+          <button onClick={handleSubmit} disabled={submitting}
+            className="h-8 px-3 rounded-md bg-foreground text-background text-xs font-medium hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer">
+            {submitting ? <><RefreshCw className="h-3 w-3 animate-spin" /> Saving...</> : <><Shield className="h-3.5 w-3.5" /> {isTransfer ? "Transfer" : "Set Manager"}</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CreateMemberModal({ fixedRole, orgId: propOrgId, onClose, onCreated }: {
+  fixedRole?: string; orgId?: string; onClose: () => void; onCreated: () => void;
+}) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("");
+  const [role, setRole] = useState(fixedRole ?? "");
   const [department, setDepartment] = useState("");
   const [status, setStatus] = useState("Active");
   const [roles, setRoles] = useState<string[]>([]);
@@ -325,7 +444,7 @@ function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCrea
       try {
         const orgs = await orgsApi.list();
         if (orgs.length === 0) return;
-        const orgId = orgs[0].id;
+        const orgId = propOrgId || orgs[0].id;
         const [roleItems, deptItems] = await Promise.all([
           entitiesApi.list(orgId, "roles").catch(() => []),
           entitiesApi.list(orgId, "departments").catch(() => []),
@@ -333,19 +452,23 @@ function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCrea
         const allRoles = roleItems.map((r: any) => r.name || r.role || "").filter(Boolean);
         const fallbackRoles = ["Auditor", "Lead Auditor", "Admin", "Viewer", "Auditee"];
         const filtered = (allRoles.length > 0 ? allRoles : fallbackRoles).filter((r) => r !== "Management Representative");
-        setRoles(filtered);
-        setRole(filtered[0] ?? "Auditor");
+        if (!fixedRole) {
+          setRoles(filtered);
+          setRole(filtered[0] ?? "Auditor");
+        }
         setDepartments(deptItems.map((d: any) => d.name || "").filter(Boolean));
       } catch {
-        setRoles(["Auditor", "Lead Auditor", "Admin", "Viewer", "Auditee"]);
-        setRole("Auditor");
+        if (!fixedRole) {
+          setRoles(["Auditor", "Lead Auditor", "Admin", "Viewer", "Auditee"]);
+          setRole("Auditor");
+        }
       }
     })();
-  }, []);
+  }, [fixedRole, propOrgId]);
 
   const handleSubmit = async () => {
     setError(null);
-    if (!name.trim() || !email.trim() || !password.trim() || !role) {
+    if (!name.trim() || !email.trim() || !password.trim() || (!role && !fixedRole)) {
       setError("Name, email, password, and role are required.");
       return;
     }
@@ -357,9 +480,14 @@ function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCrea
     try {
       const orgs = await orgsApi.list();
       if (orgs.length === 0) { setError("No organization found."); setSubmitting(false); return; }
-      const payload: CreateTeamMemberPayload = { name: name.trim(), email: email.trim(), password, role, status };
+      const oid = propOrgId || orgs[0].id;
+      const actualRole = fixedRole || role;
+      const payload: CreateTeamMemberPayload = { name: name.trim(), email: email.trim(), password, role: actualRole, status };
       if (department) payload.department = department;
-      await teamMembersApi.create(orgs[0].id, payload);
+      const created = await teamMembersApi.create(oid, payload);
+      if (fixedRole) {
+        await orgsApi.update(oid, { manager_id: created.id });
+      }
       setSuccess(true);
       setTimeout(() => onCreated(), 1500);
     } catch (e: any) {
@@ -411,14 +539,23 @@ function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCrea
                   className="h-9 px-2 rounded-md border border-input bg-muted text-xs"
                   placeholder="Min. 8 characters" />
               </label>
-              <label className="flex flex-col gap-1">
-                <span className="annotation">Role *</span>
-                <select value={role} onChange={(e) => setRole(e.target.value)}
-                  className="h-9 px-2 rounded-md border border-input bg-muted text-xs">
-                  <option value="">— Select Role —</option>
-                  {roles.map((r) => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </label>
+              {fixedRole ? (
+                <label className="flex flex-col gap-1">
+                  <span className="annotation">Role</span>
+                  <div className="h-9 px-2 rounded-md border border-input bg-muted/50 flex items-center text-xs text-muted-foreground">
+                    {fixedRole}
+                  </div>
+                </label>
+              ) : (
+                <label className="flex flex-col gap-1">
+                  <span className="annotation">Role *</span>
+                  <select value={role} onChange={(e) => setRole(e.target.value)}
+                    className="h-9 px-2 rounded-md border border-input bg-muted text-xs">
+                    <option value="">— Select Role —</option>
+                    {roles.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </label>
+              )}
               <label className="flex flex-col gap-1">
                 <span className="annotation">Department</span>
                 {departments.length === 0 ? (

@@ -9,6 +9,9 @@ export interface Organization {
   logo_url?: string;
   settings?: Record<string, unknown>;
   created_by?: string;
+  manager_id?: string;
+  manager_name?: string;
+  manager_email?: string;
   created_at: string;
   updated_at: string;
 }

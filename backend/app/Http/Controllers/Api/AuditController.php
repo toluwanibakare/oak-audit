@@ -3,10 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\AuditSubmittedMail;
 use App\Models\AuditModel;
 use App\Models\AuditProcess;
+use App\Models\Notification;
+use App\Models\Organization;
+use App\Models\User;
+use App\Models\UserRole;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class AuditController extends Controller
@@ -153,5 +159,99 @@ class AuditController extends Controller
         $audit = AuditModel::where('org_id', $orgId)->findOrFail($id);
         $audit->delete();
         return response()->json(['message' => 'Audit deleted.']);
+    }
+
+    public function take(string $orgId, string $id): JsonResponse
+    {
+        $audit = AuditModel::where('org_id', $orgId)->findOrFail($id);
+        $userId = auth('api')->id();
+
+        // Must be assigned as lead auditor or process auditor
+        $isLead = $audit->lead_auditor_id === $userId;
+        $isAssigned = $audit->processes()->where('auditor_id', $userId)->exists();
+
+        if (!$isLead && !$isAssigned) {
+            abort(403, 'You are not assigned to this audit.');
+        }
+
+        if ($audit->status !== 'approved') {
+            abort(400, 'Audit must be approved before it can be started.');
+        }
+
+        $audit->update(['status' => 'in_progress', 'started_at' => now()]);
+
+        return response()->json($audit->fresh()->load(['findings', 'answers', 'processes', 'leadAuditor']));
+    }
+
+    public function submitForReview(Request $request, string $orgId, string $id): JsonResponse
+    {
+        $audit = AuditModel::where('org_id', $orgId)->findOrFail($id);
+        $userId = auth('api')->id();
+
+        // Must be assigned as lead auditor or process auditor
+        $isLead = $audit->lead_auditor_id === $userId;
+        $isAssigned = $audit->processes()->where('auditor_id', $userId)->exists();
+
+        if (!$isLead && !$isAssigned) {
+            abort(403, 'You are not assigned to this audit.');
+        }
+
+        if ($audit->status !== 'in_progress') {
+            abort(400, 'Audit must be in progress before submitting for review.');
+        }
+
+        $audit->update(['status' => 'under_review']);
+
+        // Notify the lead auditor
+        if ($audit->lead_auditor_id) {
+            $leadAuditor = User::find($audit->lead_auditor_id);
+            $submittedBy = $request->user();
+            $org = Organization::find($orgId);
+
+            if ($leadAuditor) {
+                // Create in-app notification
+                Notification::create([
+                    'user_id' => $leadAuditor->id,
+                    'type' => 'audit_submitted',
+                    'title' => 'Audit Submitted for Review',
+                    'body' => "{$submittedBy->full_name} has submitted \"{$audit->title}\" for your review.",
+                ]);
+
+                // Send email notification
+                try {
+                    $frontendUrl = config('app.frontend_url', 'http://localhost:5173');
+                    $reviewUrl = "{$frontendUrl}/audits/{$orgId}/{$audit->id}";
+                    Mail::to($leadAuditor->email)->send(new AuditSubmittedMail(
+                        audit: $audit,
+                        orgName: $org->name,
+                        submittedBy: $submittedBy->full_name,
+                        reviewUrl: $reviewUrl,
+                    ));
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Audit submitted email failed: ' . $e->getMessage());
+                }
+            }
+        }
+
+        return response()->json($audit->fresh()->load(['findings', 'answers', 'processes', 'leadAuditor']));
+    }
+
+    public function finalSubmit(Request $request, string $orgId, string $id): JsonResponse
+    {
+        $audit = AuditModel::where('org_id', $orgId)->findOrFail($id);
+        $userId = auth('api')->id();
+
+        // Only the lead auditor can final submit
+        if ($audit->lead_auditor_id !== $userId) {
+            abort(403, 'Only the lead auditor can submit the final audit.');
+        }
+
+        if ($audit->status !== 'under_review') {
+            abort(400, 'Audit must be under review before final submission.');
+        }
+
+        $audit->update(['status' => 'completed', 'closed_at' => now()]);
+
+        return response()->json($audit->fresh()->load(['findings', 'answers', 'processes', 'leadAuditor']));
     }
 }

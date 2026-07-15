@@ -18,8 +18,8 @@ function shallowEqual(a: unknown, b: unknown): boolean {
   return false;
 }
 
-export type ApprovalStatus = "Pending" | "Notified" | "In Review" | "Approved" | "Rejected";
-export type ApprovalStage = { stage: string; role: string; who: string; required: boolean; status: ApprovalStatus; updatedAt?: string };
+export type ApprovalStatus = "pending" | "notified" | "in_review" | "approved" | "rejected";
+export type ApprovalStage = { stage: string; role: string; who: string; email: string; required: boolean; status: ApprovalStatus; updatedAt?: string };
 export type ChecklistItem = { id: string; text: string; section: string; owner: string; clause?: string };
 export type EditableChecklist = { id: string; name: string; standard: string; version: string; items: ChecklistItem[] };
 

@@ -80,10 +80,12 @@ CREATE TABLE organizations (
   logo_url VARCHAR(500) DEFAULT NULL,
   settings JSON DEFAULT NULL,
   created_by CHAR(36) NOT NULL,
+  manager_id CHAR(36) DEFAULT NULL,
   created_at TIMESTAMP NULL DEFAULT NULL,
   updated_at TIMESTAMP NULL DEFAULT NULL,
   INDEX organizations_created_by_idx (created_by),
-  CONSTRAINT fk_organizations_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+  CONSTRAINT fk_organizations_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_organizations_manager FOREIGN KEY (manager_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 /* -------------------- 8. organization_members -------------------- */
@@ -201,7 +203,26 @@ CREATE TABLE audits (
   CONSTRAINT fk_audits_lead_auditor FOREIGN KEY (lead_auditor_id) REFERENCES auditors(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
-/* -------------------- 15. audit_answers -------------------- */
+/* -------------------- 15. audit_approvals -------------------- */
+CREATE TABLE audit_approvals (
+  id CHAR(36) PRIMARY KEY,
+  audit_id CHAR(36) NOT NULL,
+  stage VARCHAR(255) NOT NULL,
+  approver_name VARCHAR(255) DEFAULT NULL,
+  approver_email VARCHAR(255) DEFAULT NULL,
+  is_required TINYINT(1) DEFAULT 1,
+  sort_order INT DEFAULT 0,
+  status VARCHAR(50) DEFAULT 'pending',
+  comment TEXT DEFAULT NULL,
+  notified_at TIMESTAMP NULL DEFAULT NULL,
+  responded_at TIMESTAMP NULL DEFAULT NULL,
+  created_at TIMESTAMP NULL DEFAULT NULL,
+  updated_at TIMESTAMP NULL DEFAULT NULL,
+  FOREIGN KEY (audit_id) REFERENCES audits(id) ON DELETE CASCADE,
+  INDEX idx_audit_approvals_audit_id (audit_id)
+) ENGINE=InnoDB;
+
+/* -------------------- 16. audit_answers -------------------- */
 CREATE TABLE audit_answers (
   id CHAR(36) PRIMARY KEY,
   audit_id CHAR(36) NOT NULL,

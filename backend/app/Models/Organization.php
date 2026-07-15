@@ -17,7 +17,10 @@ class Organization extends Model
         'logo_url',
         'settings',
         'created_by',
+        'manager_id',
     ];
+
+    protected $appends = ['manager_name', 'manager_email'];
 
     protected function casts(): array
     {
@@ -29,6 +32,21 @@ class Organization extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function manager()
+    {
+        return $this->belongsTo(User::class, 'manager_id');
+    }
+
+    public function getManagerNameAttribute()
+    {
+        return $this->manager ? $this->manager->full_name : null;
+    }
+
+    public function getManagerEmailAttribute()
+    {
+        return $this->manager ? $this->manager->email : null;
     }
 
     public function members()

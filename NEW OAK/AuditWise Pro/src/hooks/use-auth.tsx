@@ -22,8 +22,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const fetchUser = useCallback(async () => {
-    const token = localStorage.getItem("oa_token");
-    if (!token) {
+    const tokenAtStart = localStorage.getItem("oa_token");
+    if (!tokenAtStart) {
       setLoading(false);
       return;
     }
@@ -34,7 +34,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(data as User);
     } catch {
       clearTimeout(timeout);
-      localStorage.removeItem("oa_token");
+      // Only remove token if it hasn't changed (avoid race with concurrent login)
+      if (localStorage.getItem("oa_token") === tokenAtStart) {
+        localStorage.removeItem("oa_token");
+      }
     } finally {
       clearTimeout(timeout);
       setLoading(false);

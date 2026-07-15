@@ -93,6 +93,8 @@ function NewAuditWizard() {
   const [checklistItems, setChecklistItems] = useState<Record<string, ChecklistItem[]>>(ws?.checklistItems ?? {});
   const [deptAssignments, setDeptAssignments] = useState<Record<string, string[]>>(ws?.deptAssignments ?? {});
   const [approvers, setApprovers] = useState<ApprovalStage[]>(ws?.approvers ?? []);
+  const [allowAuditee, setAllowAuditee] = useState(ws?.allowAuditee ?? false);
+  const [hasManager, setHasManager] = useState(true); // updated by ApprovalStep
   const [submitted, setSubmitted] = useState(ws?.submitted ?? false);
 
   const idx = STEPS.findIndex((s) => s.key === step);
@@ -148,6 +150,7 @@ function NewAuditWizard() {
           if (ws.checklistItems) setChecklistItems(ws.checklistItems);
           if (ws.deptAssignments) setDeptAssignments(ws.deptAssignments);
           if (ws.approvers) setApprovers(ws.approvers);
+          if (ws.allowAuditee !== undefined) setAllowAuditee(ws.allowAuditee);
           if (ws.submitted !== undefined) setSubmitted(ws.submitted);
           // Also upsert into localStorage for fast cache
           sessionStorage.setItem("audit_wizard_serverId", audit.id);
@@ -177,7 +180,7 @@ function NewAuditWizard() {
         const payload = {
           title: title || null,
           status: "draft",
-          wizard_state: { step, title, auditType, standardId, objective, scope, criteria, departments, locations, startDate, endDate, leadId, teamIds, checklistIds, checklistItems, deptAssignments, approvers, submitted },
+          wizard_state: { step, title, auditType, standardId, objective, scope, criteria, departments, locations, startDate, endDate, leadId, teamIds, checklistIds, checklistItems, deptAssignments, approvers, allowAuditee, submitted },
         };
         const created = await auditsApi.create(oid, payload);
         sessionStorage.setItem("audit_wizard_serverId", created.id);
@@ -202,7 +205,7 @@ function NewAuditWizard() {
       status: submitted ? "Pending Approval" : "Draft",
       createdAt: new Date().toISOString(),
       deptAssignments: named,
-      wizardState: { step, title, auditType, standardId, objective, scope, criteria, departments, locations, startDate, endDate, leadId, teamIds, checklistIds, checklistItems, deptAssignments, approvers, submitted },
+      wizardState: { step, title, auditType, standardId, objective, scope, criteria, departments, locations, startDate, endDate, leadId, teamIds, checklistIds, checklistItems, deptAssignments, approvers, allowAuditee, submitted },
       ...overrides,
     });
   }
@@ -226,7 +229,7 @@ function NewAuditWizard() {
           start_date: startDate || null,
           end_date: endDate || null,
           status: submitted ? "pending_approval" : "draft",
-          wizard_state: { step, title, auditType, standardId, objective, scope, criteria, departments, locations, startDate, endDate, leadId, teamIds, checklistIds, checklistItems, deptAssignments, approvers, submitted },
+          wizard_state: { step, title, auditType, standardId, objective, scope, criteria, departments, locations, startDate, endDate, leadId, teamIds, checklistIds, checklistItems, deptAssignments, approvers, allowAuditee, submitted },
         });
       } catch (e: any) {
         console.error("[audit] failed to sync to API", e);
@@ -238,7 +241,7 @@ function NewAuditWizard() {
       }
     }, 500);
     return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };
-  }, [title, standard.code, department, locations, startDate, endDate, lead.name, team.length, submitted, planId, deptAssignments, step, auditType, standardId, objective, scope, criteria, departments, leadId, teamIds, checklistIds, checklistItems, approvers]);
+  }, [title, standard.code, department, locations, startDate, endDate, lead.name, team.length, submitted, planId, deptAssignments, step, auditType, standardId, objective, scope, criteria, departments, leadId, teamIds, checklistIds, checklistItems, approvers, allowAuditee]);
 
 
   /* --------- Tracking helper --------- */
@@ -258,9 +261,9 @@ function NewAuditWizard() {
     scope: !!scope && departments.length >= 1 && locations.length >= 1 && !!startDate && !!endDate,
     team: !!leadId && team.length >= 1,
     checklists: selectedChecklists.length >= 1 && totalItems >= 1,
-    approval: approvers.filter((a) => a.required).every((a) => !!a.who),
+    approval: hasManager, // requires a Manager assigned to the org
     review: true,
-  } satisfies Record<StepKey, boolean>), [title, standardId, auditType, scope, department, locations, startDate, endDate, leadId, team.length, selectedChecklists.length, totalItems, approvers]);
+  } satisfies Record<StepKey, boolean>), [title, standardId, auditType, scope, department, locations, startDate, endDate, leadId, team.length, selectedChecklists.length, totalItems, hasManager]);
 
   const canNext = validation[step];
   function goNext() {
@@ -312,48 +315,41 @@ function NewAuditWizard() {
     });
   }
 
-  function updateApprover(i: number, patch: Partial<ApprovalStage>, note: string) {
-    setApprovers((prev) => {
-      const next = prev.map((a, idx) => idx === i ? { ...a, ...patch, updatedAt: new Date().toISOString() } : a);
-      auditStore.logTrail(planId, { step: "approval", field: `${next[i].stage}:${note}`, to: JSON.stringify(patch) });
-      return next;
-    });
-  }
-
-  function changeApprovalStatus(i: number, status: ApprovalStatus) {
-    const a = approvers[i];
-    updateApprover(i, { status }, `status→${status}`);
-    const emailSubject = `[${planId}] ${a.stage} — ${status}`;
-    const body = `Audit "${title}" (${standard.code}) — stage "${a.stage}" is now ${status}.`;
-    if (a.who) {
-      auditStore.notify({ channel: "email", to: a.who, subject: emailSubject, body });
-      auditStore.notify({ channel: "in-app", to: a.who, subject: emailSubject, body });
-    }
-    auditStore.notify({ channel: "in-app", to: "M. Chen (creator)", subject: emailSubject, body });
-  }
-
   function submit() {
     setSubmitted(true);
     auditStore.logTrail(planId, { step: "review", field: "submitted_for_approval", to: "Pending Approval" });
     auditStore.snapshot(planId, "review", "Submitted for approval", {
       title, standardId, department, location: locations.join(", "), startDate, endDate, leadId, teamIds, checklistIds, approvers,
     });
-    // Notify first required pending stage + auto-mark as Notified
-    const firstIdx = approvers.findIndex((a) => a.required && a.status === "Pending");
-    if (firstIdx >= 0) {
-      const a = approvers[firstIdx];
-      updateApprover(firstIdx, { status: "Notified" }, "status→Notified");
-      auditStore.notify({
-        channel: "email", to: a.who,
-        subject: `Approval requested · ${planId} · ${a.stage}`,
-        body: `Please review and approve audit "${title}" (${standard.code}).`,
-      });
-      auditStore.notify({
-        channel: "in-app", to: a.who,
-        subject: `Approval requested · ${planId}`,
-        body: `${a.stage} — please review and approve.`,
-      });
-    }
+
+    (async () => {
+      try {
+        const orgs = await orgsApi.list();
+        if (orgs.length === 0) return;
+        const oid = orgs[0].id;
+        const serverId = sessionStorage.getItem("audit_wizard_serverId");
+        if (!serverId) return;
+
+        // Update audit basics
+        await auditsApi.update(oid, serverId, {
+          title,
+          standard: standard.code,
+          scope,
+          criteria,
+          start_date: startDate,
+          end_date: endDate,
+          status: "pending_approval",
+        });
+
+        // Submit approval stages (auto-generated by backend)
+        await auditsApi.submitApprovals(oid, serverId, {
+          allow_auditee: allowAuditee,
+        });
+      } catch (e) {
+        console.error("[audit] submit failed", e);
+        toast.error("Failed to submit for approval — saved locally");
+      }
+    })();
   }
 
   return (
@@ -363,7 +359,7 @@ function NewAuditWizard() {
           planId={planId}
           title={title} standard={standard.code} startDate={startDate} endDate={endDate}
           lead={lead.name} teamCount={team.length} items={totalItems}
-          approvers={approvers}
+          allowAuditee={allowAuditee}
           onDashboard={() => navigate({ to: "/" })}
           onAnother={() => { setSubmitted(false); setStep("basics"); }}
           onCalendar={() => navigate({ to: "/audits/calendar" })}
@@ -474,25 +470,18 @@ function NewAuditWizard() {
             )}
             {step === "approval" && (
               <ApprovalStep
-                approvers={approvers}
-                updateApprover={updateApprover}
-                changeStatus={changeApprovalStatus}
-                addStage={() => {
-                  setApprovers([...approvers, { stage: "Additional Approver", role: "Custom", who: "", required: false, status: "Pending" }]);
-                  auditStore.logTrail(planId, { step: "approval", field: "stage_added", to: "Additional Approver" });
-                }}
-                removeStage={(i) => {
-                  const removed = approvers[i];
-                  setApprovers(approvers.filter((_, x) => x !== i));
-                  auditStore.logTrail(planId, { step: "approval", field: "stage_removed", to: removed.stage });
-                }}
+                leadId={leadId}
+                departments={departments}
+                allowAuditee={allowAuditee}
+                onAllowAuditeeChange={setAllowAuditee}
+                onManagerFound={setHasManager}
               />
             )}
             {step === "review" && (
               <ReviewStep
                 title={title} standard={standard.code} objective={objective} scope={scope} criteria={criteria}
                 department={department} location={locations.join(", ")} startDate={startDate} endDate={endDate}
-                lead={lead} team={team} checklists={selectedChecklists} approvers={approvers}
+                lead={lead} team={team} checklists={selectedChecklists}
               />
             )}
 
@@ -1024,78 +1013,198 @@ function ChecklistEditor({ cl, onChange, auditors }: {
 
 /* ---------------- approval ---------------- */
 
-const STATUS_FLOW: ApprovalStatus[] = ["Pending", "Notified", "In Review", "Approved", "Rejected"];
 
-function ApprovalStep({ approvers, updateApprover, changeStatus, addStage, removeStage }: {
-  approvers: ApprovalStage[];
-  updateApprover: (i: number, patch: Partial<ApprovalStage>, note: string) => void;
-  changeStatus: (i: number, s: ApprovalStatus) => void;
-  addStage: () => void;
-  removeStage: (i: number) => void;
+
+function ApprovalStep({ leadId, departments, allowAuditee, onAllowAuditeeChange, onManagerFound }: {
+  leadId: string;
+  departments: string[];
+  allowAuditee: boolean;
+  onAllowAuditeeChange: (v: boolean) => void;
+  onManagerFound: (found: boolean) => void;
 }) {
+  const [manager, setManager] = useState<{ name: string; email: string } | null>(null);
+  const [leadName, setLeadName] = useState(leadId);
+  const [leadEmail, setLeadEmail] = useState("");
+  const [auditee, setAuditee] = useState<{ name: string; email: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLeadName(leadId);
+  }, [leadId]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const orgs = await orgsApi.list();
+        if (orgs.length === 0) return;
+        const oid = orgs[0].id;
+        const org = await orgsApi.get(oid);
+        if (org.manager_name && org.manager_email) {
+          setManager({ name: org.manager_name, email: org.manager_email });
+          onManagerFound(true);
+        } else {
+          onManagerFound(false);
+        }
+        // Fetch members + processes for lead auditor email and auditee
+        const members = await teamMembersApi.list(oid).catch(() => []);
+        // Look up lead auditor email
+        if (leadName) {
+          const leadMember = members.find((m) => m.name === leadName);
+          if (leadMember?.email) setLeadEmail(leadMember.email);
+        }
+        // Fetch processes to find auditee by department match
+        if (departments.length > 0) {
+          const processes = await entitiesApi.list(oid, "processes").catch(() => []);
+          const matched = processes.filter((p: any) =>
+            p.department && departments.includes(p.department)
+          );
+          const ownerName = matched.length > 0 ? matched[0].owner : null;
+          if (ownerName) {
+            const processEmail = matched[0].owner_email;
+            const memberEmail = members.find((m) => m.name === ownerName)?.email;
+            setAuditee({
+              name: ownerName,
+              email: processEmail || memberEmail || "",
+            });
+          }
+        }
+      } catch (e) {
+        console.error("[approval] failed to load data", e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [departments]);
+
   return (
-    <WCard title="Approval Workflow" hint="Sequential — status changes trigger email + in-app notifications"
-      actions={<WBadge tone="outline"><Mail className="h-3 w-3 inline mr-1" />Notifications on</WBadge>}>
+    <WCard title="Approval Workflow" hint="Auto-generated approval chain (Manager → Lead Auditor → optional Auditee)"
+      actions={<WBadge tone="outline"><Mail className="h-3 w-3 inline mr-1" />Email notifications</WBadge>}>
       <ol className="space-y-3">
-        {approvers.map((a, i) => (
-          <li key={i} className="rounded-md border border-border p-3">
+
+        {/* Stage 1: Manager */}
+        <li className={`rounded-md border p-3 ${manager ? "border-border" : "border-destructive/40 bg-destructive/5"}`}>
+          <div className="flex items-start gap-3">
+            <div className="h-7 w-7 rounded-full border border-border grid place-items-center text-xs font-semibold shrink-0">1</div>
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium">Manager</div>
+                  <div className="text-[11px] text-muted-foreground">Organization Manager</div>
+                </div>
+                <WBadge tone="strong">Required</WBadge>
+              </div>
+              {manager ? (
+                <>
+                  <div className="flex items-center gap-2 text-xs">
+                    <input className={inputCls + " flex-1"} value={manager.name} disabled />
+                    <input className={inputCls + " flex-1"} value={manager.email} disabled />
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">Will be notified via email</div>
+                </>
+              ) : loading ? (
+                <div className="text-[11px] text-muted-foreground">Loading...</div>
+              ) : (
+                <div className="rounded bg-destructive/10 border border-destructive/30 p-3 text-xs text-destructive space-y-1">
+                  <div className="font-semibold">No Manager assigned to this organization.</div>
+                  <div>You need to add a Manager account first. Go to <strong>Users &gt; All Users</strong>, create or select a user, then set them as Manager for the organization.</div>
+                </div>
+              )}
+              {manager && <ApprovalStatusBar status="pending" />}
+            </div>
+          </div>
+        </li>
+
+        {/* Stage 2: Lead Auditor */}
+        <li className="rounded-md border border-border p-3">
+          <div className="flex items-start gap-3">
+            <div className="h-7 w-7 rounded-full border border-border grid place-items-center text-xs font-semibold shrink-0">2</div>
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium">Lead Auditor</div>
+                  <div className="text-[11px] text-muted-foreground">Lead Auditor of this audit</div>
+                </div>
+                <WBadge tone="strong">Required</WBadge>
+              </div>
+              {leadName ? (
+                <div className="flex items-center gap-2 text-xs">
+                  <input className={inputCls + " flex-1"} value={leadName} disabled />
+                  <input className={inputCls + " flex-1"} value={leadEmail || "Email not found"} disabled />
+                </div>
+              ) : (
+                <div className="text-[11px] text-amber-600">Go back to Team step and assign a lead auditor.</div>
+              )}
+              {leadEmail && <div className="text-[11px] text-muted-foreground">Will be notified via email after Manager approves</div>}
+              <ApprovalStatusBar status="pending" />
+            </div>
+          </div>
+        </li>
+
+        {/* Checkbox: Allow auditee */}
+        <li className="rounded-md border border-border p-3">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" checked={allowAuditee}
+              onChange={(e) => onAllowAuditeeChange(e.target.checked)}
+              className="h-4 w-4 accent-foreground" />
+            <div>
+              <div className="text-sm font-medium">Allow Auditee / Process Owner to approve</div>
+              <div className="text-[11px] text-muted-foreground">If checked, the process owner of the selected departments will be added as a final approval stage</div>
+            </div>
+          </label>
+        </li>
+
+        {/* Stage 3: Auditee (conditional) */}
+        {allowAuditee && (
+          <li className="rounded-md border border-border p-3">
             <div className="flex items-start gap-3">
-              <div className="h-7 w-7 rounded-full border border-border grid place-items-center text-xs font-semibold shrink-0">{i + 1}</div>
-              <div className="flex-1 grid grid-cols-12 gap-3 items-center">
-                <div className="col-span-12 md:col-span-4">
-                  <Annotation>STAGE</Annotation>
-                  <div className="text-sm font-medium">{a.stage}</div>
-                  <div className="text-[11px] text-muted-foreground">{a.role}</div>
+              <div className="h-7 w-7 rounded-full border border-border grid place-items-center text-xs font-semibold shrink-0">3</div>
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium">Auditee / Process Owner</div>
+                    <div className="text-[11px] text-muted-foreground">Process owner of the departments in scope</div>
+                  </div>
+                  <WBadge tone="strong">Required</WBadge>
                 </div>
-                <div className="col-span-12 md:col-span-5">
-                  <Annotation>APPROVER</Annotation>
-                  <input className={inputCls + " w-full"} value={a.who}
-                    onChange={(e) => updateApprover(i, { who: e.target.value }, "who")}
-                    placeholder="Assign approver…" />
-                </div>
-                <div className="col-span-12 md:col-span-3 flex items-center gap-2 justify-end">
-                  <WBadge tone={a.required ? "strong" : "outline"}>{a.required ? "Required" : "Optional"}</WBadge>
-                  {!a.required && (
-                    <button onClick={() => removeStage(i)} className="h-7 w-7 grid place-items-center rounded border border-border hover:bg-muted">
-                      <X className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
+                {auditee ? (
+                  <div className="flex items-center gap-2 text-xs">
+                    <input className={inputCls + " flex-1"} value={auditee.name} disabled />
+                    <input className={inputCls + " flex-1"} value={auditee.email} disabled />
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-amber-600">
+                    {departments.length === 0
+                      ? "No departments selected. Go back to Scope & Schedule step first."
+                      : "No process owner found for the selected departments. Add a process owner in Organization > Processes."}
+                  </div>
+                )}
+                {auditee && <div className="text-[11px] text-muted-foreground">Will be notified via email after Lead Auditor approves</div>}
+                <ApprovalStatusBar status="pending" />
               </div>
             </div>
-            <ApprovalStatusBar status={a.status} />
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className="annotation">SET STATUS:</span>
-              {STATUS_FLOW.map((s) => (
-                <button key={s} onClick={() => changeStatus(i, s)}
-                  className={`h-7 px-2 rounded border text-[11px] ${a.status === s ? "bg-foreground text-background border-foreground" : "border-border hover:bg-muted"}`}>
-                  {s}
-                </button>
-              ))}
-              {a.updatedAt && <span className="annotation ml-auto">Updated {new Date(a.updatedAt).toLocaleTimeString()}</span>}
-            </div>
           </li>
-        ))}
+        )}
       </ol>
-      <button onClick={addStage} className="mt-3 w-full h-9 rounded-md border border-dashed border-border text-xs text-muted-foreground hover:bg-muted inline-flex items-center justify-center gap-1.5">
-        <Plus className="h-4 w-4" /> Add approval stage
-      </button>
-      <div className="annotation pt-3 flex items-center gap-1.5"><Bell className="h-3 w-3" /> Every status change pushes an email to the approver and an in-app notice to the creator.</div>
+      <div className="annotation pt-3 flex items-center gap-1.5"><Bell className="h-3 w-3" /> Manager is notified by email first. After approval, Lead Auditor is notified. Then optionally the Auditee.</div>
     </WCard>
   );
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Pending", notified: "Notified", in_review: "In Review", approved: "Approved", rejected: "Rejected",
+};
+const STATUS_ORDER = ["pending", "notified", "in_review", "approved"];
+
 function ApprovalStatusBar({ status }: { status: ApprovalStatus }) {
-  const order: ApprovalStatus[] = ["Pending", "Notified", "In Review", "Approved"];
-  const reached = status === "Rejected" ? -1 : order.indexOf(status);
+  const reached = status === "rejected" ? -1 : STATUS_ORDER.indexOf(status);
   return (
     <div className="mt-3 grid grid-cols-4 gap-1">
-      {order.map((s, i) => (
+      {STATUS_ORDER.map((s) => (
         <div key={s} className="space-y-1">
           <div className={`h-1 rounded ${
-            status === "Rejected" ? "bg-muted" : i <= reached ? "bg-foreground" : "bg-muted"
+            status === "rejected" ? "bg-muted" : STATUS_ORDER.indexOf(s) <= reached ? "bg-foreground" : "bg-muted"
           }`} />
-          <div className="annotation">{s}</div>
+          <div className="annotation">{STATUS_LABELS[s]}</div>
         </div>
       ))}
     </div>
@@ -1109,7 +1218,6 @@ function ReviewStep(p: {
   department: string; location: string; startDate: string; endDate: string;
   lead: { id: string; name: string; role: string; cert: string[] }; team: { id: string; name: string; role: string; cert: string[] }[];
   checklists: EditableChecklist[];
-  approvers: ApprovalStage[];
 }) {
   const totalItems = p.checklists.reduce((a, c) => a + c.items.length, 0);
   return (
@@ -1170,22 +1278,35 @@ function ReviewStep(p: {
         </WCard>
       </div>
 
-      <WCard title="Approval Routing">
+      <WCard title="Approval Routing" hint="Auto-generated by backend on submit">
         <ol className="grid grid-cols-1 md:grid-cols-4 gap-2">
-          {p.approvers.map((a, i) => (
-            <li key={i} className="rounded-md border border-border p-3 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-full border border-border grid place-items-center text-[11px]">{i + 1}</div>
-                <span className="font-medium truncate">{a.stage}</span>
-              </div>
-              <Annotation>APPROVER</Annotation>
-              <div className="text-foreground">{a.who || "—"}</div>
-              <div className="mt-2 flex items-center gap-1">
-                <WBadge tone={a.required ? "strong" : "outline"}>{a.required ? "Required" : "Optional"}</WBadge>
-                <WBadge tone="outline">{a.status}</WBadge>
-              </div>
-            </li>
-          ))}
+          <li className="rounded-md border border-border p-3 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-6 rounded-full border border-border grid place-items-center text-[11px]">1</div>
+              <span className="font-medium truncate">Manager</span>
+            </div>
+            <Annotation>APPROVER</Annotation>
+            <div className="text-foreground">Org Manager (auto)</div>
+            <WBadge tone="strong" className="mt-2">Required</WBadge>
+          </li>
+          <li className="rounded-md border border-border p-3 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-6 rounded-full border border-border grid place-items-center text-[11px]">2</div>
+              <span className="font-medium truncate">Lead Auditor</span>
+            </div>
+            <Annotation>APPROVER</Annotation>
+            <div className="text-foreground">{p.lead.name || "Lead Auditor"}</div>
+            <WBadge tone="strong" className="mt-2">Required</WBadge>
+          </li>
+          <li className="rounded-md border border-border p-3 text-xs">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-6 rounded-full border border-border grid place-items-center text-[11px]">3</div>
+              <span className="font-medium truncate">Auditee/PO</span>
+            </div>
+            <Annotation>APPROVER</Annotation>
+            <div className="text-foreground">Optional (if enabled)</div>
+            <WBadge tone="outline" className="mt-2">Optional</WBadge>
+          </li>
         </ol>
       </WCard>
     </>
@@ -1281,10 +1402,10 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
 
 /* ---------------- submitted ---------------- */
 
-function Submitted({ planId, title, standard, startDate, endDate, lead, teamCount, items, approvers, onDashboard, onAnother, onCalendar }: {
+function Submitted({ planId, title, standard, startDate, endDate, lead, teamCount, items, allowAuditee, onDashboard, onAnother, onCalendar }: {
   planId: string;
   title: string; standard: string; startDate: string; endDate: string; lead: string; teamCount: number; items: number;
-  approvers: ApprovalStage[];
+  allowAuditee: boolean;
   onDashboard: () => void; onAnother: () => void; onCalendar: () => void;
 }) {
   return (
@@ -1307,24 +1428,14 @@ function Submitted({ planId, title, standard, startDate, endDate, lead, teamCoun
         <Mini label="Lead" value={lead} />
         <Mini label="Team" value={`${teamCount + 1} members`} />
         <Mini label="Checklist Items" value={String(items)} />
-        <Mini label="Stage" value={approvers.find((a) => a.status === "Notified")?.stage ?? approvers[1]?.stage ?? "—"} />
+        <Mini label="First Approver" value="Manager" />
         <Mini label="ETA" value="2 business days" />
       </div>
 
       <div className="rounded-md border border-border p-4 text-left">
         <Annotation>APPROVAL TRACKER</Annotation>
-        <div className="mt-2 grid grid-cols-4 gap-2 text-xs">
-          {approvers.slice(0, 4).map((a) => (
-            <div key={a.stage}>
-              <div className={`h-1.5 rounded ${
-                a.status === "Approved" ? "bg-foreground" :
-                a.status === "In Review" || a.status === "Notified" ? "bg-foreground/50" :
-                a.status === "Rejected" ? "bg-foreground/20" : "bg-muted"
-              }`} />
-              <div className="annotation mt-1 truncate">{a.stage}</div>
-              <div className="text-[11px] mt-0.5">{a.status}</div>
-            </div>
-          ))}
+        <div className="mt-2 text-xs text-muted-foreground">
+          Manager (notified via email) → Lead Auditor → {allowAuditee ? "Auditee/Process Owner" : "(no auditee)"}
         </div>
       </div>
 

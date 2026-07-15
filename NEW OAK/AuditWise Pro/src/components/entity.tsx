@@ -111,14 +111,28 @@ export function EntityPage(props: {
       setEditing(null);
       const orgId = await getOrgId();
       if (orgId) {
-        try { await entitiesApi.update(orgId, props.entity, item.id, values); } catch {}
+        try {
+          const updated = await entitiesApi.update(orgId, props.entity, item.id, values);
+          // Sync server ID back if the local ID was a prefixed temp ID
+          if (updated?.id && updated.id !== item.id) {
+            auditStore.remove(props.entity, item.id);
+            auditStore.create(props.entity, { ...updated, id: updated.id }, "", true);
+          }
+        } catch {}
       }
     } else {
       const local = auditStore.create(props.entity, values, props.idPrefix);
       setCreating(null);
       const orgId = await getOrgId();
       if (orgId) {
-        try { await entitiesApi.create(orgId, props.entity, { ...values, id: local.id }); } catch {}
+        try {
+          const created = await entitiesApi.create(orgId, props.entity, { ...values, id: local.id });
+          // Replace local prefixed ID with the server's real ID
+          if (created?.id && created.id !== local.id) {
+            auditStore.remove(props.entity, local.id);
+            auditStore.create(props.entity, { ...created, id: created.id }, "", true);
+          }
+        } catch {}
       }
     }
   };

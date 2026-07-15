@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuditAnswerController;
+use App\Http\Controllers\Api\AuditApprovalController;
 use App\Http\Controllers\Api\AuditController;
 use App\Http\Controllers\Api\AuditProcessController;
 use App\Http\Controllers\Api\AuditorController;
@@ -98,6 +99,15 @@ Route::middleware('auth:api')->group(function () {
         Route::get('audits/{audit}', [AuditController::class, 'show']);
         Route::put('audits/{audit}', [AuditController::class, 'update']);
         Route::delete('audits/{audit}', [AuditController::class, 'destroy']);
+        Route::post('audits/{audit}/take', [AuditController::class, 'take']);
+        Route::post('audits/{audit}/submit-for-review', [AuditController::class, 'submitForReview']);
+        Route::post('audits/{audit}/final-submit', [AuditController::class, 'finalSubmit']);
+
+        // Audit approvals
+        Route::get('audits/{audit}/approvals', [AuditApprovalController::class, 'index']);
+        Route::post('audits/{audit}/approvals/submit', [AuditApprovalController::class, 'submit']);
+        Route::post('audits/{audit}/approvals/{stageId}/approve', [AuditApprovalController::class, 'approve']);
+        Route::post('audits/{audit}/approvals/{stageId}/reject', [AuditApprovalController::class, 'reject']);
 
         // Findings
         Route::get('findings', [FindingController::class, 'index']);

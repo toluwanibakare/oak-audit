@@ -1,6 +1,6 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import {
-  LayoutDashboard, ClipboardList, Search, AlertTriangle, CheckSquare,
+  LayoutDashboard, ClipboardList, ClipboardCheck, Search, AlertTriangle, CheckSquare,
   TrendingUp, Building2, Users, BookOpen, BarChart3, Settings,
   Bell, Plus, Search as SearchIcon, ChevronDown, LogOut, X, User, Bot,
 } from "lucide-react";
@@ -15,6 +15,7 @@ type NavItem = { icon: any; label: string; to?: string; comingSoon?: boolean; ch
 
 const NAV: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", to: "/dashboard" },
+  { icon: ClipboardCheck, label: "My Assignments", to: "/my-audits" },
   {
     icon: ClipboardList, label: "Audit Management", children: [
       { label: "Audit Program", to: "/audits/program" },

@@ -17,6 +17,7 @@ const COLUMNS: ColumnDef[] = [
   { key: "id", label: "ID", width: "110px" },
   { key: "name", label: "Process" },
   { key: "owner", label: "Owner" },
+  { key: "owner_email", label: "Owner Email" },
   { key: "department", label: "Department" },
   { key: "standard", label: "Standard(s)", render: (item: any) => (
     <div className="flex flex-wrap gap-1">
@@ -57,6 +58,7 @@ function Page() {
   const FIELDS: FieldDef[] = [
     { key: "name", label: "Process Name", required: true },
     { key: "owner", label: "Process Owner", required: true },
+    { key: "owner_email", label: "Owner Email", placeholder: "email@example.com", required: true },
     { key: "department", label: "Department", type: "select", options: deptOptions },
     { key: "standard", label: "Standard(s)", type: "multi-select", options: stdOptions },
     { key: "status", label: "Status", type: "select", options: ["Active", "Inactive", "Draft", "Retired"] },

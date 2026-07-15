@@ -13,6 +13,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as MyAuditsRouteImport } from './routes/my-audits'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -54,6 +55,7 @@ import { Route as ActionsOpenRouteImport } from './routes/actions.open'
 import { Route as ActionsInProgressRouteImport } from './routes/actions.in-progress'
 import { Route as ActionsClosedRouteImport } from './routes/actions.closed'
 import { Route as AcceptInviteTokenRouteImport } from './routes/accept-invite.$token'
+import { Route as AuditsAuditIdApprovalRouteImport } from './routes/audits.$auditId.approval'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -73,6 +75,11 @@ const ReportsRoute = ReportsRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyAuditsRoute = MyAuditsRouteImport.update({
+  id: '/my-audits',
+  path: '/my-audits',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -280,6 +287,11 @@ const AcceptInviteTokenRoute = AcceptInviteTokenRouteImport.update({
   path: '/accept-invite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuditsAuditIdApprovalRoute = AuditsAuditIdApprovalRouteImport.update({
+  id: '/audits/$auditId/approval',
+  path: '/audits/$auditId/approval',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -287,6 +299,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
+  '/my-audits': typeof MyAuditsRoute
   '/privacy': typeof PrivacyRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -327,6 +340,7 @@ export interface FileRoutesByFullPath {
   '/users/permissions': typeof UsersPermissionsRoute
   '/users/roles': typeof UsersRolesRoute
   '/users/teams': typeof UsersTeamsRoute
+  '/audits/$auditId/approval': typeof AuditsAuditIdApprovalRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -334,6 +348,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
+  '/my-audits': typeof MyAuditsRoute
   '/privacy': typeof PrivacyRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -374,6 +389,7 @@ export interface FileRoutesByTo {
   '/users/permissions': typeof UsersPermissionsRoute
   '/users/roles': typeof UsersRolesRoute
   '/users/teams': typeof UsersTeamsRoute
+  '/audits/$auditId/approval': typeof AuditsAuditIdApprovalRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -382,6 +398,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
+  '/my-audits': typeof MyAuditsRoute
   '/privacy': typeof PrivacyRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
@@ -422,6 +439,7 @@ export interface FileRoutesById {
   '/users/permissions': typeof UsersPermissionsRoute
   '/users/roles': typeof UsersRolesRoute
   '/users/teams': typeof UsersTeamsRoute
+  '/audits/$auditId/approval': typeof AuditsAuditIdApprovalRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -431,6 +449,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contact'
     | '/dashboard'
+    | '/my-audits'
     | '/privacy'
     | '/reports'
     | '/settings'
@@ -471,6 +490,7 @@ export interface FileRouteTypes {
     | '/users/permissions'
     | '/users/roles'
     | '/users/teams'
+    | '/audits/$auditId/approval'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -478,6 +498,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contact'
     | '/dashboard'
+    | '/my-audits'
     | '/privacy'
     | '/reports'
     | '/settings'
@@ -518,6 +539,7 @@ export interface FileRouteTypes {
     | '/users/permissions'
     | '/users/roles'
     | '/users/teams'
+    | '/audits/$auditId/approval'
   id:
     | '__root__'
     | '/'
@@ -525,6 +547,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contact'
     | '/dashboard'
+    | '/my-audits'
     | '/privacy'
     | '/reports'
     | '/settings'
@@ -565,6 +588,7 @@ export interface FileRouteTypes {
     | '/users/permissions'
     | '/users/roles'
     | '/users/teams'
+    | '/audits/$auditId/approval'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -573,6 +597,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ContactRoute: typeof ContactRoute
   DashboardRoute: typeof DashboardRoute
+  MyAuditsRoute: typeof MyAuditsRoute
   PrivacyRoute: typeof PrivacyRoute
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
@@ -613,6 +638,7 @@ export interface RootRouteChildren {
   UsersPermissionsRoute: typeof UsersPermissionsRoute
   UsersRolesRoute: typeof UsersRolesRoute
   UsersTeamsRoute: typeof UsersTeamsRoute
+  AuditsAuditIdApprovalRoute: typeof AuditsAuditIdApprovalRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -643,6 +669,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-audits': {
+      id: '/my-audits'
+      path: '/my-audits'
+      fullPath: '/my-audits'
+      preLoaderRoute: typeof MyAuditsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -932,6 +965,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcceptInviteTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/audits/$auditId/approval': {
+      id: '/audits/$auditId/approval'
+      path: '/audits/$auditId/approval'
+      fullPath: '/audits/$auditId/approval'
+      preLoaderRoute: typeof AuditsAuditIdApprovalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -941,6 +981,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ContactRoute: ContactRoute,
   DashboardRoute: DashboardRoute,
+  MyAuditsRoute: MyAuditsRoute,
   PrivacyRoute: PrivacyRoute,
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
@@ -981,6 +1022,7 @@ const rootRouteChildren: RootRouteChildren = {
   UsersPermissionsRoute: UsersPermissionsRoute,
   UsersRolesRoute: UsersRolesRoute,
   UsersTeamsRoute: UsersTeamsRoute,
+  AuditsAuditIdApprovalRoute: AuditsAuditIdApprovalRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

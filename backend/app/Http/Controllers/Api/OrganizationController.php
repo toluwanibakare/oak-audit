@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
+use App\Models\OrganizationMember;
+use App\Models\UserRole;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -23,7 +25,11 @@ class OrganizationController extends Controller
             $memberIds = DB::table('organization_members')
                 ->where('user_id', $userId)
                 ->select('org_id');
-            $ids = $createdIds->union($memberIds)->pluck('id');
+            $adminOrgIds = DB::table('user_roles')
+                ->where('user_id', $userId)
+                ->whereIn('role', ['admin', 'owner', 'Management Representative'])
+                ->select('org_id');
+            $ids = $createdIds->union($memberIds)->union($adminOrgIds)->pluck('id');
             return Organization::whereIn('id', $ids)->get();
         });
         return response()->json($orgs);
@@ -116,17 +122,36 @@ class OrganizationController extends Controller
 
     public function show(string $id): JsonResponse
     {
-        $org = Organization::with(['creator', 'wallet'])
-            ->where('created_by', auth('api')->id())
-            ->findOrFail($id);
+        $userId = auth('api')->id();
+        $isCreator = Organization::where('id', $id)->where('created_by', $userId)->exists();
+        $isMember = OrganizationMember::where('org_id', $id)->where('user_id', $userId)->exists();
+        $isAdmin = UserRole::where('org_id', $id)
+            ->where('user_id', $userId)
+            ->whereIn('role', ['admin', 'owner', 'Management Representative'])
+            ->exists();
+        if (!$isCreator && !$isMember && !$isAdmin) {
+            abort(404);
+        }
+        $org = Organization::with(['creator', 'wallet'])->findOrFail($id);
         return response()->json($org);
     }
 
     public function update(Request $request, string $id): JsonResponse
     {
         $userId = auth('api')->id();
-        $org = Organization::where('created_by', $userId)
-            ->findOrFail($id);
+        $org = Organization::findOrFail($id);
+
+        // Authorization: creator, admin/MR, or current manager can update org settings
+        $isCreator = $org->created_by === $userId;
+        $isAdmin = UserRole::where('org_id', $id)
+            ->where('user_id', $userId)
+            ->whereIn('role', ['admin', 'owner', 'Management Representative'])
+            ->exists();
+        $isManager = $org->manager_id === $userId;
+
+        if (!$isCreator && !$isAdmin && !$isManager) {
+            abort(403, 'You do not have permission to update this organization.');
+        }
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
@@ -134,17 +159,27 @@ class OrganizationController extends Controller
             'address' => 'nullable|string',
             'logo_url' => 'nullable|string|max:500',
             'settings' => 'nullable|array',
+            'manager_id' => 'nullable|uuid|exists:users,id',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $org->update($request->only(['name', 'industry', 'address', 'logo_url', 'settings']));
+        if ($request->has('manager_id')) {
+            if ($request->manager_id) {
+                // Only one manager per user — clear any other org that had this user as manager
+                Organization::where('manager_id', $request->manager_id)
+                    ->where('id', '!=', $id)
+                    ->update(['manager_id' => null]);
+            }
+        }
+
+        $org->update($request->only(['name', 'industry', 'address', 'logo_url', 'settings', 'manager_id']));
 
         Cache::forget("user_orgs:{$userId}");
 
-        return response()->json($org);
+        return response()->json($org->load('manager'));
     }
 
     public function getSettings(string $id): JsonResponse

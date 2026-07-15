@@ -23,6 +23,11 @@ apiClient.interceptors.response.use(
     const original = error.config;
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true;
+      // Don't try to refresh if we're already on the auth page (prevents race with login)
+      if (window.location.pathname.startsWith("/auth")) {
+        localStorage.removeItem("oa_token");
+        return Promise.reject(error);
+      }
       try {
         const { data } = await axios.post(`${API_BASE}/auth/refresh`, {}, {
           headers: { Authorization: `Bearer ${localStorage.getItem("oa_token")}` },
