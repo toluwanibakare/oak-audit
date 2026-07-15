@@ -42,11 +42,11 @@ function Page() {
           );
           const mapped: CalendarAudit[] = res.data.map((a) => ({
             id: a.id.substring(0, 12),
-            name: a.title,
-            standard: a.standard,
-            dept: a.scope ?? a.standard,
+            name: a.title ?? "",
+            standard: a.standard ?? "",
+            dept: a.scope ?? a.standard ?? "",
             date: a.start_date,
-            status: a.status,
+            status: a.status ?? "",
           }));
           setAudits(mapped);
         }
