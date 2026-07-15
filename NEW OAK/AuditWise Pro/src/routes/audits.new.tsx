@@ -668,11 +668,10 @@ function ScopeStep(p: {
       } catch {} finally { setAuditorsLoading(false); }
     })();
   }, []);
+  const teamAuditorNames = useMemo(() => p.teamAuditors.filter(Boolean), [p.teamAuditors]);
   const auditors = useMemo(() =>
-    p.teamAuditors.length
-      ? allAuditors.filter((m) => p.teamAuditors.includes(m.name))
-      : allAuditors,
-    [allAuditors, p.teamAuditors]
+    allAuditors.filter((m) => teamAuditorNames.includes(m.name)),
+    [allAuditors, teamAuditorNames]
   );
   const storedDepts = useAuditStore((s) => Object.values(s.collections.departments ?? {}));
   const storedLocations = useAuditStore((s) => Object.values(s.collections.locations ?? {}));
@@ -741,7 +740,7 @@ function ScopeStep(p: {
             <div className="h-9 px-2 rounded-md border border-input bg-muted/30 flex items-center text-xs text-muted-foreground">Loading team members...</div>
           ) : auditors.length === 0 ? (
             <div className="h-9 px-2 rounded-md border border-dashed border-amber-500/40 bg-amber-500/5 flex items-center text-[11px] text-amber-600 dark:text-amber-400">
-              No team auditors selected. Go back to Team step and select auditors first.
+              {teamAuditorNames.length === 0 ? "No team selected. Go back to Team step and select auditors first." : "Selected team members not found. Ensure they are active in Users."}
             </div>
           ) : (
             <div className="space-y-3">
